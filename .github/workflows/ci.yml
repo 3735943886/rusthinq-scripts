@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  drivers:
+    name: driver tests and checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the rusthinq ref
+        id: ref
+        run: echo "ref=$(tr -d '[:space:]' < RUSTHINQ_REF)" >> "$GITHUB_OUTPUT"
+
+      - name: Check out rusthinq
+        uses: actions/checkout@v4
+        with:
+          repository: 3735943886/rusthinq
+          ref: ${{ steps.ref.outputs.ref }}
+          path: rusthinq
+          # Both repositories are private: the default GITHUB_TOKEN cannot read the other
+          # one, so this needs a token secret with read access to it.
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rusthinq
+
+      - name: Build the driver runner
+        run: >
+          cargo build --release --manifest-path rusthinq/Cargo.toml
+          -p rusthinq-devices --features scripting --bin rusthinq-script-test
+
+      - name: Test and check the drivers
+        run: rusthinq/target/release/rusthinq-script-test .
