@@ -5,6 +5,12 @@ script per LG ThinQ appliance model, each producing the IL descriptor, values an
 described by the IL specification. rusthinq loads them from `[scripting] rhai_dir`; this
 repository is that directory.
 
+Every driver here speaks the IL, and the checks below hold this repository to that. rusthinq
+itself does not require it: a driver you keep in your own `rhai_dir` may skip `ctx.publish_il`
+and publish whatever suits where it is going — Home Assistant MQTT discovery configs, another
+platform's topics — with `ctx.publish_raw(topic, payload, retain)`. See
+[docs/writing-a-driver.md](docs/writing-a-driver.md#drivers-that-do-not-use-the-il).
+
 ## Using it
 
 Put a checkout of this repository where rusthinq's `config.toml` can point at it:

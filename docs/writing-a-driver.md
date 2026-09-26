@@ -15,8 +15,10 @@ written to be read by an AI agent driving the work as much as by a person.
   checkout): it is the functional spec. Match what it does (which properties, which writes,
   which quirks), not its entity names/ids/topics — those are HA-adapter-specific and out of
   scope (the standing distinction is "function, not naming").
-- **The IL spec** (`../ildevice/il.md` and friends, normative): the descriptor/values/
-  commands/rejects you publish must fit it. How you get there in Rhai is free.
+- **The IL spec** (`../ildevice/il.md` and friends, normative for this repository): the
+  descriptor/values/commands/rejects you publish must fit it. How you get there in Rhai is free.
+  The IL is this repository's convention, not something rusthinq requires — see
+  [Drivers that do not use the IL](#drivers-that-do-not-use-the-il).
 - **Can you capture live?** If the device is connected to a running rusthinq with
   `raw_prefix` set (and `raw` lists at least `rx`, `tx`, `clip_tx`), use
   **`rusthinq-capture <mqtt-host[:port]> <device-uuid> [out.jsonl]`**
@@ -210,6 +212,26 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
 5. **Never point this driver's model at a device another consumer (rusthinq-adapter, a raw-bus
    tool) is already driving** — two unaware writers on one appliance. If replacing an existing
    consumer, detach it first.
+
+## Drivers that do not use the IL
+
+Everything above assumes the IL because every driver in this repository uses it, and
+`rusthinq-script-test` fails a driver here that publishes no descriptor. rusthinq itself does
+not care: a driver in your own `rhai_dir` can skip `publish_il` and publish in whatever shape
+its consumer wants, for example:
+
+- **Home Assistant MQTT discovery**: publish each entity's config to
+  `homeassistant/<component>/<id>/<object>/config` with
+  `ctx.publish_raw(topic, json, true)` from `publish_config` (retained, so it survives
+  Home Assistant restarting), and state with `ctx.publish_property` or `ctx.publish_raw`.
+- **Anything else**: `ctx.publish_raw(topic, payload, retain)` publishes to any exact topic,
+  outside `rusthinq_prefix`.
+
+What you give up without a descriptor: the host no longer validates commands, so
+`on_set_property` receives every `set` as sent and must check type, range and options itself,
+and consumers that read the IL will not see the device. The frame
+decoding, the shared modules and the test helpers above work the same either way. Such a
+driver is yours to keep; it does not belong in this repository.
 
 ## 9. Before calling it done
 
