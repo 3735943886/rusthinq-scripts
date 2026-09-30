@@ -24,9 +24,6 @@ jobs:
           repository: 3735943886/rusthinq
           ref: ${{ steps.ref.outputs.ref }}
           path: rusthinq
-          # Both repositories are private: the default GITHUB_TOKEN cannot read the other
-          # one, so this needs a token secret with read access to it.
-          token: ${{ secrets.CROSS_REPO_TOKEN }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
