@@ -1,7 +1,7 @@
 # Writing a `.rhai` driver
 
 A checklist-shaped recipe for adding one device driver to this repository (rusthinq's `[scripting] rhai_dir`). Read
-[il-rusthinq.md](https://github.com/3735943886/rusthinq/blob/master/docs/il-rusthinq.md) first for what each hook means and what the host does around
+[0.2-runtime.md](https://github.com/3735943886/rusthinq/blob/dev/0.2/docs/0.2-runtime.md) first for what each hook means and what the host does around
 it (that document is in the rusthinq repository); this document is the step-by-step of turning a device's wire protocol into one. It is
 written to be read by an AI agent driving the work as much as by a person.
 
@@ -25,11 +25,10 @@ written to be read by an AI agent driving the work as much as by a person.
   (in the rusthinq repository, `crates/rusthinq-tools/src/bin/rusthinq_capture.rs`) rather than subscribing by hand: it
   taps `rx`/`tx`/`clip/tx` together into one timestamped, TLV/AABB-decoded JSONL file, so rx
   and tx frames are never split across two separate subscriptions racing each other (a real
-  write's ack has been missed this way before — don't repeat it). **Set `RUSTHINQ_PREFIX` to
-  the target's `[mqtt] raw_prefix`, not `rusthinq_prefix`** — the two are usually different
-  values and the tool's own `--help`-adjacent doc comment used to say the wrong one; get this
-  wrong and the tool subscribes to a topic nothing publishes and silently captures zero
-  events (indistinguishable from "device is idle" until you notice the file never grows).
+  write's ack has been missed this way before — don't repeat it). **Set `RUSTHINQ_RAW_PREFIX` to
+  the target's `[mqtt] raw_prefix`** (default `rusthinq-raw`) — get this wrong and the tool
+  subscribes to a topic nothing publishes and silently captures zero events
+  (indistinguishable from "device is idle" until you notice the file never grows).
   Stdin lines become
   timestamped `note` entries in the same file, so ask whoever is operating the real app to
   send a line ("smart_care on") right when they do each thing, and correlate by timestamp
@@ -69,8 +68,7 @@ fn descriptor(ctx) {
     json_stringify(#{
         il: 0,
         kind: "...",                 // section 10 of il.md if it should form a composite
-        label: "...",                // a generic fallback; the host substitutes the owner's
-                                      // own name for the device when it has one
+        label: "...",                // the device label published by this driver
         vendor: "LG",
         model: ctx.model_id(),
         props: #{ ... }
@@ -93,7 +91,7 @@ fn descriptor(ctx) {
   person sets once, not an everyday control.
 - **`requires`** for a control that only takes effect under a condition the device itself
   enforces (a burner ring that ignores commands unless the panel granted remote start) — the
-  host checks it before the script ever sees the write.
+  script calls `il::validate` to check it before building the write.
 - A property the wire cannot yet confirm the meaning of is **left out**, not guessed.
 
 ## 3. The hooks
@@ -101,13 +99,13 @@ fn descriptor(ctx) {
 | hook | when | typical body |
 |---|---|---|
 | `start(ctx)` | device connected | send a status query if the device does not report on its own (`ctx.send_raw(...)`); AABB monitoring/status-pushing devices often need nothing here |
-| `publish_config(ctx)` | called once right after `start`, and again on a host resync | `ctx.publish_il(descriptor(ctx));` — must be safe to call twice, so build the descriptor fresh from current `ctx.state_get`/`state_has`, never accumulate |
-| `on_data(ctx, data)` | every frame from the device | discriminate the frame kind (first byte(s)/tag), decode, `ctx.publish_property(name, canonical_text)` |
-| `on_set_property(ctx, prop, value)` | a command already validated against the descriptor (type/options/range/step/`requires`) reached this device | build and `ctx.send_raw(...)` the write frame; `c::reject(ctx, prop, reason)` for anything the script itself must still refuse (an unknown `prop`, a value the descriptor's static range cannot express) |
-| `on_drop(ctx)` | device disconnected | `ctx.publish_property("available", "false")` |
+| `publish_config(ctx)` | called once right after `start`, and again on a host resync | `il::publish_il(ctx, descriptor(ctx));` — must be safe to call twice, so build the descriptor fresh from current `ctx.state_get`/`state_has`, never accumulate |
+| `on_data(ctx, data)` | every frame from the device | discriminate the frame kind (first byte(s)/tag), decode, `il::publish_property(ctx, name, canonical_text)` |
+| `on_set_property(ctx, prop, value)` | a command reached this device; call `il::validate(ctx, prop, value)` against the descriptor first and return if it yields `()` | build and `ctx.send_raw(...)` the write frame; `c::reject(ctx, prop, reason)` for anything the script itself must still refuse (an unknown `prop`, a value the descriptor's static range cannot express) |
+| `on_drop(ctx)` | device disconnected | `il::publish_property(ctx, "available", "false")` |
 
 Everything else (timers, `on_timer`, TLV handshake retries) is what the shared module or
-`il-rusthinq.md`'s hook table cover; most single-status AABB devices need none of it.
+`0.2-runtime.md`'s hook documentation cover; most single-status AABB devices need none of it.
 
 ## 4. Descriptor that changes after connecting
 
@@ -117,13 +115,15 @@ follows this shape, used by `CST_570004_WW.rhai` (capability-driven range) and
 `2RSFL2DBN3K_Z.rhai` (unit-driven range):
 
 ```rhai
+import "il_common" as il;
+
 fn unit(ctx) { let u = ctx.state_get("unit"); if u == () { "C" } else { u } }  // a sane default
 
 fn status(ctx, r, o) {
     let u = decode_unit(r[o + N]);
     if u != unit(ctx) {
         ctx.state_set("unit", u);
-        ctx.publish_il(descriptor(ctx));  // republish: the descriptor just changed
+        il::publish_il(ctx, descriptor(ctx));  // republish: the descriptor just changed
     }
     // ... publish values using u ...
 }
@@ -179,7 +179,7 @@ it on the closest existing test file for the same frame family. Minimum coverage
 
 - **A real frame becomes the right properties** — `expect_props(d, #{ prop: "value", .. })`
   against a captured frame (cite where it came from in a comment).
-- **The descriptor** — `d.start(); let desc = d.descriptor();` (only valid after `start`, since
+- **The descriptor** — `d.start(); let desc = json_parse(d.published("il/test-device"));` (only valid after `start`, since
   that is what runs `publish_config`), check roles/class/range/label for at least the
   interesting properties.
 - **Every write, byte for byte**, against a captured accepted write if one exists, else
@@ -187,9 +187,8 @@ it on the closest existing test file for the same frame family. Minimum coverage
   `t::sent_tlvs(d, i)`. Compute the expected hex with a throwaway script, do not hand-derive
   checksums.
 - **A bad write is rejected and nothing is sent**: `let n = d.sent().len(); d.set(prop,
-  bad_value); expect_eq(d.sent().len(), n); expect(d.event("reject") != (), "...");` — for a
-  value the *host* rejects (out of range/step/type), the device need not even be `start()`ed
-  first; for one the *script* itself must reject (unknown prop), same pattern.
+  bad_value); expect_eq(d.sent().len(), n); expect(d.event("reject") != (), "...");` — call `d.start()` first so the descriptor is available to `il::validate`; use the same
+  pattern for out-of-range, bad-step, wrong-type and unknown-property commands.
 - **Any quirk cited in a comment gets its own test** (a wire value with two meanings, a
   field that only appears while another is true, a frame length variant).
 
@@ -203,7 +202,7 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
    including case and underscores.
 2. `tests/<Model>.test.rhai` next to it.
 3. Run `rusthinq-script-test .` from this directory (build it from rusthinq: `cargo run -p
-   rusthinq-devices --features scripting --bin rusthinq-script-test -- <this directory>`).
+   rusthinq-tools --bin rusthinq-script-test -- <this directory>`).
    It runs every driver test, then checks every driver has a test file and publishes a
    descriptor that is well formed against the IL.
 4. Add one row to the driver table in [README.md](../README.md#drivers) stating
@@ -217,17 +216,17 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
 
 Everything above assumes the IL because every driver in this repository uses it, and
 `rusthinq-script-test` fails a driver here that publishes no descriptor. rusthinq itself does
-not care: a driver in your own `rhai_dir` can skip `publish_il` and publish in whatever shape
+not care: a driver in your own `rhai_dir` can skip `il_common` and publish in whatever shape
 its consumer wants, for example:
 
 - **Home Assistant MQTT discovery**: publish each entity's config to
   `homeassistant/<component>/<id>/<object>/config` with
   `ctx.publish_raw(topic, json, true)` from `publish_config` (retained, so it survives
-  Home Assistant restarting), and state with `ctx.publish_property` or `ctx.publish_raw`.
+  Home Assistant restarting), and state with `ctx.publish_raw`.
 - **Anything else**: `ctx.publish_raw(topic, payload, retain)` publishes to any exact topic,
   outside `rusthinq_prefix`.
 
-What you give up without a descriptor: the host no longer validates commands, so
+Without `il_common`, your driver must validate commands itself:
 `on_set_property` receives every `set` as sent and must check type, range and options itself,
 and consumers that read the IL will not see the device. The frame
 decoding, the shared modules and the test helpers above work the same either way. Such a

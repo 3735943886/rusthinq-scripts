@@ -78,7 +78,7 @@ fn test_filter_life_recomputes_when_only_the_hours_left_arrive() {
 fn test_the_descriptor_is_an_air_purifier_with_roles() {
     let d = device();
     d.start();
-    let desc = d.descriptor();
+    let desc = json_parse(d.published("il/test-device"));
     expect_eq(desc.kind, "fan");
     expect_eq(desc["class"], "air_purifier");
     expect_eq(desc.props.fan.role, "fan_speed");
@@ -95,7 +95,7 @@ fn test_the_handshake_is_the_shared_one() {
     expect_eq(d.timers(), [["refresh", 900000]]);
 }
 
-fn test_the_host_refuses_what_the_descriptor_forbids_before_the_script_sees_it() {
+fn test_il_common_refuses_what_the_descriptor_forbids_before_the_script_sees_it() {
     let d = running();
     let n = d.sent().len();
     d.set("sleep_timer", "9999"); // above the maximum of 720

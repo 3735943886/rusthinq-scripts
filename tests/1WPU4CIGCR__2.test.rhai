@@ -113,13 +113,13 @@ fn test_dropping_the_device_marks_it_unavailable() {
 fn test_the_descriptor_is_published() {
     let d = device();
     d.start();
-    let desc = d.descriptor();
+    let desc = json_parse(d.published("il/test-device"));
     expect_eq(desc["class"], "water_purifier");
     expect_eq(desc.props.self_clean_next.type, "text");
     expect_eq(desc.props.default_amount.rw, true);
 }
 
-fn test_the_host_validates_selects_and_binaries_against_the_descriptor() {
+fn test_il_common_validates_selects_and_binaries_against_the_descriptor() {
     let d = device();
     d.start();
     d.feed(uv_done());

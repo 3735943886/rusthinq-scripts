@@ -36,7 +36,7 @@ jobs:
       - name: Build the driver runner
         run: >
           cargo build --release --manifest-path rusthinq/Cargo.toml
-          -p rusthinq-devices --features scripting --bin rusthinq-script-test
+          -p rusthinq-tools --bin rusthinq-script-test
 
       - name: Test and check the drivers
         run: rusthinq/target/release/rusthinq-script-test .

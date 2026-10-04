@@ -150,7 +150,7 @@ fn test_dropping_the_device_marks_it_unavailable() {
 fn test_the_descriptor_offers_fourteen_startable_courses_and_no_downloaded_one() {
     let d = device();
     d.start();
-    let desc = d.descriptor();
+    let desc = json_parse(d.published("il/test-device"));
     expect_eq(desc["class"], "washing_machine");
     let options = desc.props.course_select.options;
     expect_eq(options.len(), 14);
@@ -158,7 +158,7 @@ fn test_the_descriptor_offers_fourteen_startable_courses_and_no_downloaded_one()
     expect_eq(desc.props.start.requires, "remote_start");
 }
 
-fn test_the_host_holds_start_back_until_remote_start_is_armed() {
+fn test_il_common_holds_start_back_until_remote_start_is_armed() {
     let d = device();
     let disarmed = heavy_duty_wash();
     disarmed[14] = disarmed[14] & 0xdf;
@@ -166,7 +166,7 @@ fn test_the_host_holds_start_back_until_remote_start_is_armed() {
     d.feed(status(disarmed));
     d.set("power_off", "");
     expect_eq(d.sent().len(), 0);
-    expect(d.event("reject").contains("requires remote_start"), "the host names the requirement");
+    expect(d.event("reject").contains("requires remote_start"), "il_common names the requirement");
     d.feed(status(heavy_duty_wash())); // armed
     d.set("power_off", "");
     expect_eq(d.sent().len(), 1);

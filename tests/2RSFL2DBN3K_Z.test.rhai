@@ -32,7 +32,7 @@ fn test_the_live_reply_becomes_il_properties() {
 fn test_the_descriptor_defaults_to_celsius_before_any_frame_arrives() {
     let d = device();
     d.start();
-    let desc = d.descriptor();
+    let desc = json_parse(d.published("il/test-device"));
     expect_eq(desc.props.fridge_setpoint.unit, "°C");
     expect_eq(desc.props.fridge_setpoint.min, 1);
     expect_eq(desc.props.fridge_setpoint.max, 7);
@@ -97,7 +97,7 @@ fn test_a_bad_value_is_rejected_and_nothing_is_sent() {
     expect(d.event("reject") != (), "a reject event is published");
 }
 
-fn test_an_out_of_range_setpoint_is_rejected_by_the_host() {
+fn test_an_out_of_range_setpoint_is_rejected_by_il_common() {
     let d = device();
     d.start();
     let n = d.sent().len();
@@ -155,7 +155,7 @@ fn test_ai_saving_write_max() {
 // live nudge of this control produced (start hour -1, then +1 minute, confirmed by hand).
 fn test_ai_saving_max_schedule_write() {
     let d = device();
-    d.set("ai_saving", "max"); // satisfies the host's `requires`
+    d.set("ai_saving", "max"); // satisfies il_common's `requires`
     d.set("ai_saving_max_schedule", "12:00-21:00");
     expect_eq(a::inner_hex(d, 1), "f010070d031a09160c00001a0916150000");
     // No status frame ever confirms this, so the driver echoes the write itself.
@@ -240,7 +240,7 @@ fn test_door_alarm_mute_cannot_be_written() {
 fn test_ai_saving_is_a_writable_select_of_three_levels() {
     let d = device();
     d.start();
-    let desc = d.descriptor();
+    let desc = json_parse(d.published("il/test-device"));
     expect_eq(desc.props.ai_saving.type, "select");
     expect_eq(desc.props.ai_saving.rw, true);
     expect_eq(desc.props.ai_saving.options, ["off", "balanced", "max"]);

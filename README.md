@@ -5,9 +5,9 @@ script per LG ThinQ appliance model, each producing the IL descriptor, values an
 described by the IL specification. rusthinq loads them from `[scripting] rhai_dir`; this
 repository is that directory.
 
-Every driver here speaks the IL, and the checks below hold this repository to that. rusthinq
-itself does not require it: a driver you keep in your own `rhai_dir` may skip `ctx.publish_il`
-and publish whatever suits where it is going — Home Assistant MQTT discovery configs, another
+Every driver here speaks the IL through `il_common.rhai`, and the checks below hold this
+repository to that. rusthinq itself knows nothing of the IL: a driver you keep in your own
+`rhai_dir` may skip `il_common` and publish whatever suits where it is going — Home Assistant MQTT discovery configs, another
 platform's topics — with `ctx.publish_raw(topic, payload, retain)`. See
 [docs/writing-a-driver.md](docs/writing-a-driver.md#drivers-that-do-not-use-the-il).
 
@@ -28,6 +28,9 @@ included).
 ## Layout
 
 - `<modelId>.rhai`: one driver per model.
+- `il_common.rhai`: the IL — descriptor (`<il_prefix>/<id>`, `il` by default; see `prefix()`),
+  values, events, command validation and rejects. Drivers wrap their `set_property` in
+  `on_set_property`, which calls `il::validate` first.
 - `aabb_common.rhai`, `monitoring_common.rhai`, `tlv_common.rhai`: shared modules
   (any `*_common.rhai` is a module, not a driver).
 - `tests/<modelId>.test.rhai`: that driver's tests, run against frames captured from the
@@ -50,12 +53,12 @@ descriptor that is well formed against the IL. It exits non-zero on any failure.
 is built from rusthinq:
 
 ```
-cargo run -p rusthinq-devices --features scripting --bin rusthinq-script-test -- ../rusthinq-scripts
+cargo run -p rusthinq-tools --bin rusthinq-script-test -- ../rusthinq-scripts
 ```
 
 `RUSTHINQ_REF` names the rusthinq branch, tag or commit these drivers are developed and
-tested against (the host functions a script can call, and the host-side command validation,
-belong to rusthinq). CI builds the runner from that ref. Move it forward together with any
+tested against (rusthinq provides only the IL-agnostic host functions a script can call;
+command validation is `il_common`'s). CI builds the runner from that ref. Move it forward together with any
 driver change that needs a newer host.
 
 To write a new driver, see [docs/writing-a-driver.md](docs/writing-a-driver.md).
