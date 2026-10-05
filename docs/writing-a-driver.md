@@ -56,6 +56,14 @@ written to be read by an AI agent driving the work as much as by a person.
 | AABB, fixed status | `AA len inner csum BB`, inner is a flat byte record | `aabb_common.rhai` | the device pushes/answers with one fixed-layout status record (1WPU4CIGCR__2, WBEY3GT, 2RSFL2DBN3K_Z) |
 | AABB, monitoring record | `AA len inner csum BB`, inner has its own sub-framing (`addr, cmd, [0, len, payload]..`) | `monitoring_common.rhai` (itself imports `aabb_common`) | washer/dryer/styler family (F24VDD, RH14_N_KR, S3BF_POD_DN4, Pd0F_F) |
 
+For fixed-length EB/EC status bodies, unwrap and check the device class with
+`aabb_common::inner(data, class_byte)`, then call
+`aabb_common::common_status_offset(body, record_length)`. It returns the current
+record offset (2 for EB, `2 + record_length` for EC), or `()` for other commands
+or non-exact lengths. Keep model-specific command restrictions in the driver
+(D140110 accepts only EC). Variable-length records and the monitoring family's
+length-prefixed payloads need their own parsing.
+
 A module cannot call back into its importer, so the device script keeps every hook
 (`start`, `on_data`, `on_set_property`, ...) and delegates plain parsing/framing to the module
 (`c::...`). Read the existing driver closest to the new device's family before writing

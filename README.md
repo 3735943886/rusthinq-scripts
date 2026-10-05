@@ -38,7 +38,7 @@ included).
   helpers shared by them.
 
 The washer / dryer / styler family shares `monitoring_common.rhai` (record parsing for the 0xEC / 0xEB / 0xE2 frames, command acknowledgements reported as rejections, the course a Start will ask for), which itself imports `aabb_common`.
-AABB drivers share `aabb_common.rhai` (`import "aabb_common" as c;`): frame check, name/flag/bit helpers, reject.
+AABB drivers share `aabb_common.rhai` (`import "aabb_common" as c;`): frame check, fixed-length EB/EC current-record selection, name/flag/bit helpers, reject.
 
 TLV drivers share `tlv_common.rhai` (`import "tlv_common" as c;`): the capability to values handshake with retries, the slow refresh, and write framing. A module cannot call back into its importer, so each device script keeps the hooks and delegates to it.
 

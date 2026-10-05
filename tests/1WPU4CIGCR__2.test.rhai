@@ -1,3 +1,5 @@
+import "aabb_test" as a;
+
 // Tests of 1WPU4CIGCR__2.rhai (water purifier), against real frames and the write frames the
 // appliance accepted.
 
@@ -129,4 +131,17 @@ fn test_il_common_validates_selects_and_binaries_against_the_descriptor() {
     expect_eq(d.sent().len(), 0);
     d.set("auto_care", "ON"); // normalised to true for the script
     expect_eq(d.sent().len(), 1);
+}
+
+fn test_fixed_status_frames_reject_truncated_and_extended_records() {
+    let d = device();
+    d.feed(uv_done());
+    let before = d.property("status");
+    for spec in [[0xeb, 25], [0xeb, 27], [0xec, 51], [0xec, 53]] {
+        let inner = a::bytes([0x12, spec[0]]);
+        inner += blob(spec[1]);
+        d.feed(a::framed(inner));
+        expect_eq(d.property("status"), before);
+        expect_eq(d.script_error(), ());
+    }
 }
