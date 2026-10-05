@@ -13,6 +13,19 @@ platform's topics — with `ctx.publish_raw(topic, payload, retain)`. See
 
 ## Using it
 
+Create the local IL configuration in the checkout:
+
+```sh
+cp il_config_common.rhai.example il_config_common.rhai
+```
+
+Edit `prefix()` in `il_config_common.rhai` to choose the descriptor topic prefix
+(default `"il"`; `""` disables descriptor publication). This file is ignored by Git,
+so local settings survive updates without changing tracked files. It is required before
+running rusthinq or the driver tests. With `watch = true`, saving it reloads the affected
+drivers; otherwise restart rusthinq. This controls descriptor topics only; property and
+command topics still use rusthinq's `[mqtt] rusthinq_prefix`.
+
 Put a checkout of this repository where rusthinq's `config.toml` can point at it:
 
 ```toml
@@ -31,6 +44,8 @@ included).
 - `il_common.rhai`: the IL — descriptor (`<il_prefix>/<id>`, `il` by default; see `prefix()`),
   values, events, command validation and rejects. Drivers wrap their `set_property` in
   `on_set_property`, which calls `il::validate` first.
+- `il_config_common.rhai`: local descriptor prefix configuration, ignored by Git;
+  `il_config_common.rhai.example` is the tracked template.
 - `aabb_common.rhai`, `monitoring_common.rhai`, `tlv_common.rhai`: shared modules
   (any `*_common.rhai` is a module, not a driver).
 - `tests/<modelId>.test.rhai`: that driver's tests, run against frames captured from the
@@ -43,6 +58,9 @@ AABB drivers share `aabb_common.rhai` (`import "aabb_common" as c;`): frame chec
 TLV drivers share `tlv_common.rhai` (`import "tlv_common" as c;`): the capability to values handshake with retries, the slow refresh, and write framing. A module cannot call back into its importer, so each device script keeps the hooks and delegates to it.
 
 ## Checking a change
+
+Use the example's `"il"` prefix when running the tests: descriptor assertions use
+`il/test-device`.
 
 ```
 rusthinq-script-test .

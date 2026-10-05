@@ -12,9 +12,11 @@
 //       if value != () { set_property(ctx, prop, value); }
 //   }
 
-// il-mqtt M-1: the descriptor goes to `<il_prefix>/<id>`, retained; `il` is the default.
-// Return "" to publish no descriptor.
-fn prefix() { "il" }
+import "il_config_common" as config;
+
+// il-mqtt M-1: the descriptor goes to `<il_prefix>/<id>`, retained.
+// Configure the prefix in the ignored local module; "" publishes no descriptor.
+fn prefix() { config::prefix() }
 
 fn publish_property(ctx, prop, value) {
     let values = ctx.state_get("__il_values");

@@ -1,0 +1,3 @@
+// Copy to il_config_common.rhai (ignored by Git), then edit locally.
+// Descriptor topic: <prefix>/<id>. Use "" to disable descriptor publication.
+fn prefix() { "il" }

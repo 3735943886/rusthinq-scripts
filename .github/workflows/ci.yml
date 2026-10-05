@@ -38,5 +38,8 @@ jobs:
           cargo build --release --manifest-path rusthinq/Cargo.toml
           -p rusthinq-tools --bin rusthinq-script-test
 
+      - name: Create the local IL configuration
+        run: cp il_config_common.rhai.example il_config_common.rhai
+
       - name: Test and check the drivers
         run: rusthinq/target/release/rusthinq-script-test .
