@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 // Tests of S3BF_POD_DN4.rhai (styler), against a real idle frame and the 46-byte Fine Dust start
 // the LG app sent.
 
@@ -140,7 +142,7 @@ fn test_a_record_of_another_length_reports_nothing() {
 fn test_the_descriptor_lists_the_courses_start_can_express() {
     let d = device();
     d.start();
-    let desc = d.descriptor();
+    let desc = runtime::descriptor(d);
     expect_eq(desc["class"], "styler");
     let options = desc.props.course_select.options;
     expect_eq(options.len(), 16);
@@ -148,7 +150,7 @@ fn test_the_descriptor_lists_the_courses_start_can_express() {
     expect_eq(desc.props.start.requires, "remote_start");
 }
 
-fn test_the_host_holds_start_back_until_remote_start_is_armed() {
+fn test_il_common_holds_start_back_until_remote_start_is_armed() {
     let d = device();
     let disarmed = drying();
     disarmed[14] = disarmed[14] & 0xf7;
@@ -156,7 +158,7 @@ fn test_the_host_holds_start_back_until_remote_start_is_armed() {
     d.feed(status(disarmed));
     d.set("power_off", "");
     expect_eq(d.sent().len(), 0);
-    expect(d.event("reject").contains("requires remote_start"), "the host names the requirement");
+    expect(d.event("reject").contains("requires remote_start"), "il_common names the requirement");
     d.feed(status(drying())); // armed
     d.set("power_off", "");
     expect_eq(d.sent().len(), 1);

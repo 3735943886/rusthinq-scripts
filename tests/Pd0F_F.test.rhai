@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 // Tests of Pd0F_F.rhai (mini washer). The commands are byte for byte as the LG app sent them;
 // the one real status frame is an idle one, the others are built from the documented offsets.
 
@@ -175,7 +177,7 @@ fn test_dropping_the_device_marks_it_unavailable() {
 fn test_the_descriptor_marks_the_controls_and_the_dial_is_separate_from_the_selection() {
     let d = device();
     d.start();
-    let desc = d.descriptor();
+    let desc = runtime::descriptor(d);
     expect_eq(desc["class"], "mini_washer");
     expect_eq(desc.props.start.type, "trigger");
     expect_eq(desc.props.start.requires, "remote_start");
@@ -190,7 +192,7 @@ fn test_a_real_frame_from_the_appliance_reads_as_idle_small_load() {
     expect_props(d, #{ available: "true", power: "false", status: "off", course: "small_load" });
 }
 
-fn test_the_host_holds_start_back_until_remote_start_is_armed() {
+fn test_il_common_holds_start_back_until_remote_start_is_armed() {
     let d = device();
     d.start();
     d.feed(status(idle())); // remote start is not armed at the panel

@@ -64,7 +64,7 @@ fn test_target_humidity_write_attaches_power_and_mode() {
     expect_eq(t::sent_since(d, n), [[[0x253, 45], [0x1f7, 1], [0x1f9, 17]]]);
 }
 
-fn test_a_target_outside_the_descriptors_range_is_rejected_by_the_host_not_clamped() {
+fn test_a_target_outside_the_descriptors_range_is_rejected_by_il_common_not_clamped() {
     let d = running();
     let n = d.sent().len();
     d.set("target", "10");

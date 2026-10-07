@@ -20,6 +20,7 @@
 // wire at all.
 
 import "aabb_common" as c;
+import "il_common" as il;
 
 fn record_len() { 26 }
 
@@ -81,46 +82,40 @@ fn default_amount_wire(name) {
 
 // ---- host hooks -------------------------------------------------------------------
 
-fn publish_config(ctx) { ctx.publish_il(descriptor(ctx)); }
+fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 
-fn on_drop(ctx) { ctx.publish_property("available", "false"); }
+fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
 fn on_data(ctx, data) {
     let inner = c::inner(data, 0x12);
     if inner == () { return; }
 
-    if inner[1] == 0xec && inner.len() == 2 + record_len() * 2 {
-        // The frame restates the previous record so a listener that missed one can see what
-        // changed; only where the appliance is now matters.
-        status(ctx, inner, 2 + record_len());
-    } else if inner[1] == 0xeb && inner.len() == 2 + record_len() {
-        // The answer to a status query (the LG cloud asks when the appliance connects): the
-        // current record alone. An idle appliance pushes nothing else, so without this the
-        // state stays unknown until something changes.
-        status(ctx, inner, 2);
+    let current = c::common_status_offset(inner, record_len());
+    if current != () {
+        status(ctx, inner, current);
     } else if inner[1] == 0x1f && inner.len() == 2 + 6 * 2 {
         counters(ctx, inner);
     }
 }
 
 fn status(ctx, r, o) {
-    ctx.publish_property("available", "true");
+    il::publish_property(ctx, "available", "true");
     c::pub_name(ctx, "status", status_name(r[o + 0]));
     c::pub_name(ctx, "tap_uv", tap_uv_name(r[o + 1]));
     c::pub_name(ctx, "water_selection", water_name(r[o + 2]));
     c::pub_name(ctx, "water_amount", amount_name(r[o + 3]));
     c::pub_name(ctx, "default_water", default_water_name(r[o + 10]));
     c::pub_name(ctx, "default_amount", amount_name(r[o + 11]));
-    ctx.publish_property("auto_care", c::on_off(r[o + 20]));
-    ctx.publish_property("button_sound", c::on_off(r[o + 12]));
-    ctx.publish_property("not_use_notice", c::on_off(r[o + 8]));
+    il::publish_property(ctx, "auto_care", c::on_off(r[o + 20]));
+    il::publish_property(ctx, "button_sound", c::on_off(r[o + 12]));
+    il::publish_property(ctx, "not_use_notice", c::on_off(r[o + 8]));
 
     // The next self-clean, as month / day / hour / minute with no year, in UTC. Converting
     // to local time needs a timezone and a calendar, which is a consumer's business.
     let month = r[o + 15];
     let day = r[o + 16];
     if month >= 1 && month <= 12 && day >= 1 && day <= 31 {
-        ctx.publish_property("self_clean_next",
+        il::publish_property(ctx, "self_clean_next",
             c::pad2(month) + "-" + c::pad2(day) + " " + c::pad2(r[o + 17]) + ":" + c::pad2(r[o + 18]));
     }
 }
@@ -131,7 +126,7 @@ fn counters(ctx, r) {
     let names = ["hot_water_today", "normal_water_today", "cold_water_today", "sterilized_water_today"];
     for i in 0..names.len() {
         let v = r[2 + i * 2] * 256 + r[3 + i * 2];
-        ctx.publish_property(names[i], v.to_string());
+        il::publish_property(ctx, names[i], v.to_string());
     }
 }
 
@@ -144,7 +139,7 @@ fn set_field(ctx, offset, value) {
     ctx.send_raw(aabb_wrap(inner));
 }
 
-fn on_set_property(ctx, prop, value) {
+fn set_property(ctx, prop, value) {
     switch prop {
         "default_water" => {
             let w = default_water_wire(value);
@@ -161,4 +156,10 @@ fn on_set_property(ctx, prop, value) {
         "not_use_notice" => { set_field(ctx, 8, if c::to_bool(value) { 1 } else { 0 }); }
         _ => { c::reject(ctx, prop, "unknown or read-only property"); }
     }
+}
+
+// il_common uses host validation on 0.1 and script-side validation on 0.2.
+fn on_set_property(ctx, prop, value) {
+    let value = il::validate(ctx, prop, value);
+    if value != () { set_property(ctx, prop, value); }
 }

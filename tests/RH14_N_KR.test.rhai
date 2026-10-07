@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 // Tests of RH14_N_KR.rhai (dryer), against frames captured while it ran a cycle and the
 // start frame the LG app sent.
 
@@ -126,13 +128,13 @@ fn test_a_refusal_is_reported_and_an_acceptance_is_not() {
 fn test_the_descriptor_is_a_dryer_with_conditional_controls() {
     let d = device();
     d.start();
-    let desc = d.descriptor();
+    let desc = runtime::descriptor(d);
     expect_eq(desc.kind, "dryer");
     expect_eq(desc.props.start.requires, "remote_start");
     expect_eq(desc.props.energy.unit, "Wh");
 }
 
-fn test_the_host_holds_start_back_until_remote_start_is_armed() {
+fn test_il_common_holds_start_back_until_remote_start_is_armed() {
     let d = device();
     let disarmed = cotton();
     disarmed[15] = 0;
@@ -141,7 +143,7 @@ fn test_the_host_holds_start_back_until_remote_start_is_armed() {
     d.set("start", "");
     d.set("pause", "");
     expect_eq(d.sent().len(), 0);
-    expect(d.event("reject").contains("requires remote_start"), "the host names the requirement");
+    expect(d.event("reject").contains("requires remote_start"), "il_common names the requirement");
     d.feed(status(cotton())); // armed
     d.set("pause", "");
     expect_eq(d.sent().len(), 1);

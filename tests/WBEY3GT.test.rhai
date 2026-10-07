@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 // Tests of WBEY3GT.rhai (cooktop), against real frames. The command frames are the ones the LG app
 // sent, byte for byte.
 
@@ -137,12 +139,12 @@ fn test_a_timer_past_the_appliance_maximum_is_refused_not_clamped_or_wrapped() {
     d.set("right_remaining_time", "9999");
     // 11:59 is the most ControlTimerHour/Min can carry: the descriptor's maximum is 719
     expect_eq(d.sent().len(), 0);
-    expect(d.event("reject").contains("above the maximum of 719"), "the host names the maximum");
+    expect(d.event("reject").contains("above the maximum of 719"), "il_common names the maximum");
     d.set("right_remaining_time", "719");
     expect_eq(inner(d), "F043200805090B3B" + "00000000");
 }
 
-fn test_the_host_enforces_requires_remote_start_before_the_script_is_asked() {
+fn test_il_common_enforces_requires_remote_start_before_the_driver_is_asked() {
     let d = device();
     d.start();
     d.feed(cooking()); // cooking, but remote start is not granted
@@ -211,7 +213,7 @@ fn test_other_and_malformed_frames_are_ignored() {
 fn test_the_descriptor_groups_burner_properties_and_marks_the_controls() {
     let d = device();
     d.start();
-    let desc = d.descriptor();
+    let desc = runtime::descriptor(d);
     expect_eq(desc.kind, "cooktop");
     expect_eq(desc.props.right_state.group, "right");
     expect_eq(desc.props.right_off.type, "trigger");
