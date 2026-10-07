@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 // Tests of CST_570004_WW.rhai, against frames captured from a real unit (from rethink's test
 // suite; note the 0xa7 in byte 6 of this model's frames).
 
@@ -208,10 +210,10 @@ fn test_a_stray_notification_before_the_values_does_not_end_the_retry() {
 fn test_the_setpoint_range_follows_the_capability_reply() {
     let d = device();
     d.start();
-    expect_eq(json_parse(d.published("il/test-device")).props.target.min, 16);
+    expect_eq(runtime::descriptor(d).props.target.min, 16);
     // a unit that reports a narrower range: 18.0 .. 29.0 (half degrees on the wire)
     d.feed(t::notify([[0x2da, 55], [0x2e1, 36], [0x2e2, 58]]));
-    let target = json_parse(d.published("il/test-device")).props.target;
+    let target = runtime::descriptor(d).props.target;
     expect_eq(target.min, 18);
     expect_eq(target.max, 29);
     d.feed(state());
@@ -226,6 +228,6 @@ fn test_the_captured_capabilities_keep_the_range_they_report() {
     let d = device();
     d.start();
     d.feed(caps()); // 0x2e1 = 32, 0x2e2 = 60: 16.0 .. 30.0
-    expect_eq(json_parse(d.published("il/test-device")).props.target.min, 16);
-    expect_eq(json_parse(d.published("il/test-device")).props.target.max, 30);
+    expect_eq(runtime::descriptor(d).props.target.min, 16);
+    expect_eq(runtime::descriptor(d).props.target.max, 30);
 }

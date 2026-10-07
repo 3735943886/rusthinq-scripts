@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 // Tests of F24VDD.rhai (washer), against a real idle frame and the start frames the LG app sent.
 
 import "aabb_test" as a;
@@ -150,7 +152,7 @@ fn test_dropping_the_device_marks_it_unavailable() {
 fn test_the_descriptor_offers_fourteen_startable_courses_and_no_downloaded_one() {
     let d = device();
     d.start();
-    let desc = json_parse(d.published("il/test-device"));
+    let desc = runtime::descriptor(d);
     expect_eq(desc["class"], "washing_machine");
     let options = desc.props.course_select.options;
     expect_eq(options.len(), 14);

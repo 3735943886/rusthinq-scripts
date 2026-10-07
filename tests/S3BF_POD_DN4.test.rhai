@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 // Tests of S3BF_POD_DN4.rhai (styler), against a real idle frame and the 46-byte Fine Dust start
 // the LG app sent.
 
@@ -140,7 +142,7 @@ fn test_a_record_of_another_length_reports_nothing() {
 fn test_the_descriptor_lists_the_courses_start_can_express() {
     let d = device();
     d.start();
-    let desc = json_parse(d.published("il/test-device"));
+    let desc = runtime::descriptor(d);
     expect_eq(desc["class"], "styler");
     let options = desc.props.course_select.options;
     expect_eq(options.len(), 16);

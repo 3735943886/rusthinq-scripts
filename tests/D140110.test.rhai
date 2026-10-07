@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 // Tests of D140110.rhai (dishwasher, read only), against nine real frames of a full cycle.
 
 fn ready() { "AA3A32EC0018000000012100000001000012000000000000000000000000081801000001210100012100001000020009000000000000000184BB" }
@@ -98,7 +100,7 @@ fn test_dropping_the_device_marks_it_unavailable() {
 fn test_the_descriptor_is_published() {
     let d = device();
     d.start();
-    let desc = json_parse(d.published("il/test-device"));
+    let desc = runtime::descriptor(d);
     expect_eq(desc["class"], "dishwasher");
     expect_eq(desc.props.remaining_time.unit, "min");
 }

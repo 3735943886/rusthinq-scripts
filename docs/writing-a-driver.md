@@ -1,6 +1,7 @@
 # Writing a `.rhai` driver
 
-A checklist-shaped recipe for adding one device driver to this repository (rusthinq's `[scripting] rhai_dir`). Read
+A checklist-shaped recipe for adding a shared driver under `drivers/`. Prepare
+`dist/<version>` for execution; see [README.md](../README.md#using-it). Read
 [0.2-runtime.md](https://github.com/3735943886/rusthinq/blob/dev/0.2/docs/0.2-runtime.md) first for what each hook means and what the host does around
 it (that document is in the rusthinq repository); this document is the step-by-step of turning a device's wire protocol into one. It is
 written to be read by an AI agent driving the work as much as by a person.
@@ -15,9 +16,9 @@ written to be read by an AI agent driving the work as much as by a person.
   checkout): it is the functional spec. Match what it does (which properties, which writes,
   which quirks), not its entity names/ids/topics — those are HA-adapter-specific and out of
   scope (the standing distinction is "function, not naming").
-- **The IL spec** (`../ildevice/il.md` and friends, normative for this repository): the
+- **The IL spec** (the sibling `ildevice/il.md` and friends, normative for this repository): the
   descriptor/values/commands/rejects you publish must fit it. How you get there in Rhai is free.
-  The IL is this repository's convention, not something rusthinq requires — see
+  The IL is this repository's convention; rusthinq 0.2 does not require it — see
   [Drivers that do not use the IL](#drivers-that-do-not-use-the-il).
 - **Can you capture live?** If the device is connected to a running rusthinq with
   `raw_prefix` set (and `raw` lists at least `rx`, `tx`, `clip_tx`), use
@@ -119,8 +120,8 @@ Everything else (timers, `on_timer`, TLV handshake retries) is what the shared m
 
 A device whose valid range or unit depends on something only known after the first frame
 (a capability query's reported min/max, a display unit the appliance is currently set to)
-follows this shape, used by `CST_570004_WW.rhai` (capability-driven range) and
-`2RSFL2DBN3K_Z.rhai` (unit-driven range):
+follows this shape, used by `drivers/CST_570004_WW.rhai` (capability-driven range) and
+`drivers/2RSFL2DBN3K_Z.rhai` (unit-driven range):
 
 ```rhai
 import "il_common" as il;
@@ -148,7 +149,7 @@ out to look like (verify against a captured accepted write before choosing):
 1. **Tag-attach (TLV)**: `c::write(ctx, tag, value, [other_tags_to_carry])` — the shared
    TLV module handles current-value lookup and framing; the third argument is which other
    tags a write of this one must also carry (a mode write also needs power=on, for instance).
-   See `CST_570004_WW.rhai`.
+   See `drivers/CST_570004_WW.rhai`.
 2. **All-`0xFF`-but-one template (AABB)**: build `[0xf0, cmd]` then push `0xFF` for
    every offset except the one being set — valid when a captured accepted write really is
    uniform apart from the one field. See `1WPU4CIGCR__2.rhai`'s `set_field`.
@@ -156,7 +157,7 @@ out to look like (verify against a captured accepted write before choosing):
    specific byte(s) as a `Blob` (`msg[offset] = value;`, works directly — `Engine::new()`'s
    default `Blob` package is loaded) — required when the real write frame carries fixed
    non-`0xFF` marker bytes elsewhere that a generic fill would lose (comment why, cite the
-   capture). See `2RSFL2DBN3K_Z.rhai`'s `write_field`.
+   capture). See `drivers/2RSFL2DBN3K_Z.rhai`'s `write_field`.
 
 In every shape: **nothing is published from a write.** The appliance's own next status frame
 is what moves the property; a rejected write just leaves it where it was.
@@ -187,7 +188,7 @@ it on the closest existing test file for the same frame family. Minimum coverage
 
 - **A real frame becomes the right properties** — `expect_props(d, #{ prop: "value", .. })`
   against a captured frame (cite where it came from in a comment).
-- **The descriptor** — `d.start(); let desc = json_parse(d.published("il/test-device"));` (only valid after `start`, since
+- **The descriptor** — `d.start(); let desc = runtime::descriptor(d);` (import `"runtime_test" as runtime`) (only valid after `start`, since
   that is what runs `publish_config`), check roles/class/range/label for at least the
   interesting properties.
 - **Every write, byte for byte**, against a captured accepted write if one exists, else
@@ -205,14 +206,15 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
 
 ## 8. Wiring it in
 
-1. `<exact wire modelId>.rhai` — the filename is the lookup key
+1. `drivers/<exact wire modelId>.rhai` — the filename is the lookup key
    (`scripting::has_script_for`), so it must match the `modelId` the device reports exactly,
    including case and underscores.
-2. `tests/<Model>.test.rhai` next to it.
-3. Run `rusthinq-script-test .` from this directory (build it from rusthinq: `cargo run -p
-   rusthinq-tools --bin rusthinq-script-test -- <this directory>`).
-   It runs every driver test, then checks every driver has a test file and publishes a
-   descriptor that is well formed against the IL.
+2. `tests/<Model>.test.rhai` in the shared test directory.
+3. Prepare both runtimes with `python3 tools/prepare.py 0.1` and
+   `python3 tools/prepare.py 0.2`, then run both matching host runners as shown in
+   [README.md](../README.md#checking-a-change).
+   Both runners execute the shared device assertions. The 0.1 runner also performs
+   its host-side IL descriptor checks.
 4. Add one row to the driver table in [README.md](../README.md#drivers) stating
    exactly what was and was not verified against a real appliance — copy the phrasing style
    of an existing row, do not oversell "tested".
@@ -223,8 +225,8 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
 ## Drivers that do not use the IL
 
 Everything above assumes the IL because every driver in this repository uses it, and
-`rusthinq-script-test` fails a driver here that publishes no descriptor. rusthinq itself does
-not care: a driver in your own `rhai_dir` can skip `il_common` and publish in whatever shape
+the shared tests assert descriptors. The 0.1 runner additionally checks the IL.
+rusthinq 0.2 itself does not care: a driver in your own `rhai_dir` can skip `il_common` and publish in whatever shape
 its consumer wants, for example:
 
 - **Home Assistant MQTT discovery**: publish each entity's config to
@@ -242,9 +244,9 @@ driver is yours to keep; it does not belong in this repository.
 
 ## 9. Before calling it done
 
-- [ ] `rusthinq-script-test .` — new tests pass, nothing else broke, no driver check fails
+- [ ] Both version-specific driver runners — new tests pass, nothing else broke, no driver check fails
 - [ ] every published property/value/reject traces to a real capture or the old TS driver's
       confirmed behavior — nothing invented
 - [ ] README table row added
-- [ ] if the driver needs a host function or behavior newer than `RUSTHINQ_REF`, that file
+- [ ] if the driver needs a host function or behavior newer than `RUSTHINQ_REF`, the corresponding `compat/<version>/RUSTHINQ_REF`
       is moved forward in the same change

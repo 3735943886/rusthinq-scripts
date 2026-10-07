@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 import "aabb_test" as a;
 
 // Tests of 1WPU4CIGCR__2.rhai (water purifier), against real frames and the write frames the
@@ -115,7 +117,7 @@ fn test_dropping_the_device_marks_it_unavailable() {
 fn test_the_descriptor_is_published() {
     let d = device();
     d.start();
-    let desc = json_parse(d.published("il/test-device"));
+    let desc = runtime::descriptor(d);
     expect_eq(desc["class"], "water_purifier");
     expect_eq(desc.props.self_clean_next.type, "text");
     expect_eq(desc.props.default_amount.rw, true);

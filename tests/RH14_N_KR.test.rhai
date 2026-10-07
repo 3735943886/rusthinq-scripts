@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 // Tests of RH14_N_KR.rhai (dryer), against frames captured while it ran a cycle and the
 // start frame the LG app sent.
 
@@ -126,7 +128,7 @@ fn test_a_refusal_is_reported_and_an_acceptance_is_not() {
 fn test_the_descriptor_is_a_dryer_with_conditional_controls() {
     let d = device();
     d.start();
-    let desc = json_parse(d.published("il/test-device"));
+    let desc = runtime::descriptor(d);
     expect_eq(desc.kind, "dryer");
     expect_eq(desc.props.start.requires, "remote_start");
     expect_eq(desc.props.energy.unit, "Wh");

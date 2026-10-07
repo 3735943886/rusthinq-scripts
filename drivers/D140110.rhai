@@ -132,7 +132,7 @@ fn set_property(ctx, prop, value) {
     c::reject(ctx, prop, "read-only appliance");
 }
 
-// Commands are validated against the IL descriptor here, in the scripts, not by rusthinq.
+// il_common uses host validation on 0.1 and script-side validation on 0.2.
 fn on_set_property(ctx, prop, value) {
     let value = il::validate(ctx, prop, value);
     if value != () { set_property(ctx, prop, value); }

@@ -9,14 +9,17 @@ permissions:
 
 jobs:
   drivers:
-    name: driver tests and checks
+    name: rusthinq ${{ matrix.version }} driver tests and checks
+    strategy:
+      matrix:
+        version: ["0.1", "0.2"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
       - name: Read the rusthinq ref
         id: ref
-        run: echo "ref=$(tr -d '[:space:]' < RUSTHINQ_REF)" >> "$GITHUB_OUTPUT"
+        run: echo "ref=$(tr -d '[:space:]' < compat/${{ matrix.version }}/RUSTHINQ_REF)" >> "$GITHUB_OUTPUT"
 
       - name: Check out rusthinq
         uses: actions/checkout@v7
@@ -33,13 +36,23 @@ jobs:
         with:
           workspaces: rusthinq
 
-      - name: Build the driver runner
+      - name: Build the 0.1 driver runner
+        if: matrix.version == '0.1'
+        run: >
+          cargo build --release --manifest-path rusthinq/Cargo.toml
+          -p rusthinq-devices --features scripting --bin rusthinq-script-test
+
+      - name: Build the 0.2 driver runner
+        if: matrix.version == '0.2'
         run: >
           cargo build --release --manifest-path rusthinq/Cargo.toml
           -p rusthinq-tools --bin rusthinq-script-test
 
-      - name: Create the local IL configuration
-        run: cp il_config_common.rhai.example il_config_common.rhai
+      - name: Test runtime preparation
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
+
+      - name: Prepare the runtime directory
+        run: python3 tools/prepare.py ${{ matrix.version }}
 
       - name: Test and check the drivers
-        run: rusthinq/target/release/rusthinq-script-test .
+        run: rusthinq/target/release/rusthinq-script-test dist/${{ matrix.version }}

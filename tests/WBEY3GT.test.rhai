@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 // Tests of WBEY3GT.rhai (cooktop), against real frames. The command frames are the ones the LG app
 // sent, byte for byte.
 
@@ -211,7 +213,7 @@ fn test_other_and_malformed_frames_are_ignored() {
 fn test_the_descriptor_groups_burner_properties_and_marks_the_controls() {
     let d = device();
     d.start();
-    let desc = json_parse(d.published("il/test-device"));
+    let desc = runtime::descriptor(d);
     expect_eq(desc.kind, "cooktop");
     expect_eq(desc.props.right_state.group, "right");
     expect_eq(desc.props.right_off.type, "trigger");

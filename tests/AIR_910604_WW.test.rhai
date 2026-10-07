@@ -1,3 +1,5 @@
+import "runtime_test" as runtime;
+
 // Tests of AIR_910604_WW.rhai, against frames captured from a real appliance.
 
 import "tlv_test" as t;
@@ -78,7 +80,7 @@ fn test_filter_life_recomputes_when_only_the_hours_left_arrive() {
 fn test_the_descriptor_is_an_air_purifier_with_roles() {
     let d = device();
     d.start();
-    let desc = json_parse(d.published("il/test-device"));
+    let desc = runtime::descriptor(d);
     expect_eq(desc.kind, "fan");
     expect_eq(desc["class"], "air_purifier");
     expect_eq(desc.props.fan.role, "fan_speed");

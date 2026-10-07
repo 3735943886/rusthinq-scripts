@@ -1,1 +1,3 @@
 /il_config_common.rhai
+/dist/
+__pycache__/
