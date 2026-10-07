@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches: ["**"]
+    tags: ["[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]", "[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9].[0-9]*"]
   pull_request:
 
 permissions:
@@ -16,6 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      - name: Validate the release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          PYTHONPATH: tools
+        run: python3 -c 'import os; from package_release import validate_tag; validate_tag(os.environ["RELEASE_TAG"])'
 
       - name: Read the rusthinq ref
         id: ref
@@ -56,3 +65,69 @@ jobs:
 
       - name: Test and check the drivers
         run: rusthinq/target/release/rusthinq-script-test dist/${{ matrix.version }}
+
+      - name: Package the tested runtime
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RUNTIME_VERSION: ${{ matrix.version }}
+        run: |
+          python3 tools/package_release.py --version "$RUNTIME_VERSION" \
+            --tag "$RELEASE_TAG" --host-commit "$(git -C rusthinq rev-parse HEAD)" \
+            --scripts-commit "$(git rev-parse HEAD)"
+
+      - name: Upload release package
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.version }}
+          path: dist/releases/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Publish dated release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: drivers
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Download both tested packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release-assets
+
+      - name: Create checksums and release notes
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        working-directory: release-assets
+        run: |
+          test -f "rusthinq-scripts-0.1-$RELEASE_TAG.tar.gz"
+          test -f "rusthinq-scripts-0.2-$RELEASE_TAG.tar.gz"
+          sha256sum *.tar.gz > SHA256SUMS
+          cat > ../release-notes.md <<'EOF'
+          Shared device drivers packaged separately for rusthinq 0.1 and 0.2.
+          Both packages passed their matching host's driver test suite.
+
+          Extract the package for your host version and follow INSTALL.txt.
+          On first installation with 0.2, copy il_config_common.rhai.example to
+          il_config_common.rhai. Existing local configuration is not included
+          in either archive and is preserved when extracting updates.
+
+          RELEASE.json records the exact tested rusthinq and scripts commits.
+          Verify downloads with: sha256sum -c SHA256SUMS
+          EOF
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" release-assets/*.tar.gz release-assets/SHA256SUMS \
+            --verify-tag --title "$RELEASE_TAG" --notes-file release-notes.md

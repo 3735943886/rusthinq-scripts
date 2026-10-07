@@ -111,6 +111,39 @@ when a change needs a newer host.
 
 To write a new driver, see [docs/writing-a-driver.md](docs/writing-a-driver.md).
 
+## Dated releases
+
+Push an annotated date tag to run the release workflow:
+
+```sh
+git tag -a 2026.10.08 -m "Driver release 2026.10.08"
+git push origin 2026.10.08
+```
+
+Tags must be valid calendar dates in `yyyy.mm.dd` form. For another release on
+that date, use `yyyy.mm.dd.1`, then `.2`, and so on; existing releases are not
+replaced. Use the Asia/Seoul date when choosing the tag.
+
+After both host versions pass the shared suite, the workflow publishes one
+GitHub Release with:
+
+- `rusthinq-scripts-0.1-<tag>.tar.gz`
+- `rusthinq-scripts-0.2-<tag>.tar.gz`
+- `SHA256SUMS`
+
+Each archive contains a flat runtime under `rusthinq-scripts-<version>/`,
+`INSTALL.txt`, the license, and `RELEASE.json` with the exact scripts and tested
+rusthinq commits. No local settings or test fixtures are included. The 0.2
+archive supplies `il_config_common.rhai.example`; copy it to
+`il_config_common.rhai` on first installation and preserve your local file on
+updates. Extract the matching archive, then point your host at the extracted
+directory as described above. Python is not needed to use release archives.
+Stop rusthinq before extracting an update over its active runtime directory.
+
+Verify downloads with `sha256sum -c SHA256SUMS` in the directory containing both
+archives. Changing the source or packaging implementation requires a new tag;
+rerunning a published tag does not overwrite its release assets.
+
 ## Drivers
 
 | model | script | status |
