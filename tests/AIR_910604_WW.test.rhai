@@ -115,8 +115,21 @@ fn test_a_stray_notification_before_the_values_does_not_end_the_retry() {
     d.feed(caps());
     d.feed(t::notify([[0x1fa, 6]]));
     expect_eq(d.timers(), [["values_retry", 15000]]);
-    expect_eq(d.property("available"), "false"); // still down: no complete state yet
+    expect_eq(d.property("available"), "true"); // connected, state not received yet
     d.feed(values());
     expect_eq(d.timers(), [["refresh", 900000]]);
     expect_eq(d.property("available"), "true");
+}
+
+// Availability follows the online lifecycle, independently of state reports.
+fn test_reconnect_restores_availability_without_a_state_frame() {
+    let d = device();
+    d.start();
+    expect_eq(d.script_error(), ());
+    expect_eq(d.property("available"), "true");
+    d.drop_device();
+    expect_eq(d.property("available"), "false");
+    d.start();
+    expect_eq(d.property("available"), "true");
+    expect_eq(d.script_error(), ());
 }

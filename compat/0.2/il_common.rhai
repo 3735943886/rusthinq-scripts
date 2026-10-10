@@ -46,12 +46,13 @@ fn publish_il(ctx, text) {
     }
     ctx.state_set("__il_descriptor", doc);
     if prefix() != "" { ctx.publish_raw(prefix() + "/" + ctx.id(), json_stringify(doc), true); }
-    let values = ctx.state_get("__il_values");
+    // The host initializes drivers only for online devices. Reinitialization
+    // restores availability without waiting for an appliance state report.
     if doc.props != () {
         for prop in doc.props.keys() {
             let definition = doc.props[prop];
-            if definition.role == "available" && (values == () || values[prop] == ()) {
-                publish_property(ctx, prop, "false");
+            if definition.role == "available" {
+                publish_property(ctx, prop, "true");
             }
         }
     }

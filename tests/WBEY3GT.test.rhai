@@ -220,3 +220,16 @@ fn test_the_descriptor_groups_burner_properties_and_marks_the_controls() {
     expect_eq(desc.props.right_remaining_time.requires, "remote_start");
     expect_eq(desc.props.power_off.requires, "remote_start");
 }
+
+// Availability follows the online lifecycle, independently of state reports.
+fn test_reconnect_restores_availability_without_a_state_frame() {
+    let d = device();
+    d.start();
+    expect_eq(d.script_error(), ());
+    expect_eq(d.property("available"), "true");
+    d.drop_device();
+    expect_eq(d.property("available"), "false");
+    d.start();
+    expect_eq(d.property("available"), "true");
+    expect_eq(d.script_error(), ());
+}

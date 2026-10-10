@@ -9,7 +9,7 @@ fn uv_done() { "AA3A12EC020103010101FFFF01FF030101FFFF08041000FF01FF000000010200
 fn amount_250() { "AA3A12EC020003010101FFFF01FF030101FFFF08041000FF01FF00000001020003020101FFFF01FF030101FFFF08041000FF01FF0000000178BB" }
 // What the appliance answers when the LG cloud asks for its status as it connects, captured live.
 fn query_reply() { "AA2012EB020003010101FFFF01FF030101FFFF09161000FF01FF00000001AABB" }
-fn counters() { "AA12121F0000000000FC000000000000BCBB" }
+fn dispensing() { "AA12121F0000000000FC000000000000BCBB" }
 
 fn test_the_answer_to_a_status_query_gives_the_state_at_startup() {
     let d = device();
@@ -42,13 +42,13 @@ fn test_the_selected_amount_follows_the_panel_and_nothing_else_moves() {
     expect_props(d, #{ water_amount: "250ml", water_selection: "cold", default_amount: "120ml" });
 }
 
-fn test_todays_totals_are_sixteen_bit() {
+fn test_last_dispensed_volumes_are_sixteen_bit() {
     let d = device();
-    d.feed(counters());
-    expect_props(d, #{ cold_water_today: "252", hot_water_today: "0" });
+    d.feed(dispensing());
+    expect_props(d, #{ cold_water_last_dispensed: "252", hot_water_last_dispensed: "0" });
     // the same frame shape with 0x1234 on the cold tap; the checksum is not validated
     d.feed("AA12121F00000000123400000000000000BB");
-    expect_eq(d.property("cold_water_today"), "4660");
+    expect_eq(d.property("cold_water_last_dispensed"), "4660");
 }
 
 // The frames the appliance was really sent, each of which changed its setting and came back
@@ -146,4 +146,101 @@ fn test_fixed_status_frames_reject_truncated_and_extended_records() {
         expect_eq(d.property("status"), before);
         expect_eq(d.script_error(), ());
     }
+}
+
+// Availability follows the online lifecycle, independently of state reports.
+fn test_reconnect_restores_availability_without_a_state_frame() {
+    let d = device();
+    d.start();
+    expect_eq(d.script_error(), ());
+    expect_eq(d.property("available"), "true");
+    d.drop_device();
+    expect_eq(d.property("available"), "false");
+    d.start();
+    expect_eq(d.property("available"), "true");
+    expect_eq(d.script_error(), ());
+}
+
+fn test_energy_sums_captured_deltas_including_repeated_reports() {
+    let d = device();
+    d.start();
+    expect_eq(d.property("energy"), "0");
+    d.feed("aa0912af0d0003d1bb");
+    expect_eq(d.property("energy"), "3");
+    d.feed("aa0912af0d0003d1bb");
+    expect_eq(d.property("energy"), "6");
+    d.feed("aa0912af0d0003d1bb");
+    expect_eq(d.property("energy"), "9");
+    d.drop_device();
+    d.start();
+    expect_eq(d.property("energy"), "9");
+    let fresh = device();
+    fresh.start();
+    expect_eq(fresh.property("energy"), "0");
+    expect_eq(d.script_error(), ());
+}
+
+fn test_invalid_energy_envelopes_do_not_add_to_total() {
+    let d = device();
+    d.start();
+    let raw = hex_decode("aa0912af0d0003d1bb");
+    raw.remove(raw.len() - 3);
+    d.feed(raw);
+    raw = hex_decode("aa0912af0d0003d1bb");
+    raw[2] = 0x20;
+    d.feed(raw);
+    expect_eq(d.property("energy"), "0");
+    expect_eq(d.script_error(), ());
+}
+
+fn test_captured_dispensing_reports_replace_values_instead_of_accumulating() {
+    let d = device();
+    d.feed("aa12121f00fc00000016000000000000aabb");
+    expect_props(d, #{ hot_water_last_dispensed: "0", cold_water_last_dispensed: "22", normal_water_last_dispensed: "252", clean_water_last_dispensed: "0" });
+    d.feed("aa12121f00770000000000000000000031bb");
+    expect_props(d, #{ hot_water_last_dispensed: "0", cold_water_last_dispensed: "0", normal_water_last_dispensed: "119", clean_water_last_dispensed: "0" });
+    d.feed("aa12121f00000000007700000000000031bb");
+    expect_props(d, #{ hot_water_last_dispensed: "0", cold_water_last_dispensed: "119", normal_water_last_dispensed: "0", clean_water_last_dispensed: "0" });
+    d.start();
+    let desc = runtime::descriptor(d);
+    expect_eq(desc.props.cold_water_last_dispensed.series, "gauge");
+    expect_eq(desc.props.cold_water_today, ());
+    expect_eq(d.script_error(), ());
+}
+
+fn test_live_normal_hot_cold_dispensing_slot_mapping() {
+    let d = device();
+    d.feed("aa12121f00fc00000000000000000000bcbb");
+    expect_props(d, #{ normal_water_last_dispensed: "252", hot_water_last_dispensed: "0", cold_water_last_dispensed: "0" });
+    d.feed("aa12121f0000007e00000000000000003ebb");
+    expect_props(d, #{ normal_water_last_dispensed: "0", hot_water_last_dispensed: "126", cold_water_last_dispensed: "0" });
+    d.feed("aa12121f000000000106000000000000a1bb");
+    expect_props(d, #{ normal_water_last_dispensed: "0", hot_water_last_dispensed: "0", cold_water_last_dispensed: "262" });
+    expect_eq(d.script_error(), ());
+}
+
+fn test_hot_temperatures_share_a_slot_and_clean_water_uses_slot_six() {
+    let d = device();
+    d.feed("aa12121f00000077000000000000000031bb");
+    expect_eq(d.property("hot_water_last_dispensed"), "119");
+    d.feed("aa12121f000000f90000000000000000b3bb");
+    expect_eq(d.property("hot_water_last_dispensed"), "249");
+    d.feed("aa12121f000000000000000000000099d3bb");
+    expect_props(d, #{normal_water_last_dispensed: "0", hot_water_last_dispensed: "0", cold_water_last_dispensed: "0", clean_water_last_dispensed: "153"});
+    expect_eq(d.script_error(), ());
+}
+
+fn test_last_hot_temperature_setting_tracks_live_selections_and_survives_cold() {
+    let d = device();
+    d.start();
+    expect_eq(d.property("hot_water_last_temperature"), ());
+    d.feed("aa3a12ec020002020101ffff01ff030101ffff0a0d1000ff01ff0000000102000101010103ff01ff030101ffff0a0d1000ff01ff0000000111bb");
+    expect_eq(d.property("hot_water_last_temperature"), "85");
+    d.feed("aa3a12ec02000101010103ff01ff030101ffff0a0d1000ff01ff0000000102000101010101ff01ff030101ffff0a0d1000ff01ff0000000111bb");
+    expect_eq(d.property("hot_water_last_temperature"), "40");
+    d.feed("aa3a12ec02000101010101ff01ff030101ffff0a0d1000ff01ff0000000102000102010102ff01ff030101ffff0a0d1000ff01ff0000000111bb");
+    expect_eq(d.property("hot_water_last_temperature"), "75");
+    d.feed("aa3a12ec02000101010103ff01ff030101ffff0a0d1000ff01ff00000001020003010101ffff01ff030101ffff0a0d1000ff01ff0000000111bb");
+    expect_eq(d.property("hot_water_last_temperature"), "75");
+    expect_eq(d.script_error(), ());
 }

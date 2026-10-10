@@ -114,3 +114,23 @@ fn test_every_write_is_refused_by_il_common_because_no_property_is_writable() {
     expect_eq(d.sent().len(), 0);
     expect(d.event("reject").contains("read-only property"), "the refusal says why");
 }
+
+// Availability follows the online lifecycle, independently of state reports.
+fn test_reconnect_restores_availability_without_a_state_frame() {
+    let d = device();
+    d.start();
+    expect_eq(d.script_error(), ());
+    expect_eq(d.property("available"), "true");
+    d.drop_device();
+    expect_eq(d.property("available"), "false");
+    d.start();
+    expect_eq(d.property("available"), "true");
+    expect_eq(d.script_error(), ());
+}
+
+fn test_live_auto_cycle_with_user_reported_options() {
+    let d = device();
+    d.feed("aa3a32ec0018010000012d0100012d0000100002000d00000000000000010018020200012d0100012d0000100002000d000000000000000164bb");
+    expect_props(d, #{status: "running", process: "washing", course: "auto", error: "none", total_time: "105", remaining_time: "105", door: "false", running: "true"});
+    expect_eq(d.script_error(), ());
+}

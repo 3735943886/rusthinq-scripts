@@ -301,3 +301,16 @@ fn test_energy_today_climbs_with_no_state_change() {
     d.feed("AA0B103E001E01380A31BB");
     expect_props(d, #{ energy_today: "312" });
 }
+
+// Availability follows the online lifecycle, independently of state reports.
+fn test_reconnect_restores_availability_without_a_state_frame() {
+    let d = device();
+    d.start();
+    expect_eq(d.script_error(), ());
+    expect_eq(d.property("available"), "true");
+    d.drop_device();
+    expect_eq(d.property("available"), "false");
+    d.start();
+    expect_eq(d.property("available"), "true");
+    expect_eq(d.script_error(), ());
+}

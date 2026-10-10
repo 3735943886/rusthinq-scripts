@@ -12,6 +12,7 @@
 
 import "tlv_common" as c;
 import "il_common" as il;
+import "energy_common" as energy;
 
 // ---- model ------------------------------------------------------------------------
 
@@ -25,6 +26,7 @@ fn descriptor(ctx) {
         model: ctx.model_id(),
         props: #{
             available: #{ type: "binary", role: "available" },
+            energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy since driver restart" },
             power: #{ type: "binary", rw: true, role: "on", src: #{ tlv_tag: "0x1f7" } },
             mode: #{ type: "select", rw: true, role: "mode", src: #{ tlv_tag: "0x1f9" },
                      options: ["smart", "jet", "silent", "spot", "laundry"] },
@@ -106,6 +108,7 @@ fn start(ctx) { c::start(ctx); }
 
 fn publish_config(ctx) {
     il::publish_il(ctx, descriptor(ctx));
+    energy::publish(ctx);
 }
 
 fn on_drop(ctx) {
@@ -115,6 +118,18 @@ fn on_drop(ctx) {
 fn on_timer(ctx, name) { c::on_timer(ctx, name); }
 
 fn on_data(ctx, data) {
+    // Captured FD report: 177-byte body, marker 0x15, Wh delta at body +1..4.
+    // Decode the candidate four-byte little-endian field; never parse this as TLV.
+    if data.len() == 190 && data[2] == 4 && data[3] == 0
+        && data[4] == 0 && data[5] == 0 && data[6] == 0x87
+        && data[7] == 0xfd && data[8] == 3 && data[9] == 0
+        && data[10] == 177 && data[11] == 0x15 {
+        let delta = data[12] + data[13] * 256
+            + data[14] * 65536 + data[15] * 16777216;
+        energy::add(ctx, delta);
+        return;
+    }
+
     let frame = c::receive(ctx, data, 1, VALUE_TAGS());
     if frame == () || frame.caps { return; }
 

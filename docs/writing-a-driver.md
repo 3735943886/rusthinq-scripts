@@ -20,34 +20,74 @@ written to be read by an AI agent driving the work as much as by a person.
   descriptor/values/commands/rejects you publish must fit it. How you get there in Rhai is free.
   The IL is this repository's convention; rusthinq 0.2 does not require it — see
   [Drivers that do not use the IL](#drivers-that-do-not-use-the-il).
-- **Can you capture live?** If the device is connected to a running rusthinq with
-  `raw_prefix` set (and `raw` lists at least `rx`, `tx`, `clip_tx`), use
-  **`rusthinq-capture <mqtt-host[:port]> <device-uuid> [out.jsonl]`**
-  (in the rusthinq repository, `crates/rusthinq-tools/src/bin/rusthinq_capture.rs`) rather than subscribing by hand: it
-  taps `rx`/`tx`/`clip/tx` together into one timestamped, TLV/AABB-decoded JSONL file, so rx
-  and tx frames are never split across two separate subscriptions racing each other (a real
-  write's ack has been missed this way before — don't repeat it). **Set `RUSTHINQ_RAW_PREFIX` to
-  the target's `[mqtt] raw_prefix`** (default `rusthinq-raw`) — get this wrong and the tool
-  subscribes to a topic nothing publishes and silently captures zero events
-  (indistinguishable from "device is idle" until you notice the file never grows).
-  Stdin lines become
-  timestamped `note` entries in the same file, so ask whoever is operating the real app to
-  send a line ("smart_care on") right when they do each thing, and correlate by timestamp
-  afterward instead of guessing from wall-clock chat messages. A read-only status query is
-  safe to inject via `<raw_prefix>/<id>/raw/inject/set` (same bytes `send_raw`/`aabb_wrap`/
-  `tlv_frame_build` would produce, full wire framing included); do not inject a write/command
-  frame against a real appliance without the user's sign-off. See `raw_bus.rs`'s doc comment
-  for the full topic list.
-  **Independent of `raw_prefix` entirely**: `rusthinq-packet-parser`/`rusthinq-packet-sender`
-  talk straight to the device's own `clip/message/devices/<id>` topic (what `raw/clip/tx` is
-  itself a copy of) — useful when `raw` isn't configured, though as shipped they only build
-  TLV frames, not AABB.
-  **A write via rusthinq's own `<rusthinq_prefix>/<id>/<prop>/set` and one relayed from the
-  real app through an active LG-cloud bridge session end up on the exact same wire path**
-  (`ConnectedAsLocal::send_to_local` → the same `send_to_device` a script's `ctx.send_raw`
-  uses) — a write that looks unacknowledged from rusthinq's own path is almost always a
-  capture gap (see above) or genuine appliance-side flakiness (busy/mid-cycle; this fleet has
-  precedent for an acked write the appliance still ignored), not a different code path.
+- **Can you capture live?** Record a complete cycle and annotate each panel/app action.
+  Use the version-specific instructions below; the 0.1 and 0.2 capture commands differ.
+
+### Capturing appliance traffic
+
+For rusthinq **0.2**, use its management API capture tool. It does not require
+`raw_prefix`. Set the API URL to your daemon's configured management address;
+`http://127.0.0.1:8080/` is the tool default, not necessarily your installation's port.
+
+```bash
+export RUSTHINQ_API=http://127.0.0.1:8080/
+rusthinqctl devices
+rusthinqctl capture DEVICE_UUID capture.jsonl
+# Equivalent standalone command:
+# rusthinq-capture DEVICE_UUID capture.jsonl
+```
+
+The JSONL output includes timestamped device rx/tx packets. Type notes into stdin
+(e.g. `cold water, 250 mL` or `auto course, safe rinse on`) while operating the
+appliance. Stop an interactive capture with Ctrl+C. Keep the original file and
+record the app's corresponding values, units and time intervals separately.
+`--cloud` also captures LG notifications when supported and configured; it is
+not necessary for local wire capture. See the host's
+[capture documentation](https://github.com/3735943886/rusthinq/blob/dev/0.2/docs/0.2-dashboard.md#lg-notification-observation-and-correlated-captures).
+
+For a bounded background capture on a Linux host running systemd:
+
+```bash
+sudo systemd-run --unit=rusthinq-capture-example \
+  --property=User=YOUR_USER --property=RuntimeMaxSec=24h \
+  --setenv=RUSTHINQ_API=http://127.0.0.1:8080/ \
+  /ABSOLUTE/PATH/rusthinq-capture DEVICE_UUID /ABSOLUTE/PATH/capture.jsonl
+systemctl status rusthinq-capture-example
+journalctl -u rusthinq-capture-example
+# End early:
+sudo systemctl stop rusthinq-capture-example
+```
+
+Use a writable output directory and the actual executable path. Background
+captures cannot accept interactive stdin annotations; keep a separate action log.
+This transient unit does not automatically return after a reboot. For indefinite
+capture, omit `RuntimeMaxSec`; for capture across reboots, install a regular
+systemd service with `Restart=always` and enable it. When finished, stop/disable
+that service, remove its unit file, and run `systemctl daemon-reload`. Preserve
+capture files separately from service cleanup.
+
+For rusthinq **0.1**, the older tool uses MQTT raw topics:
+
+```bash
+export RUSTHINQ_RAW_PREFIX=rusthinq-raw
+rusthinq-capture MQTT_HOST:1883 DEVICE_UUID capture.jsonl
+```
+
+Match `RUSTHINQ_RAW_PREFIX` to the host's `[mqtt] raw_prefix` and enable at least
+`rx`, `tx`, and `clip_tx` in its raw configuration. A wrong prefix can produce an
+empty capture even when the appliance is active.
+
+Check the capture before drawing conclusions: connection alone does not prove
+that any device frames were received. Inspect rx counts, timestamps and loss
+markers. Capture start, operation, completion and idle; energy may appear in
+separate diagnostic frames or periodic deltas. Compare app values before assigning
+units or copying another model's offsets. Distinguish full-wire, unwrapped-body
+and payload offsets explicitly. Capture observation does not send appliance
+commands; replay/injection is a separate action.
+
+Local investigation notes belong in the ignored `docs/audits/` directory. Keep
+full captures outside the tracked repository; add only relevant, reviewed frame
+fixtures to driver tests.
 
 ## 1. Identify the frame family
 
@@ -95,9 +135,10 @@ fn descriptor(ctx) {
   `number` properties with `class: "temperature"`).
 - **`class`/`series`/`category`** (section 11) on every property where one applies — a
   consumer that does not know a class ignores it (L-1), so there is no cost to adding one.
-  `series: "counter"` for a running total that resets (today's water dispensed); `category:
+  `series: "counter"` for a running total that resets (cycle energy); `category:
   "diagnostic"` for a fault code or a filter counter; `category: "config"` for a setting a
-  person sets once, not an everyday control.
+  person sets once, not an everyday control. Use `series: "gauge"` for the last
+  dispensing volume; a decreasing event value is not a daily counter.
 - **`requires`** for a control that only takes effect under a condition the device itself
   enforces (a burner ring that ignores commands unless the panel granted remote start) — the
   script calls `il::validate` to check it before building the write.

@@ -201,7 +201,7 @@ fn test_a_stray_notification_before_the_values_does_not_end_the_retry() {
     d.feed(caps());
     d.feed(t::notify([[0x1fa, 6]])); // a change notification, not the state
     expect(has_timer(d, "values_retry"), "the values query is still being retried");
-    expect_eq(d.property("available"), "false"); // still down: no complete state yet
+    expect_eq(d.property("available"), "true"); // connected, state not received yet
     d.feed(state());
     expect(!has_timer(d, "values_retry"), "the full state ends the retry");
     expect_eq(d.property("available"), "true");
@@ -230,4 +230,17 @@ fn test_the_captured_capabilities_keep_the_range_they_report() {
     d.feed(caps()); // 0x2e1 = 32, 0x2e2 = 60: 16.0 .. 30.0
     expect_eq(runtime::descriptor(d).props.target.min, 16);
     expect_eq(runtime::descriptor(d).props.target.max, 30);
+}
+
+// Availability follows the online lifecycle, independently of state reports.
+fn test_reconnect_restores_availability_without_a_state_frame() {
+    let d = device();
+    d.start();
+    expect_eq(d.script_error(), ());
+    expect_eq(d.property("available"), "true");
+    d.drop_device();
+    expect_eq(d.property("available"), "false");
+    d.start();
+    expect_eq(d.property("available"), "true");
+    expect_eq(d.script_error(), ());
 }

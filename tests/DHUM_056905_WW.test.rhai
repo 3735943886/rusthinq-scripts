@@ -163,8 +163,53 @@ fn test_a_notification_of_tags_that_are_not_state_does_not_end_the_retry() {
     d.feed(caps());
     d.feed(t::notify([[0x221, 0]])); // the error code alone is not one of the appliance's state tags
     expect_eq(d.timers(), [["values_retry", 15000]]);
-    expect_eq(d.property("available"), "false"); // still down: no complete state yet
+    expect_eq(d.property("available"), "true"); // connected, state not received yet
     d.feed(t::notify([[0x1fa, 6]])); // a state tag: the cloud counts this as values too
     expect_eq(d.property("available"), "true");
     expect_eq(d.timers(), [["refresh", 900000]]);
+}
+
+// Availability follows the online lifecycle, independently of state reports.
+fn test_reconnect_restores_availability_without_a_state_frame() {
+    let d = device();
+    d.start();
+    expect_eq(d.script_error(), ());
+    expect_eq(d.property("available"), "true");
+    d.drop_device();
+    expect_eq(d.property("available"), "false");
+    d.start();
+    expect_eq(d.property("available"), "true");
+    expect_eq(d.script_error(), ());
+}
+
+fn test_energy_sums_captured_deltas_including_repeated_reports() {
+    let d = device();
+    d.start();
+    expect_eq(d.property("energy"), "0");
+    d.feed("00000400000087fd0300b1150300000046000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff0e00000032000000ffffffff2e000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000048000000e65045ff722e28110100eb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b770");
+    expect_eq(d.property("energy"), "3");
+    d.feed("00000400000087fd0300b1150300000046000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff0e00000032000000ffffffff2e000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000048000000e65045ff722e28110100eb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b770");
+    expect_eq(d.property("energy"), "6");
+    d.feed("00000400000087fd0300b11506000000aa000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff0e00000032000000ffffffff2c000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000048000000e65045ff702c28119100eb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c18b");
+    expect_eq(d.property("energy"), "12");
+    d.drop_device();
+    d.start();
+    expect_eq(d.property("energy"), "12");
+    let fresh = device();
+    fresh.start();
+    expect_eq(fresh.property("energy"), "0");
+    expect_eq(d.script_error(), ());
+}
+
+fn test_invalid_energy_envelopes_do_not_add_to_total() {
+    let d = device();
+    d.start();
+    let raw = hex_decode("00000400000087fd0300b1150300000046000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff0e00000032000000ffffffff2e000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000048000000e65045ff722e28110100eb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b770");
+    raw.remove(raw.len() - 3);
+    d.feed(raw);
+    raw = hex_decode("00000400000087fd0300b1150300000046000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff0e00000032000000ffffffff2e000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000048000000e65045ff722e28110100eb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b770");
+    raw[6] = 0xa8;
+    d.feed(raw);
+    expect_eq(d.property("energy"), "0");
+    expect_eq(d.script_error(), ());
 }

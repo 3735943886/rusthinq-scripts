@@ -1,3 +1,6 @@
 /il_config_common.rhai
 /dist/
 __pycache__/
+
+# Local investigation notes and capture-derived audit artifacts
+/docs/audits/

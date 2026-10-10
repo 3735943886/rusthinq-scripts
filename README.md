@@ -67,6 +67,10 @@ retain)` in either host. Compatibility still depends on the other host APIs they
 use; such scripts must validate their own commands. See
 [non-IL drivers](docs/writing-a-driver.md#drivers-that-do-not-use-the-il).
 
+Driver `available` follows the connection lifecycle: initialization publishes `true`,
+and disconnect publishes `false`. A fresh appliance state report is not required to
+restore availability after reconnecting; reported values may still reflect the last report.
+
 ## Layout
 
 ```text
