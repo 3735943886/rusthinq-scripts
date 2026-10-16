@@ -52,9 +52,8 @@ Shared work that blocks several ports. Do these first.
   dot-separated part must be a valid name). 12 upstream model IDs (8 drivers
   and 4 aliases) depend on it. Module names still cannot contain `.`.
 - **Aliases.** Upstream maps several model IDs to one driver. Here every model
-  needs its own file and test file. Decide between generated copies (an alias
-  list read by `tools/prepare.py`) and host-side aliasing before porting the
-  aliased drivers.
+  needs its own file and test file. Decide between committed copies and host-side
+  aliasing before porting the aliased drivers.
 
 ### Shared modules
 

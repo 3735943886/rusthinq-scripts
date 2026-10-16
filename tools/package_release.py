@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package a tested runtime without local settings or test fixtures."""
+"""Package the tested drivers and modules without local settings or test fixtures."""
 
 import argparse
 import datetime
@@ -23,14 +23,10 @@ def package(root, tag, host_commit, scripts_commit, output):
     for commit in (host_commit, scripts_commit):
         if not re.fullmatch(r"[0-9a-f]{40}", commit):
             raise ValueError("commit must be a full 40-character Git SHA")
-    runtime = root / "dist" / "0.2"
-    names = set()
-    for directory in (root / "drivers", root / "modules"):
-        names.update(p.name for p in directory.glob("*.rhai"))
-    files = {name: (runtime / name).read_bytes() for name in sorted(names)}
-    files["il_config_common.rhai.example"] = (
-        root / "modules" / "il_config_common.rhai.example"
-    ).read_bytes()
+    files = {}
+    for directory in ("drivers", "modules"):
+        for source in (root / directory).glob("*.rhai"):
+            files[f"{directory}/{source.name}"] = source.read_bytes()
     files["COPYING"] = (root / "COPYING").read_bytes()
     metadata = {
         "tag": tag, "runtime": "0.2", "scripts_commit": scripts_commit,
@@ -40,11 +36,12 @@ def package(root, tag, host_commit, scripts_commit, output):
     files["RELEASE.json"] = (json.dumps(metadata, indent=2) + "\n").encode()
     files["INSTALL.txt"] = (
         f"rusthinq-scripts {tag} for rusthinq 0.2\n\n"
-        "Set [drivers] directory to the absolute path of this extracted directory.\n"
-        "Set watch = true in the same section for automatic driver reload.\n"
-        "Stop rusthinq before extracting an update over an existing directory.\n"
-        "On first installation, copy il_config_common.rhai.example to\n"
-        "il_config_common.rhai and edit prefix(). Preserve that local file on updates.\n"
+        "Set [drivers] directory to the absolute path of this extracted directory\n"
+        "(rusthinq bfb8e77 or later). Set watch = true in the same section for\n"
+        "automatic driver reload. Stop rusthinq before extracting an update over an\n"
+        "existing directory. To change the descriptor prefix, copy\n"
+        "modules/il_config_common.rhai to this directory and edit prefix(); a file\n"
+        "here overrides drivers/ and modules/, and updates do not replace it.\n"
     ).encode()
     output.mkdir(parents=True, exist_ok=True)
     archive = output / f"rusthinq-scripts-0.2-{tag}.tar.gz"

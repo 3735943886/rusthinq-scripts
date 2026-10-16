@@ -1,7 +1,7 @@
 # Writing a `.rhai` driver
 
-A checklist-shaped recipe for adding a driver under `drivers/`. Prepare
-`dist/0.2` for execution; see [README.md](../README.md#using-it). Read
+A checklist-shaped recipe for adding a driver under `drivers/`; the host runs the
+checkout as is, see [README.md](../README.md#using-it). Read
 [0.2-runtime.md](https://github.com/3735943886/rusthinq/blob/master/docs/0.2-runtime.md) first for what each hook means and what the host does around
 it (that document is in the rusthinq repository); this document is the step-by-step of turning a device's wire protocol into one. It is
 written to be read by an AI agent driving the work as much as by a person.
@@ -253,8 +253,7 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
    (`scripting::has_script_for`), so it must match the `modelId` the device reports exactly,
    including case and underscores.
 2. `tests/<Model>.test.rhai`.
-3. Prepare the runtime with `python3 tools/prepare.py`, then run the host runner as
-   shown in [README.md](../README.md#checking-a-change).
+3. Run the host runner as shown in [README.md](../README.md#checking-a-change).
 4. Add one row to the driver table in [README.md](../README.md#drivers) stating
    exactly what was and was not verified against a real appliance — copy the phrasing style
    of an existing row, do not oversell "tested".

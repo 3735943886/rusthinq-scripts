@@ -1,7 +1,5 @@
 import json
 import shutil
-import subprocess
-import sys
 import tarfile
 import tempfile
 import unittest
@@ -26,9 +24,7 @@ class ReleaseTests(unittest.TestCase):
                 shutil.copytree(source / name, root / name)
             for name in ("COPYING", "RUSTHINQ_REF"):
                 shutil.copyfile(source / name, root / name)
-            subprocess.run([sys.executable, str(root / "tools/prepare.py")],
-                           check=True, capture_output=True)
-            (root / "dist/0.2/il_config_common.rhai").write_text("PRIVATE SETTINGS")
+            (root / "il_config_common.rhai").write_text("PRIVATE SETTINGS")
             archive = package(root, "2026.10.08", "a" * 40, "b" * 40, root / "out")
             self.assertEqual(archive.name, "rusthinq-scripts-0.2-2026.10.08.tar.gz")
             original = archive.read_bytes()
@@ -38,14 +34,16 @@ class ReleaseTests(unittest.TestCase):
                 prefix = "rusthinq-scripts-0.2/"
                 names = tar.getnames()
                 self.assertNotIn(prefix + "il_config_common.rhai", names)
-                self.assertFalse(any("/tests/" in n or ".generated-files" in n for n in names))
-                self.assertIn(prefix + "il_config_common.rhai.example", names)
+                self.assertFalse(any("/tests/" in n for n in names))
+                self.assertEqual(tar.extractfile(prefix + "modules/il_config_common.rhai").read(),
+                                 (root / "modules/il_config_common.rhai").read_bytes())
                 metadata = json.load(tar.extractfile(prefix + "RELEASE.json"))
                 self.assertEqual(metadata["rusthinq_commit"], "a" * 40)
                 self.assertEqual(metadata["scripts_commit"], "b" * 40)
                 self.assertEqual(metadata["runtime"], "0.2")
                 for driver in (root / "drivers").glob("*.rhai"):
-                    self.assertEqual(tar.extractfile(prefix + driver.name).read(), driver.read_bytes())
+                    self.assertEqual(tar.extractfile(prefix + "drivers/" + driver.name).read(),
+                                     driver.read_bytes())
 
 if __name__ == "__main__":
     unittest.main()

@@ -47,14 +47,11 @@ jobs:
           cargo build --release --manifest-path rusthinq/Cargo.toml
           -p rusthinq-tools --bin rusthinq-script-test
 
-      - name: Test runtime preparation
+      - name: Test release packaging
         run: python3 -m unittest discover -s tools -p 'test_*.py'
 
-      - name: Prepare the runtime directory
-        run: python3 tools/prepare.py
-
       - name: Test and check the drivers
-        run: rusthinq/target/release/rusthinq-script-test dist/0.2
+        run: rusthinq/target/release/rusthinq-script-test .
 
       - name: Package the tested runtime
         if: startsWith(github.ref, 'refs/tags/')
@@ -101,10 +98,8 @@ jobs:
           Device drivers for rusthinq 0.2, tested against the host's driver suite.
           For rusthinq 0.1, use the legacy branch and its earlier releases.
 
-          Extract the package and follow INSTALL.txt. On first installation,
-          copy il_config_common.rhai.example to il_config_common.rhai. Existing
-          local configuration is not included in the archive and is preserved
-          when extracting updates.
+          Extract the package and follow INSTALL.txt. Local overrides in the
+          extracted directory's root are not in the archive and survive updates.
 
           RELEASE.json records the exact tested rusthinq and scripts commits.
           Verify downloads with: sha256sum -c SHA256SUMS

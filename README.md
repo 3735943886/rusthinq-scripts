@@ -11,22 +11,22 @@ use it or its earlier dated releases for a 0.1 host.
 
 ## Using it
 
-Prepare the runtime directory (Python 3 required):
+Point `[drivers] directory` at this checkout (or an extracted release):
 
-```sh
-python3 tools/prepare.py
+```toml
+[drivers]
+directory = "/path/to/rusthinq-scripts"
+watch = true
 ```
 
-Point `[drivers] directory` at `/path/to/rusthinq-scripts/dist/0.2`.
-Enable `watch = true` in the same section if you want automatic reloads.
-The host expects a flat runtime directory; do not point it at the source root.
-Run the preparation command again after changing or updating source files.
-With watching enabled, prepare while the daemon is stopped to avoid loading a
-partially copied update; otherwise prepare and restart the daemon.
+The host looks up `<model>.rhai` in `drivers/` and modules in `modules/`; this
+needs rusthinq `bfb8e77` or later. With `watch = true`, `git pull` or an edit
+reloads the affected drivers; otherwise restart the daemon.
 
-Edit `dist/0.2/il_config_common.rhai` to choose the descriptor prefix
-(default `"il"`; `""` disables descriptor publication). Preparation preserves
-this local file. Property and command topics use the host's
+A `.rhai` file in the checkout root overrides the one of the same name in
+`drivers/` or `modules/`. To choose the descriptor prefix (default `"il"`; `""`
+disables descriptor publication), copy `modules/il_config_common.rhai` to the root
+and edit it; Git ignores that copy. Property and command topics use the host's
 `[drivers] topic_prefix`.
 
 rusthinq must have the `scripting` feature. Driver filenames must match the
@@ -58,13 +58,13 @@ restore availability after reconnecting; reported values may still reflect the l
 drivers/              <modelId>.rhai drivers
 modules/              IL, code table, AABB, TLV, refrigerator, dishwasher,
                       monitoring and energy modules;
-                      il_config_common.rhai.example (descriptor prefix template)
+                      il_config_common.rhai (default descriptor prefix)
 tests/                Device tests, protocol test helpers and runtime_test.rhai
-tools/prepare.py      Assembles the flat runtime directory
+tools/package_release.py  Builds the dated release archive
 tools/rethink_frames.ts  Prints upstream rethink frames for ported tests
 tools/rethink_fixtures.mjs  Prints an upstream rethink test's fixtures
 RUSTHINQ_REF          rusthinq ref the drivers are tested against
-dist/0.2/             Generated runtime directory (ignored by Git)
+il_config_common.rhai Local override (ignored by Git)
 ```
 
 The washer/dryer/styler family uses `monitoring_common`, refrigerators use
@@ -74,15 +74,14 @@ retry, refresh and framing to `tlv_common`. Every driver publishes through
 
 ## Checking a change
 
-Prepare the runtime, then run the host's runner against it:
+Run the host's runner against the checkout:
 
 ```sh
-python3 tools/prepare.py
 # From a rusthinq checkout:
-cargo run -p rusthinq-tools --bin rusthinq-script-test -- /path/to/rusthinq-scripts/dist/0.2
+cargo run -p rusthinq-tools --bin rusthinq-script-test -- /path/to/rusthinq-scripts
 ```
 
-The preparation tool has its own checks:
+The release packaging has its own checks:
 
 ```sh
 python3 -m unittest discover -s tools -p 'test_*.py'
@@ -112,14 +111,12 @@ After the driver suite passes, the workflow publishes one GitHub Release with:
 - `rusthinq-scripts-0.2-<tag>.tar.gz`
 - `SHA256SUMS`
 
-The archive contains a flat runtime under `rusthinq-scripts-0.2/`,
+The archive holds `drivers/` and `modules/` under `rusthinq-scripts-0.2/`, with
 `INSTALL.txt`, the license, and `RELEASE.json` with the exact scripts and tested
-rusthinq commits. No local settings or test fixtures are included. The archive
-supplies `il_config_common.rhai.example`; copy it to `il_config_common.rhai` on
-first installation and preserve your local file on updates. Extract the archive,
-then point your host at the extracted directory as described above. Python is
-not needed to use release archives. Stop rusthinq before extracting an update
-over its active runtime directory.
+rusthinq commits. No local overrides or test fixtures are included, so extracting
+an update keeps a root `il_config_common.rhai`. Point your host at the extracted
+directory as described above, and stop rusthinq before extracting an update over
+it.
 
 Verify downloads with `sha256sum -c SHA256SUMS` in the directory containing the
 archive. Changing the source or packaging implementation requires a new tag;
