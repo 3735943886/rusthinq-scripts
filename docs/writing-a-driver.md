@@ -2,7 +2,7 @@
 
 A checklist-shaped recipe for adding a shared driver under `drivers/`. Prepare
 `dist/<version>` for execution; see [README.md](../README.md#using-it). Read
-[0.2-runtime.md](https://github.com/3735943886/rusthinq/blob/dev/0.2/docs/0.2-runtime.md) first for what each hook means and what the host does around
+[0.2-runtime.md](https://github.com/3735943886/rusthinq/blob/master/docs/0.2-runtime.md) first for what each hook means and what the host does around
 it (that document is in the rusthinq repository); this document is the step-by-step of turning a device's wire protocol into one. It is
 written to be read by an AI agent driving the work as much as by a person.
 
@@ -43,7 +43,7 @@ appliance. Stop an interactive capture with Ctrl+C. Keep the original file and
 record the app's corresponding values, units and time intervals separately.
 `--cloud` also captures LG notifications when supported and configured; it is
 not necessary for local wire capture. See the host's
-[capture documentation](https://github.com/3735943886/rusthinq/blob/dev/0.2/docs/0.2-dashboard.md#lg-notification-observation-and-correlated-captures).
+[capture documentation](https://github.com/3735943886/rusthinq/blob/master/docs/0.2-dashboard.md#lg-notification-observation-and-correlated-captures).
 
 For a bounded background capture on a Linux host running systemd:
 

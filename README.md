@@ -60,7 +60,7 @@ descriptor label with a user-configured device name; the 0.2 adapter currently
 uses the driver's label. Both versions are tested against the same driver suite.
 Host refs are recorded separately in `compat/<version>/RUSTHINQ_REF`.
 For daemon configuration and state migration, see the
-[0.1 → 0.2 migration guide](https://github.com/3735943886/rusthinq/blob/dev/0.2/docs/0.2-tools-migration.md#release-notes-upgrading).
+[0.1 → 0.2 migration guide](https://github.com/3735943886/rusthinq/blob/master/docs/0.2-tools-migration.md#release-notes-upgrading).
 
 Non-IL scripts can use supported hooks and `ctx.publish_raw(topic, payload,
 retain)` in either host. Compatibility still depends on the other host APIs they
