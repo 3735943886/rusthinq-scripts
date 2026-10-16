@@ -19,7 +19,7 @@ suite, update this table, and diff `cloud/devices/` since the previous commit
 for drivers that are already ported.
 
 Upstream matches the reported `modelId` exactly. The driver file here must have
-the same name (see [Host blockers](#host-blockers) for names containing `.`).
+the same name (names containing `.` need rusthinq `bfb8e77` or later).
 
 ## How to port one driver
 
@@ -42,17 +42,12 @@ the same name (see [Host blockers](#host-blockers) for names containing `.`).
 
 Shared work that blocks several ports. Do these first.
 
-### Host blockers
+### Host support
 
-These need a rusthinq change; they cannot be solved in this repository.
-
-- **`.` in model IDs.** rusthinq accepts driver and module names matching
-  `[A-Za-z0-9_-]` only (`rusthinq-scripting/src/drivers.rs`), so
-  `F_V8_Y___W.B_2QEUK.rhai` cannot load. 12 upstream model IDs (8 drivers and
-  4 aliases) contain `.`. A per-device `[drivers] bindings` entry can point one
-  device at a renamed file as a stopgap, but automatic matching needs the host
-  to accept `.` (after rejecting `..` and path separators) or to map it
-  deterministically.
+- **`.` in model IDs.** rusthinq accepts dotted driver names such as
+  `F_V8_Y___W.B_2QEUK.rhai` since commit `bfb8e77` on master (each
+  dot-separated part must be a valid name). 12 upstream model IDs (8 drivers
+  and 4 aliases) depend on it. Module names still cannot contain `.`.
 - **Aliases.** Upstream maps several model IDs to one driver. Here every model
   needs its own file and test file. Decide between generated copies (an alias
   list read by `tools/prepare.py`) and host-side aliasing before porting the
@@ -76,12 +71,12 @@ These need a rusthinq change; they cannot be solved in this repository.
    refrigerators, dishwashers, EU washers.
 3. Standalone AABB drivers, smallest first.
 4. TLV: `POT_056905_WW`, then `RAC_056905_WW` (with its ThinQ1 variant).
-5. Drivers blocked on the host (`.` model IDs, aliases) once rusthinq supports them.
+5. Aliased models, once the alias approach is decided.
 6. `WIN_056905_WW` last: upstream has no tests for it.
 
 ## Tracker
 
-Status: `todo`, `blocked` (host change needed), `ported`. Tests and fixtures
+Status: `todo`, `ported`. Tests and fixtures
 are counts of upstream `test(...)` cases and hex fixtures. Ack = upstream
 auto-ack enabled; Env = envelope status; Long = long framing.
 
@@ -111,15 +106,15 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 
 | model | tests | fixtures | notes | status |
 |---|---|---|---|---|
-| `F_C__Y___W.A__QEUK` | 38 | 14 | F4WV709P1 | blocked |
-| `F_V8_Y___W.B_2QEUK` | 7 | 7 | aliases `F_V7_Y___W.B_2QEUK`, `F_V7_Y___W.B__QEUK`, `F_V__Y___W.B_2QEUK` | blocked |
-| `F_VB_F___W.B_2QEUK` | 16 | 8 | CV74J7S2QA washer-dryer | blocked |
-| `F_VB_Y___W.B_2QEUK` | 13 | 12 | F4WV710ATR, Ack | blocked |
-| `F_V__F___W.B_1QEUK` | 17 | 9 | alias `F_VA_F___W.B__QEUK` | blocked |
+| `F_C__Y___W.A__QEUK` | 38 | 14 | F4WV709P1 | todo |
+| `F_V8_Y___W.B_2QEUK` | 7 | 7 | aliases `F_V7_Y___W.B_2QEUK`, `F_V7_Y___W.B__QEUK`, `F_V__Y___W.B_2QEUK` | todo |
+| `F_VB_F___W.B_2QEUK` | 16 | 8 | CV74J7S2QA washer-dryer | todo |
+| `F_VB_Y___W.B_2QEUK` | 13 | 12 | F4WV710ATR, Ack | todo |
+| `F_V__F___W.B_1QEUK` | 17 | 9 | alias `F_VA_F___W.B__QEUK` | todo |
 | `VCDWL2QEUK` | 29 | 34 | F4X7511TWS | todo |
-| `Y_V8_F___W.B_2QEUK` | 6 | 5 | W4WR70E61 washer-dryer | blocked |
-| `Y_V8_Y___W.B32QEUK` | 31 | 14 | FSR7A04PG, Ack, Env | blocked |
-| `Y_VB_Y___W.B32QEUK` | 25 | 19 | F14R76BSTA; extends `Y_V8_Y___W.B32QEUK` | blocked |
+| `Y_V8_F___W.B_2QEUK` | 6 | 5 | W4WR70E61 washer-dryer | todo |
+| `Y_V8_Y___W.B32QEUK` | 31 | 14 | FSR7A04PG, Ack, Env | todo |
+| `Y_VB_Y___W.B32QEUK` | 25 | 19 | F14R76BSTA; extends `Y_V8_Y___W.B32QEUK` | todo |
 
 ### ThinQ1 washers (`washer_common`, JSON)
 
