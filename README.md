@@ -60,7 +60,6 @@ modules/              IL, code table, AABB, TLV, refrigerator, dishwasher,
                       monitoring and energy modules;
                       il_config_common.rhai (default descriptor prefix)
 tests/                Device tests, protocol test helpers and runtime_test.rhai
-tools/package_release.py  Builds the dated release archive
 tools/rethink_frames.ts  Prints upstream rethink frames for ported tests
 tools/rethink_fixtures.mjs  Prints an upstream rethink test's fixtures
 RUSTHINQ_REF          rusthinq ref the drivers are tested against
@@ -79,12 +78,6 @@ Run the host's runner against the checkout:
 ```sh
 # From a rusthinq checkout:
 cargo run -p rusthinq-tools --bin rusthinq-script-test -- /path/to/rusthinq-scripts
-```
-
-The release packaging has its own checks:
-
-```sh
-python3 -m unittest discover -s tools -p 'test_*.py'
 ```
 
 Use `"il"` as the descriptor prefix for tests. CI runs the driver tests against
@@ -106,21 +99,10 @@ Tags must be valid calendar dates in `yyyy.mm.dd` form. For another release on
 that date, use `yyyy.mm.dd.1`, then `.2`, and so on; existing releases are not
 replaced. Use the Asia/Seoul date when choosing the tag.
 
-After the driver suite passes, the workflow publishes one GitHub Release with:
-
-- `rusthinq-scripts-0.2-<tag>.tar.gz`
-- `SHA256SUMS`
-
-The archive holds `drivers/` and `modules/` under `rusthinq-scripts-0.2/`, with
-`INSTALL.txt`, the license, and `RELEASE.json` with the exact scripts and tested
-rusthinq commits. No local overrides or test fixtures are included, so extracting
-an update keeps a root `il_config_common.rhai`. Point your host at the extracted
-directory as described above, and stop rusthinq before extracting an update over
-it.
-
-Verify downloads with `sha256sum -c SHA256SUMS` in the directory containing the
-archive. Changing the source or packaging implementation requires a new tag;
-rerunning a published tag does not overwrite its release assets.
+After the driver suite passes, the workflow publishes a GitHub Release whose
+notes name the tested rusthinq commit. Its source archive is the checkout as is:
+extract it and point the host at that directory. Root overrides are not in the
+archive, so extracting an update over it keeps them; stop rusthinq first.
 
 ## Drivers
 

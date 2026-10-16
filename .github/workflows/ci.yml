@@ -13,6 +13,8 @@ jobs:
   drivers:
     name: rusthinq 0.2 driver tests and checks
     runs-on: ubuntu-latest
+    outputs:
+      host: ${{ steps.host.outputs.commit }}
     steps:
       - uses: actions/checkout@v7
 
@@ -20,8 +22,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-          PYTHONPATH: tools
-        run: python3 -c 'import os; from package_release import validate_tag; validate_tag(os.environ["RELEASE_TAG"])'
+        run: |
+          [[ "$RELEASE_TAG" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}(\.[1-9][0-9]*)?$ ]]
+          day="${RELEASE_TAG:0:10}"
+          [[ "$(date -d "${day//./-}" +%Y.%m.%d)" == "$day" ]]
 
       - name: Read the rusthinq ref
         id: ref
@@ -47,28 +51,12 @@ jobs:
           cargo build --release --manifest-path rusthinq/Cargo.toml
           -p rusthinq-tools --bin rusthinq-script-test
 
-      - name: Test release packaging
-        run: python3 -m unittest discover -s tools -p 'test_*.py'
-
       - name: Test and check the drivers
         run: rusthinq/target/release/rusthinq-script-test .
 
-      - name: Package the tested runtime
-        if: startsWith(github.ref, 'refs/tags/')
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          python3 tools/package_release.py \
-            --tag "$RELEASE_TAG" --host-commit "$(git -C rusthinq rev-parse HEAD)" \
-            --scripts-commit "$(git rev-parse HEAD)"
-
-      - name: Upload release package
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v7
-        with:
-          name: release
-          path: dist/releases/*.tar.gz
-          if-no-files-found: error
+      - name: Record the tested rusthinq commit
+        id: host
+        run: echo "commit=$(git -C rusthinq rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   release:
     name: Publish dated release
@@ -81,35 +69,19 @@ jobs:
       group: release-${{ github.ref }}
       cancel-in-progress: false
     steps:
-      - name: Download the tested package
-        uses: actions/download-artifact@v8
-        with:
-          name: release
-          path: release-assets
-
-      - name: Create checksums and release notes
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        working-directory: release-assets
-        run: |
-          test -f "rusthinq-scripts-0.2-$RELEASE_TAG.tar.gz"
-          sha256sum *.tar.gz > SHA256SUMS
-          cat > ../release-notes.md <<'EOF'
-          Device drivers for rusthinq 0.2, tested against the host's driver suite.
-          For rusthinq 0.1, use the legacy branch and its earlier releases.
-
-          Extract the package and follow INSTALL.txt. Local overrides in the
-          extracted directory's root are not in the archive and survive updates.
-
-          RELEASE.json records the exact tested rusthinq and scripts commits.
-          Verify downloads with: sha256sum -c SHA256SUMS
-          EOF
-
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
+          HOST_COMMIT: ${{ needs.drivers.outputs.host }}
         run: |
-          gh release create "$RELEASE_TAG" release-assets/*.tar.gz release-assets/SHA256SUMS \
-            --verify-tag --title "$RELEASE_TAG" --notes-file release-notes.md
+          cat > notes.md <<EOF
+          Device drivers for rusthinq 0.2, tested against rusthinq $HOST_COMMIT.
+          For rusthinq 0.1, use the legacy branch and its earlier releases.
+
+          Extract the source archive and point [drivers] directory at it. A copy of
+          modules/il_config_common.rhai in that directory's root overrides the
+          default descriptor prefix.
+          EOF
+          gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes-file notes.md
