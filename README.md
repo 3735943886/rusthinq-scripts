@@ -75,7 +75,8 @@ il_config_common.rhai Local override (ignored by Git)
 ```
 
 The washer/dryer/styler family uses `monitoring_common`, refrigerators use
-`fridge_common` and dishwashers `dishwasher_common`; all import `aabb_common`. TLV drivers delegate handshake,
+`fridge_common`, dishwashers `dishwasher_common` and the EU washers
+`washer_common`; all import `aabb_common`. TLV drivers delegate handshake,
 retry, refresh and framing to `tlv_common`. Every driver publishes through
 `il_common`; named `*_common.rhai` files are modules, not device drivers.
 
@@ -134,6 +135,11 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `H11` | dishwasher | AABB | captured |
 | `N17` | dishwasher | AABB | captured |
 | `DHUM_056905_WW` | dehumidifier | TLV | captured |
+| `F_V8_Y___W.B_2QEUK` | washer | AABB | captured |
+| `F_V7_Y___W.B_2QEUK`, `F_V7_Y___W.B__QEUK`, `F_V__Y___W.B_2QEUK` | washer (alias of `F_V8_Y___W.B_2QEUK`) | AABB | captured |
+| `F_VB_Y___W.B_2QEUK` | washer | AABB | captured |
+| `F_VB_F___W.B_2QEUK` | washer-dryer | AABB | constructed |
+| `F_V__F___W.B_1QEUK`, `F_VA_F___W.B__QEUK` | washer-dryer | AABB | constructed |
 | `F24VDD` | washer | AABB monitoring | captured |
 | `RH14_N_KR` | dryer | AABB monitoring | captured |
 | `S3BF_POD_DN4` | styler | AABB monitoring | captured |

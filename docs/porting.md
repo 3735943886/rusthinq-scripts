@@ -64,7 +64,7 @@ Shared work that blocks several ports. Do these first.
 |---|---|---|
 | `aabb_common` | 6 drivers with auto-ack; 3 with envelope status; 3 with long frames | Cloud ack done (`c::ack`). Still to add from upstream `aabb_device.ts`: envelope status (`<class> 0a ...`) and long-frame (`AA FF`, 16-bit checksum) handling |
 | `fridge_common` | 8 refrigerators | Done: query, record extraction, unit, setpoint conversion and ranges, shared descriptor properties, and `F0 17` writes over a 0xFF record or the LG app's 118-byte record, which every captured model sends a prefix of. `2RSFL2DBN3K_Z` uses it too |
-| `washer_common` (new) | 9 EU washers, 2 ThinQ1 washers | Port the enum tables from upstream `washer_common.ts`. Distinct from `monitoring_common`, which serves the Korean monitoring-record family |
+| `washer_common` | 9 EU washers, 2 ThinQ1 washers | Done for the B generation: the tables of upstream `washer_common.ts` and a whole driver that `F_V8_Y` and relatives inherit, overriding `features()`. `washer_v__f_common` carries `F_V__F` for its alias. Still to come: `Y_V8_F`, `Y_V8_Y`, `Y_VB_Y` (envelope status, long frames), `F_C__Y`, `VCDWL2QEUK`, ThinQ1 |
 | `dishwasher_common` | 4 dishwashers | Done: status query, record payload, states and phases, shared descriptor properties, `0x3E` energy, `F0 26` actions and staged remote start. `D140110` uses it too |
 | `tlv_common` | 4 TLV drivers | Compare with upstream `tlv_device.ts`, which changed after the DHUM audit (commit `cd98450d`). Re-check DHUM against the new baseline. `RAC_056905_WW` is the largest TLV driver and may need capability handling `tlv_common` lacks |
 | ThinQ1 | 3 drivers | ThinQ1 status arrives through `on_data`; commands go out with `ctx.send_json`. `RAC_056905_WW` has a ThinQ1 and a ThinQ2 variant under the same model ID: branch on `ctx.is_thinq2()` in one file |
@@ -72,8 +72,8 @@ Shared work that blocks several ports. Do these first.
 ## Order
 
 1. Refrigerators and dishwashers: done.
-2. EU washers, one representative first (these need the remaining
-   `aabb_common` additions).
+2. EU washers: the B generation is done; `Y_V8_F`, `Y_V8_Y` and `Y_VB_Y` need the
+   remaining `aabb_common` additions.
 3. Standalone AABB drivers, smallest first.
 4. TLV: `POT_056905_WW`, then `RAC_056905_WW` (with its ThinQ1 variant).
 5. Aliased models (one-line inheriting drivers).
@@ -112,10 +112,10 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | model | tests | fixtures | notes | status |
 |---|---|---|---|---|
 | `F_C__Y___W.A__QEUK` | 38 | 14 | F4WV709P1 | todo |
-| `F_V8_Y___W.B_2QEUK` | 7 | 7 | aliases `F_V7_Y___W.B_2QEUK`, `F_V7_Y___W.B__QEUK`, `F_V__Y___W.B_2QEUK` | todo |
-| `F_VB_F___W.B_2QEUK` | 16 | 8 | CV74J7S2QA washer-dryer | todo |
-| `F_VB_Y___W.B_2QEUK` | 13 | 12 | F4WV710ATR, Ack | todo |
-| `F_V__F___W.B_1QEUK` | 17 | 9 | alias `F_VA_F___W.B__QEUK` | todo |
+| `F_V8_Y___W.B_2QEUK` | 7 | 7 | aliases `F_V7_Y___W.B_2QEUK`, `F_V7_Y___W.B__QEUK`, `F_V__Y___W.B_2QEUK` | ported |
+| `F_VB_F___W.B_2QEUK` | 16 | 8 | CV74J7S2QA washer-dryer | ported |
+| `F_VB_Y___W.B_2QEUK` | 13 | 12 | F4WV710ATR, Ack | ported |
+| `F_V__F___W.B_1QEUK` | 17 | 9 | alias `F_VA_F___W.B__QEUK` | ported |
 | `VCDWL2QEUK` | 29 | 34 | F4X7511TWS | todo |
 | `Y_V8_F___W.B_2QEUK` | 6 | 5 | W4WR70E61 washer-dryer | todo |
 | `Y_V8_Y___W.B32QEUK` | 31 | 14 | FSR7A04PG, Ack, Env | todo |
