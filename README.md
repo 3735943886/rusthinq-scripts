@@ -124,19 +124,29 @@ rerunning a published tag does not overwrite its release assets.
 
 ## Drivers
 
-| model | script | status |
-|---|---|---|
-| DHUM_056905_WW (LG dehumidifier) | `drivers/DHUM_056905_WW.rhai` | tested against captured frames; not yet run against the live appliance |
-| AIR_910604_WW (LG air purifier) | `drivers/AIR_910604_WW.rhai` | same |
-| 1WPU4CIGCR__2 (LG water purifier, AABB) | `drivers/1WPU4CIGCR__2.rhai` | tested against real captured frames and the write frames the appliance accepted (both from rethink's test suite); not yet run live |
-| D140110 (LG dishwasher, AABB, read-only) | `drivers/D140110.rhai` | tested against nine real frames of a full cycle (from rethink's test suite); not yet run live |
-| WBEY3GT (LG cooktop, AABB) | `drivers/WBEY3GT.rhai` | tested against real frames and the command frames the LG app sent, byte for byte; not yet run live. Writes are rejected unless the panel has granted remote start, and no command lights a ring |
-| Pd0F_F (LG mini washer, AABB monitoring record) | `drivers/Pd0F_F.rhai` | commands byte for byte as the LG app sent them (from rethink's test suite); status frames built from the documented offsets and the state the rethink adapter had retained, not yet checked against a live capture |
-| RH14_N_KR (LG dryer, AABB monitoring record) | `drivers/RH14_N_KR.rhai` | tested against three real frames captured from the appliance while it ran a cycle (their previous records agree with what the rethink adapter had retained at that moment) and the start frame the LG app sent; not yet run live |
-| S3BF_POD_DN4 (LG styler, AABB monitoring record) | `drivers/S3BF_POD_DN4.rhai` | tested against a real idle frame from the cabinet (energy and downloaded course agree with what the rethink adapter had retained) and the 46-byte Fine Dust start the LG app sent, byte for byte; there is no power-on command (measured: the cabinet acknowledges and ignores them); not yet run live |
-| F24VDD (LG washer, AABB monitoring record) | `drivers/F24VDD.rhai` | tested against a real idle frame from the washer (energy, download course, Tub Clean count, last operating course and end sound agree with what the rethink adapter had retained) and the Colour Care, Heavy Duty and Steam Refresh starts the LG app sent, byte for byte; not yet run live |
-| CST_570004_WW (LG ceiling-cassette air conditioner, TLV) | `drivers/CST_570004_WW.rhai` | written for this model only; tested against the real capability and state frames a unit reported (from rethink's test suite); write frames follow rethink's write-attach rules (power on and mode writes carry the other core tags), not yet compared with frames the LG app sent, and not yet run live |
-| 2RSFL2DBN3K_Z (LG refrigerator, AABB) | `drivers/2RSFL2DBN3K_Z.rhai` | live against the real appliance, captured with `rusthinq-capture`: every property was read back after toggling the matching LG app control, including all three night-glare modes (off / sunset-to-sunrise / custom schedule). Fridge/freezer setpoint, express freeze, and AI Saving Mode (off/balanced/max, its own short F0 10 frame acked with an inner `0x67`, not the F0 17 template every other write here uses) were written from here (`rusthinq/<id>/<prop>/set`) and confirmed acked and reflected in the appliance's own next status frame; `ai_saving_max_schedule` (max mode's own active-hours window, same F0 10 frame) is decoded and reproduced byte-for-byte from a live nudge but never echoed by any status frame, so it publishes its own write back instead. Smart Care+, night-glare mode and the door-alarm-mute toggle are all confirmed writable at the protocol level too (night-glare via its own short F0 10 02 frame, which also carries a custom schedule's start/end time and LCD brightness, and for sunset-to-sunrise two bytes this driver could not pin down, none of it exposed) but are kept read-only here, as sensors rather than controls. `door_open_count_fridge`/`door_open_count_freezer` and `energy_today` come from two more unprompted ~15-minute reports (`0xC5` and `0x3E`) the appliance sends on its own — neither is part of the main status record's single "any door open" bit — and both were confirmed against the LG app's own figures directly: the door counts matched a live three-door test exactly, and the energy total matched the app's energy-monitoring screen byte for byte (503 on the wire, 503 Wh shown) |
+| model | appliance | protocol | status |
+|---|---|---|---|
+| `2RSFL2DBN3K_Z` | refrigerator | AABB | live |
+| `1WPU4CIGCR__2` | water purifier | AABB | captured |
+| `AIR_910604_WW` | air purifier | TLV | captured |
+| `CST_570004_WW` | ceiling-cassette air conditioner | TLV | captured |
+| `D140110` | dishwasher (read-only) | AABB | captured |
+| `DHUM_056905_WW` | dehumidifier | TLV | captured |
+| `F24VDD` | washer | AABB monitoring | captured |
+| `RH14_N_KR` | dryer | AABB monitoring | captured |
+| `S3BF_POD_DN4` | styler | AABB monitoring | captured |
+| `WBEY3GT` | cooktop | AABB | captured |
+| `Pd0F_F` | mini washer | AABB monitoring | constructed |
+
+- **live**: run against the real appliance; reads and writes confirmed.
+- **captured**: tested against frames captured from a real appliance and, where
+  available, writes the LG app sent; not yet run live.
+- **constructed**: status frames built from documented offsets; writes match
+  captured frames.
+
+Each test file cites the captures its driver is checked against.
+Drivers planned from upstream rethink are tracked in
+[docs/porting.md](docs/porting.md).
 
 ## License
 
