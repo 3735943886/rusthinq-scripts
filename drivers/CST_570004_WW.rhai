@@ -19,6 +19,7 @@
 // accepts.
 
 import "tlv_common" as c;
+import "table_common" as t;
 import "il_common" as il;
 
 // ---- model ------------------------------------------------------------------------
@@ -35,7 +36,7 @@ fn descriptor(ctx) {
             available: #{ type: "binary", role: "available" },
             power: #{ type: "binary", rw: true, role: "on", src: #{ tlv_tag: "0x1f7" } },
             mode: #{ type: "select", rw: true, role: "mode", src: #{ tlv_tag: "0x1f9" },
-                     options: ["cool", "dry", "fan_only", "auto"] },
+                     options: t::options(modes()) },
             fan: #{ type: "select", rw: true, role: "fan_speed", src: #{ tlv_tag: "0x1fa" },
                     options: ["auto", "very_low", "low", "medium", "high", "power"] },
             target: #{ type: "number", rw: true, role: "target_temperature", src: #{ tlv_tag: "0x1fe" },
@@ -51,12 +52,12 @@ fn descriptor(ctx) {
             wind_mode: #{ type: "select", category: "config", rw: true,
                           options: ["off", "manner", "long_power", "study", "auto_temp"] },
             auto_dry: #{ type: "select", category: "config", rw: true, src: #{ tlv_tag: "0x20e" },
-                         options: ["off", "10min", "30min", "60min", "smart"] },
+                         options: t::options(auto_dry_modes()) },
             auto_dry_remaining: #{ type: "number", class: "duration", category: "diagnostic", src: #{ tlv_tag: "0x225" }, unit: "min" },
             sleep_timer: #{ type: "number", class: "duration", rw: true, src: #{ tlv_tag: "0x21a" },
                             min: 0, max: 900, step: 1, unit: "min" },
             display: #{ type: "select", category: "config", rw: true, src: #{ tlv_tag: "0x21f" },
-                        options: ["off", "50%", "100%"] },
+                        options: t::options(displays()) },
             power_draw: #{ type: "number", class: "power", series: "gauge", src: #{ tlv_tag: "0x2b3" }, unit: "W" },
             filter_remaining: #{ type: "number", series: "gauge", category: "diagnostic", src: #{ tlv_tag: "0x355" }, unit: "%" },
             filter_used: #{ type: "number", class: "duration", series: "counter", category: "diagnostic", src: #{ tlv_tag: "0x355" }, unit: "h" },
@@ -73,89 +74,25 @@ fn range_max(ctx) { let v = ctx.state_get("range_max"); if v == () { 30 } else {
 
 fn deg(v) { if v % 2 == 0 { v / 2 } else { v / 2.0 } }
 
-fn mode_name(raw) {
-    switch raw {
-        0 => "cool",
-        1 => "dry",
-        2 => "fan_only",
-        3 => "auto",
-        _ => ()
-    }
+fn modes() {
+    #{ "0": "cool", "1": "dry", "2": "fan_only", "3": "auto" }
 }
 
-fn mode_wire(name) {
-    switch name {
-        "cool" => 0,
-        "dry" => 1,
-        "fan_only" => 2,
-        "auto" => 3,
-        _ => ()
-    }
+
+fn fans() {
+    #{ "8": "auto", "1": "very_low", "2": "low", "4": "medium", "6": "high", "7": "power" }
 }
 
-fn fan_name(raw) {
-    switch raw {
-        8 => "auto",
-        1 => "very_low",
-        2 => "low",
-        4 => "medium",
-        6 => "high",
-        7 => "power",
-        _ => ()
-    }
+
+fn auto_dry_modes() {
+    #{ "0": "off", "1": "10min", "2": "30min", "3": "60min", "255": "smart" }
 }
 
-fn fan_wire(name) {
-    switch name {
-        "auto" => 8,
-        "very_low" => 1,
-        "low" => 2,
-        "medium" => 4,
-        "high" => 6,
-        "power" => 7,
-        _ => ()
-    }
+
+fn displays() {
+    #{ "100": "off", "150": "50%", "200": "100%" }
 }
 
-fn auto_dry_name(raw) {
-    switch raw {
-        0 => "off",
-        1 => "10min",
-        2 => "30min",
-        3 => "60min",
-        255 => "smart",
-        _ => ()
-    }
-}
-
-fn auto_dry_wire(name) {
-    switch name {
-        "off" => 0,
-        "10min" => 1,
-        "30min" => 2,
-        "60min" => 3,
-        "smart" => 255,
-        _ => ()
-    }
-}
-
-fn display_name(raw) {
-    switch raw {
-        100 => "off",
-        150 => "50%",
-        200 => "100%",
-        _ => ()
-    }
-}
-
-fn display_wire(name) {
-    switch name {
-        "off" => 100,
-        "50%" => 150,
-        "100%" => 200,
-        _ => ()
-    }
-}
 
 // The five wind-mode flags, in the order the app writes them.
 fn wind_flags() { [0x290, 0x291, 0x3d5, 0x3d6, 0x3d7] }
@@ -182,7 +119,7 @@ fn wind_name(ctx) {
 
 // "off" while the unit is powered off, else the mode name.
 fn effective_mode(ctx) {
-    if c::get(ctx, 0x1f7) == 0 { "off" } else { mode_name(c::get(ctx, 0x1f9)) }
+    if c::get(ctx, 0x1f7) == 0 { "off" } else { t::name(modes(), c::get(ctx, 0x1f9)) }
 }
 
 // Whether the indoor unit is really cooling, when the unit says (true if it never does).
@@ -290,11 +227,11 @@ fn apply(ctx, tag, v) {
     switch tag {
         0x1f7 => { il::publish_property(ctx, "power", c::flag(v)); }
         0x1f9 => {
-            let name = mode_name(v);
+            let name = t::name(modes(), v);
             if name != () { il::publish_property(ctx, "mode", name); }
         }
         0x1fa => {
-            let name = fan_name(v);
+            let name = t::name(fans(), v);
             if name != () { il::publish_property(ctx, "fan", name); }
         }
         0x1fd => { il::publish_property(ctx, "temperature", half(v)); }
@@ -304,13 +241,13 @@ fn apply(ctx, tag, v) {
         0x206 => { il::publish_property(ctx, "swing_horizontal", c::flag(v)); }
         0x23f => { il::publish_property(ctx, "comfort_saving", c::flag(v)); }
         0x20e => {
-            let name = auto_dry_name(v);
+            let name = t::name(auto_dry_modes(), v);
             if name != () { il::publish_property(ctx, "auto_dry", name); }
         }
         0x225 => { il::publish_property(ctx, "auto_dry_remaining", v.to_string()); }
         0x21a => { il::publish_property(ctx, "sleep_timer", v.to_string()); }
         0x21f => {
-            let name = display_name(v);
+            let name = t::name(displays(), v);
             if name != () { il::publish_property(ctx, "display", name); }
         }
         0x221 => { il::publish_property(ctx, "error", v.to_string()); }
@@ -364,13 +301,13 @@ fn set_property(ctx, prop, value) {
             c::write(ctx, 0x1f7, if on { 1 } else { 0 }, if on { [0x1f9, 0x1fa, 0x1fe] } else { [] });
         }
         "mode" => {
-            let wire = mode_wire(value);
+            let wire = t::code(modes(), value);
             if wire == () { c::reject(ctx, prop, "unknown mode"); return; }
             c::put(ctx, 0x1f7, 1); // the mode write powers the unit on
             c::write(ctx, 0x1f9, wire, [0x1f7, 0x1fa, 0x1fe]);
         }
         "fan" => {
-            let wire = fan_wire(value);
+            let wire = t::code(fans(), value);
             if wire == () { c::reject(ctx, prop, "unknown fan speed"); return; }
             c::write(ctx, 0x1fa, wire, [0x1f9, 0x1fe]);
         }
@@ -390,12 +327,12 @@ fn set_property(ctx, prop, value) {
             if effective_mode(ctx) == "cool" { c::write(ctx, 0x20d, if on { 1 } else { 0 }, []); }
         }
         "auto_dry" => {
-            let wire = auto_dry_wire(value);
+            let wire = t::code(auto_dry_modes(), value);
             if wire == () { c::reject(ctx, prop, "unknown auto dry setting"); return; }
             c::write(ctx, 0x20e, wire, []);
         }
         "display" => {
-            let wire = display_wire(value);
+            let wire = t::code(displays(), value);
             if wire == () { c::reject(ctx, prop, "unknown brightness"); return; }
             c::write(ctx, 0x21f, wire, []);
         }

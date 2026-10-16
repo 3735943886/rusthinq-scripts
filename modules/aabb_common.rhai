@@ -52,30 +52,6 @@ fn pub_name(ctx, prop, name) {
     if name != () { il::publish_property(ctx, prop, name); }
 }
 
-// Wire code tables are maps from the code as text to its option name; several codes may
-// share a name.
-fn name(table, v) { table[v.to_string()] }
-
-// The lowest wire code with option `name`, or `()`.
-fn code(table, name) {
-    let codes = table.keys().map(|k| k.parse_int());
-    codes.sort();
-    for k in codes { if table[k.to_string()] == name { return k; } }
-    ()
-}
-
-// The distinct option names of `table`, in wire-code order.
-fn options(table) {
-    let codes = table.keys().map(|k| k.parse_int());
-    codes.sort();
-    let out = [];
-    for k in codes {
-        let n = table[k.to_string()];
-        if !out.contains(n) { out.push(n); }
-    }
-    out
-}
-
 // A binary property from a wire number that is 1 when on.
 fn on_off(v) { if v == 1 { "true" } else { "false" } }
 

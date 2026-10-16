@@ -20,6 +20,7 @@
 
 import "aabb_common" as c;
 import "monitoring_common" as m;
+import "table_common" as t;
 import "il_common" as il;
 
 fn dev() { 0x20 }
@@ -27,68 +28,65 @@ fn payload_len() { 34 }
 
 // state and preState share this table (the model JSON gives both the same enum).
 fn states() {
-    [[0, "off"], [5, "initial"], [6, "paused"], [7, "error_auto_off"], [10, "reserved"],
-     [20, "sensing"], [21, "draining"], [22, "detergent_dosing"], [23, "washing"], [24, "pre_wash"],
-     [30, "rinsing"], [31, "rinse_hold"], [40, "spinning"], [50, "drying"], [60, "complete"],
-     [61, "refreshing"], [83, "freeze_protection_initial"], [84, "freeze_protection_running"],
-     [85, "freeze_protection_paused"], [101, "audible_diagnosis"]]
+    #{ "0": "off", "5": "initial", "6": "paused", "7": "error_auto_off", "10": "reserved",
+       "20": "sensing", "21": "draining", "22": "detergent_dosing", "23": "washing", "24": "pre_wash",
+       "30": "rinsing", "31": "rinse_hold", "40": "spinning", "50": "drying", "60": "complete",
+       "61": "refreshing", "83": "freeze_protection_initial", "84": "freeze_protection_running",
+       "85": "freeze_protection_paused", "101": "audible_diagnosis" }
 }
 
 // The dial's course. The names are what the panel and the app print (from this model's
 // language pack), not the enum identifiers, which have drifted: code 1 is STEAM_CLEANING on
 // the wire but the machine calls it Steam Refresh.
 fn courses() {
-    [[0, "none"], [1, "steam_refresh"], [2, "allergy_care"], [3, "functional_wear"],
-     [4, "economy_boil"], [5, "baby_wear"], [6, "heavy_duty"], [7, "cotton"], [8, "speed_wash"],
-     [9, "quiet"], [10, "colour_care"], [11, "duvet"], [12, "lingerie_wool"],
-     [13, "rinse_spin"], [14, "downloaded_course"], [15, "tub_clean"]]
+    #{ "0": "none", "1": "steam_refresh", "2": "allergy_care", "3": "functional_wear",
+       "4": "economy_boil", "5": "baby_wear", "6": "heavy_duty", "7": "cotton", "8": "speed_wash",
+       "9": "quiet", "10": "colour_care", "11": "duvet", "12": "lingerie_wool",
+       "13": "rinse_spin", "14": "downloaded_course", "15": "tub_clean" }
 }
 
 // The course the machine is actually running (rec[22]); it differs from the dial whenever the
 // dial sits on "downloaded course" or a smart course has been sent to it.
 fn op_courses() {
-    [[0, "none"], [1, "steam_cleaning"], [2, "allergy_care"], [3, "utility"], [4, "speed_wash"],
-     [5, "cotton"], [6, "cotton_eco"], [7, "silent"], [8, "lingerie_wool"], [9, "duvet"],
-     [10, "tub_clean"], [11, "baby_wear"], [12, "easy_care"], [13, "boil_wash"],
-     [14, "heavy_duty"], [15, "cold_wash"], [16, "colour_care"], [17, "rinse_spin"],
-     [18, "smart_energy"], [19, "blanket"], [20, "air_wash"], [21, "spin_only"],
-     [22, "double_rinse"], [23, "speed_dry"], [24, "speed_wash_dry"], [25, "pet_care"],
-     [26, "quick_tub_clean"]]
+    #{ "0": "none", "1": "steam_cleaning", "2": "allergy_care", "3": "utility", "4": "speed_wash",
+       "5": "cotton", "6": "cotton_eco", "7": "silent", "8": "lingerie_wool", "9": "duvet",
+       "10": "tub_clean", "11": "baby_wear", "12": "easy_care", "13": "boil_wash",
+       "14": "heavy_duty", "15": "cold_wash", "16": "colour_care", "17": "rinse_spin",
+       "18": "smart_energy", "19": "blanket", "20": "air_wash", "21": "spin_only",
+       "22": "double_rinse", "23": "speed_dry", "24": "speed_wash_dry", "25": "pet_care",
+       "26": "quick_tub_clean" }
 }
 
 // The course sitting in the download slot (rec[20]). Confirmed against real traffic: this
 // washer sends 0x39 (Kids' Wear) there, and 0x41 read as DEODORIZATION in the cloud snapshot.
 fn download_courses() {
-    [[0, "none"], [51, "cold_wash"], [52, "small_load"], [53, "skin_care"], [54, "rainy_day"],
-     [55, "sweat_stains"], [56, "single_garments"], [57, "kids_wear"], [58, "shirts"],
-     [59, "school_uniform"], [60, "static_reduce"], [62, "colour_care"], [63, "spin_only"],
-     [64, "air_wash"], [65, "deodorisation"], [66, "bedding_care"], [67, "cloth_care"],
-     [68, "smart_rinse"], [69, "eco_wash"], [70, "double_rinse"], [71, "heavy_duty"],
-     [73, "wash_dry"], [74, "silent_wash"], [75, "wrinkle_care"], [77, "rinse_spin"],
-     [78, "baby_wear"], [79, "sportswear"], [80, "towels"], [81, "shirts_1h"],
-     [82, "allergy_care"], [83, "hygiene"], [84, "speed_wash"], [85, "pet_care"],
-     [86, "quick_tub_clean"]]
+    #{ "0": "none", "51": "cold_wash", "52": "small_load", "53": "skin_care", "54": "rainy_day",
+       "55": "sweat_stains", "56": "single_garments", "57": "kids_wear", "58": "shirts",
+       "59": "school_uniform", "60": "static_reduce", "62": "colour_care", "63": "spin_only",
+       "64": "air_wash", "65": "deodorisation", "66": "bedding_care", "67": "cloth_care",
+       "68": "smart_rinse", "69": "eco_wash", "70": "double_rinse", "71": "heavy_duty",
+       "73": "wash_dry", "74": "silent_wash", "75": "wrinkle_care", "77": "rinse_spin",
+       "78": "baby_wear", "79": "sportswear", "80": "towels", "81": "shirts_1h",
+       "82": "allergy_care", "83": "hygiene", "84": "speed_wash", "85": "pet_care",
+       "86": "quick_tub_clean" }
 }
 
-fn soils() { [[0, "none"], [1, "light"], [2, "normal"], [3, "heavy"], [4, "pre_wash"], [5, "soaking"]] }
+fn soils() { #{ "0": "none", "1": "light", "2": "normal", "3": "heavy", "4": "pre_wash", "5": "soaking" } }
 fn spins() {
-    [[0, "no_spin"], [1, "very_low"], [2, "low"], [3, "medium"], [4, "high"], [5, "extra_high"]]
+    #{ "0": "no_spin", "1": "very_low", "2": "low", "3": "medium", "4": "high", "5": "extra_high" }
 }
 fn temps() {
-    [[0, "none"], [1, "cold"], [2, "30"], [3, "40"], [4, "60"], [5, "95"]]
+    #{ "0": "none", "1": "cold", "2": "30", "3": "40", "4": "60", "5": "95" }
 }
 
-fn error_message(v) {
-    switch v {
-        0 => "OK", 1 => "Door lock error (DE2)", 2 => "Water supply error (IE)",
-        3 => "Water drain error (OE)", 4 => "Out of balance error (UE)", 5 => "Overfill error (FE)",
-        6 => "Water level sensor error (PE)", 7 => "Temperature sensor error (TE)",
-        8 => "Locked motor error (LE)", 9 => "Communication error (CE)", 10 => "Heater error (dHE)",
-        11 => "Power fail error (PF)", 12 => "Unknown error (FF)", 13 => "Unknown error (dCE)",
-        14 => "Vibration sensor error (VS)", 15 => "EEPROM error", 16 => "Unknown error (PS)",
-        17 => "Door open error (DE1)", 18 => "Unknown error (LOE)", 19 => "Door sensor error (DE4)",
-        _ => "Unknown error (" + v + ")"
-    }
+fn errors() {
+    #{ "0": "OK", "1": "Door lock error (DE2)", "2": "Water supply error (IE)",
+       "3": "Water drain error (OE)", "4": "Out of balance error (UE)", "5": "Overfill error (FE)",
+       "6": "Water level sensor error (PE)", "7": "Temperature sensor error (TE)",
+       "8": "Locked motor error (LE)", "9": "Communication error (CE)", "10": "Heater error (dHE)",
+       "11": "Power fail error (PF)", "12": "Unknown error (FF)", "13": "Unknown error (dCE)",
+       "14": "Vibration sensor error (VS)", "15": "EEPROM error", "16": "Unknown error (PS)",
+       "17": "Door open error (DE1)", "18": "Unknown error (LOE)", "19": "Door sensor error (DE4)" }
 }
 
 // What each of the fourteen dial courses runs with: [operating course, soil, spin, temperature,
@@ -145,22 +143,23 @@ fn descriptor(ctx) {
         props: #{
             available: #{ type: "binary", role: "available" },
             power: #{ type: "binary", class: "running", label: "Powered on" },
-            status: #{ type: "select", options: m::names(states()) },
-            course: #{ type: "select", label: "Course (dial)", options: m::names(courses()) },
+            status: #{ type: "select", options: t::options(states()) },
+            course: #{ type: "select", label: "Course (dial)", options: t::options(courses()) },
             course_select: #{ type: "select", rw: true, label: "Course for Start",
-                              options: startable().map(|v| m::name_of(courses(), v)) },
+                              options: startable().map(|v| t::name(courses(), v)) },
             start: #{ type: "trigger", requires: "remote_start" },
             pause: #{ type: "trigger", requires: "remote_start" },
             power_off: #{ type: "trigger", requires: "remote_start" },
-            op_course: #{ type: "select", category: "diagnostic", label: "Running course", options: m::names(op_courses()) },
+            op_course: #{ type: "select", category: "diagnostic", label: "Running course",
+                          options: t::options(op_courses()) },
             download_course: #{ type: "select", category: "diagnostic", label: "Downloaded course",
-                                options: m::names(download_courses()) },
+                                options: t::options(download_courses()) },
             remaining_time: #{ type: "number", class: "duration", unit: "min" },
             initial_time: #{ type: "number", class: "duration", category: "diagnostic", unit: "min", label: "Cycle length" },
             reserve_time: #{ type: "number", class: "duration", unit: "min", label: "Reserved finish time" },
-            soil: #{ type: "select", label: "Soil level", options: m::names(soils()) },
-            spin: #{ type: "select", options: m::names(spins()) },
-            temp: #{ type: "select", label: "Water temperature", options: m::names(temps()) },
+            soil: #{ type: "select", label: "Soil level", options: t::options(soils()) },
+            spin: #{ type: "select", options: t::options(spins()) },
+            temp: #{ type: "select", label: "Water temperature", options: t::options(temps()) },
             rinse: #{ type: "number", series: "gauge", label: "Rinse cycles" },
             // climbs at ~26 Wh/min while the washer heats; a 95 C boil wash finished at 1684 Wh
             energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Cycle energy" },
@@ -204,22 +203,22 @@ fn on_data(ctx, data) {
     ctx.state_set("state", state);
 
     let chosen = m::follow(ctx, b[p + 5], startable());
-    if chosen != () { il::publish_property(ctx, "course_select", m::name_of(courses(), chosen)); }
+    if chosen != () { il::publish_property(ctx, "course_select", t::name(courses(), chosen)); }
 
     il::publish_property(ctx, "power", if off { "false" } else { "true" });
-    c::pub_name(ctx, "status", m::name_of(states(), state));
+    c::pub_name(ctx, "status", t::name(states(), state));
     // rec[5] is the course as selected on the dial; rec[22] is the one the machine is running
-    c::pub_name(ctx, "course", m::name_of(courses(), b[p + 5]));
-    c::pub_name(ctx, "op_course", m::name_of(op_courses(), b[p + 22]));
-    c::pub_name(ctx, "download_course", m::name_of(download_courses(), b[p + 20]));
+    c::pub_name(ctx, "course", t::name(courses(), b[p + 5]));
+    c::pub_name(ctx, "op_course", t::name(op_courses(), b[p + 22]));
+    c::pub_name(ctx, "download_course", t::name(download_courses(), b[p + 20]));
 
     il::publish_property(ctx, "remaining_time", if off { "0" } else { (b[p + 1] * 60 + b[p + 2]).to_string() });
     il::publish_property(ctx, "initial_time", if off { "0" } else { (b[p + 3] * 60 + b[p + 4]).to_string() });
     il::publish_property(ctx, "reserve_time", if off { "0" } else { (b[p + 12] * 60 + b[p + 13]).to_string() });
 
-    c::pub_name(ctx, "soil", m::name_of(soils(), b[p + 7]));
-    c::pub_name(ctx, "spin", m::name_of(spins(), b[p + 8]));
-    c::pub_name(ctx, "temp", m::name_of(temps(), b[p + 9]));
+    c::pub_name(ctx, "soil", t::name(soils(), b[p + 7]));
+    c::pub_name(ctx, "spin", t::name(spins(), b[p + 8]));
+    c::pub_name(ctx, "temp", t::name(temps(), b[p + 9]));
     il::publish_property(ctx, "rinse", b[p + 10].to_string());
     il::publish_property(ctx, "energy", (b[p + 17] * 256 + b[p + 18]).to_string());
     // rec[23] is the AI DD load estimate, 0-4; rec[21] counts wash cycles since the last Tub Clean
@@ -228,7 +227,8 @@ fn on_data(ctx, data) {
 
     let error = b[p + 6];
     il::publish_property(ctx, "error", if error != 0 { "true" } else { "false" });
-    il::publish_property(ctx, "error_message", error_message(error));
+    let message = t::name(errors(), error) ?? "Unknown error (" + error + ")";
+    il::publish_property(ctx, "error_message", message);
 
     let flags = b[p + 14];
     il::publish_property(ctx, "crease_care", c::bit(flags, 0x01));
@@ -249,7 +249,7 @@ fn on_data(ctx, data) {
 
 fn set_property(ctx, prop, value) {
     if prop == "course_select" {
-        let code = m::code_of(courses(), value);
+        let code = t::code(courses(), value);
         if code == () || !m::select(ctx, code, startable()) {
             c::reject(ctx, prop, "not a course this washer can start");
             return;

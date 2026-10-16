@@ -10,6 +10,7 @@
 // setting bits sit in other positions than in the record (see write_settings).
 import "aabb_common" as c;
 import "dishwasher_common" as w;
+import "table_common" as t;
 import "il_common" as il;
 
 fn courses() {
@@ -28,10 +29,10 @@ fn remote_modes() { #{ "1": "one_time", "2": "permanent", "3": "off" } }
 fn brightness() { #{ "0": "low", "1": "high" } }
 
 fn descriptor(ctx) {
-    let course_options = c::options(courses());
-    for n in c::options(downloads()) { if !course_options.contains(n) { course_options.push(n); } }
+    let course_options = t::options(courses());
+    for n in t::options(downloads()) { if !course_options.contains(n) { course_options.push(n); } }
     let props = w::props(course_options);
-    props += w::control_props(c::options(courses()).filter(|n| n != "off"));
+    props += w::control_props(t::options(courses()).filter(|n| n != "off"));
     let level = #{ type: "number", rw: true, min: 0, max: 4, step: 1, category: "config" };
     let setting = #{ type: "binary", rw: true, category: "config" };
     props += #{
@@ -43,12 +44,12 @@ fn descriptor(ctx) {
         extra_rinse: #{ type: "number", label: "Extra rinses" },
         rinse_level: level + #{ label: "Rinse aid level" },
         salt_level: level + #{ label: "Salt level" },
-        buzzer_level: #{ type: "select", rw: true, options: c::options(buzzer()), category: "config" },
+        buzzer_level: #{ type: "select", rw: true, options: t::options(buzzer()), category: "config" },
         end_of_cycle_tone: setting,
         clean_reminder: setting,
         auto_dry: setting,
-        brightness: #{ type: "select", rw: true, options: c::options(brightness()), category: "config" },
-        remote_start_mode: #{ type: "select", rw: true, options: c::options(remote_modes()), category: "config" },
+        brightness: #{ type: "select", rw: true, options: t::options(brightness()), category: "config" },
+        remote_start_mode: #{ type: "select", rw: true, options: t::options(remote_modes()), category: "config" },
         target_extra_rinse: #{ type: "number", rw: true, min: 0, max: 3, step: 1, label: "Start with extra rinses" }
     };
     json_stringify(#{ il: 0, kind: "washer", class: "dishwasher", label: "Dishwasher", vendor: "LG",
@@ -56,9 +57,9 @@ fn descriptor(ctx) {
 }
 
 fn start(ctx) {
-    for t in [["target_course", "auto"], ["target_delay", "0"], ["target_high_temp", "false"],
+    for pair in [["target_course", "auto"], ["target_delay", "0"], ["target_high_temp", "false"],
               ["target_extra_dry", "false"], ["target_extra_rinse", "0"]] {
-        il::publish_property(ctx, t[0], w::target(ctx, t[0], t[1]));
+        il::publish_property(ctx, pair[0], w::target(ctx, pair[0], pair[1]));
     }
 }
 
@@ -72,7 +73,8 @@ fn on_data(ctx, data) {
     if p == () { return; }
     w::publish(ctx, p);
     il::publish_property(ctx, "power", if p[0] == 4 { "false" } else { "true" });
-    c::pub_name(ctx, "course", if p[20] != 0 { c::name(downloads(), p[20]) } else { c::name(courses(), p[5]) });
+    let course = if p[20] != 0 { t::name(downloads(), p[20]) } else { t::name(courses(), p[5]) };
+    c::pub_name(ctx, "course", course);
     il::publish_property(ctx, "initial_time", w::minutes(p, 3).to_string());
     il::publish_property(ctx, "delay_start_time", w::minutes(p, 9).to_string());
     il::publish_property(ctx, "extra_dry", c::bit(p[12], 0x04));
@@ -94,9 +96,11 @@ fn on_data(ctx, data) {
     ctx.state_set("settings", s);
     for k in ["rinse_level", "salt_level"] { if s[k] != () { il::publish_property(ctx, k, s[k].to_string()); } }
     for k in ["end_of_cycle_tone", "clean_reminder", "auto_dry"] { il::publish_property(ctx, k, c::on_off(s[k])); }
-    if s.buzzer_level != () { il::publish_property(ctx, "buzzer_level", c::name(buzzer(), s.buzzer_level)); }
-    if s.remote_start_mode != () { il::publish_property(ctx, "remote_start_mode", c::name(remote_modes(), s.remote_start_mode)); }
-    il::publish_property(ctx, "brightness", c::name(brightness(), s.brightness));
+    if s.buzzer_level != () { il::publish_property(ctx, "buzzer_level", t::name(buzzer(), s.buzzer_level)); }
+    if s.remote_start_mode != () {
+        il::publish_property(ctx, "remote_start_mode", t::name(remote_modes(), s.remote_start_mode));
+    }
+    il::publish_property(ctx, "brightness", t::name(brightness(), s.brightness));
 }
 
 fn write_settings(ctx, prop, code) {
@@ -116,13 +120,13 @@ fn set_property(ctx, prop, value) {
         "power" => w::command(ctx, [if on == 1 { 0x16 } else { 0x12 }]),
         "rinse_level" | "salt_level" => write_settings(ctx, prop, c::to_number(value).to_int()),
         "end_of_cycle_tone" | "clean_reminder" | "auto_dry" => write_settings(ctx, prop, on),
-        "buzzer_level" => write_settings(ctx, prop, c::code(buzzer(), value)),
-        "brightness" => write_settings(ctx, prop, c::code(brightness(), value)),
-        "remote_start_mode" => write_settings(ctx, prop, c::code(remote_modes(), value)),
+        "buzzer_level" => write_settings(ctx, prop, t::code(buzzer(), value)),
+        "brightness" => write_settings(ctx, prop, t::code(brightness(), value)),
+        "remote_start_mode" => write_settings(ctx, prop, t::code(remote_modes(), value)),
         "target_course" | "target_high_temp" | "target_extra_dry" => w::set_target(ctx, prop, value),
         "target_delay" | "target_extra_rinse" => w::set_target(ctx, prop, c::to_number(value).to_int().to_string()),
         "start_course" => {
-            let course = c::code(courses(), w::target(ctx, "target_course", "auto"));
+            let course = t::code(courses(), w::target(ctx, "target_course", "auto"));
             let opt3 = w::opt(ctx, "target_high_temp", 0x08) | w::opt(ctx, "target_extra_dry", 0x04);
             let opt4 = w::target(ctx, "target_extra_rinse", "0").parse_int() << 3;
             w::start_course(ctx, course, opt3, if course == 0x0b { opt4 | 0x40 } else { opt4 });

@@ -13,6 +13,7 @@
 // left out until a capture shows the hardware has the feature.
 
 import "tlv_common" as c;
+import "table_common" as t;
 import "il_common" as il;
 
 fn descriptor(ctx) {
@@ -27,9 +28,9 @@ fn descriptor(ctx) {
             available: #{ type: "binary", role: "available" },
             power: #{ type: "binary", rw: true, role: "on", src: #{ tlv_tag: "0x1f7" } },
             mode: #{ type: "select", rw: true, role: "mode", src: #{ tlv_tag: "0x1f9" },
-                     options: ["circulator_clean", "baby_care", "dual_clean", "auto"] },
+                     options: t::options(modes()) },
             fan: #{ type: "select", rw: true, role: "fan_speed", src: #{ tlv_tag: "0x1fa" },
-                    options: ["low", "mid", "high", "power", "auto"] },
+                    options: t::options(fans()) },
             pm1: #{ type: "number", class: "pm1", series: "gauge", src: #{ tlv_tag: "0x333" }, unit: "μg/m³" },
             pm25: #{ type: "number", class: "pm25", series: "gauge", src: #{ tlv_tag: "0x334" }, unit: "μg/m³" },
             pm10: #{ type: "number", class: "pm10", series: "gauge", src: #{ tlv_tag: "0x335" }, unit: "μg/m³" },
@@ -48,47 +49,15 @@ fn descriptor(ctx) {
 
 // The operating modes the unit's capability reply (0x2c1) selects, and the wind strengths
 // (0x2c2). Both are wire numbers.
-fn mode_name(raw) {
-    switch raw {
-        13 => "circulator_clean",
-        14 => "baby_care",
-        15 => "dual_clean",
-        16 => "auto",
-        _ => ()
-    }
+fn modes() {
+    #{ "13": "circulator_clean", "14": "baby_care", "15": "dual_clean", "16": "auto" }
 }
 
-fn mode_wire(name) {
-    switch name {
-        "circulator_clean" => 13,
-        "baby_care" => 14,
-        "dual_clean" => 15,
-        "auto" => 16,
-        _ => ()
-    }
+
+fn fans() {
+    #{ "2": "low", "4": "mid", "6": "high", "7": "power", "8": "auto" }
 }
 
-fn fan_name(raw) {
-    switch raw {
-        2 => "low",
-        4 => "mid",
-        6 => "high",
-        7 => "power",
-        8 => "auto",
-        _ => ()
-    }
-}
-
-fn fan_wire(name) {
-    switch name {
-        "low" => 2,
-        "mid" => 4,
-        "high" => 6,
-        "power" => 7,
-        "auto" => 8,
-        _ => ()
-    }
-}
 
 // Publish a filter's life as a percentage. Both tags feed it because either may arrive
 // first and the budget is only resent with a full values response. Despite the cloud
@@ -126,12 +95,12 @@ fn apply(ctx, tag, v) {
         0x1f7 => { c::put(ctx, tag, v); il::publish_property(ctx, "power", c::flag(v)); }
         0x1f9 => {
             c::put(ctx, tag, v);
-            let name = mode_name(v);
+            let name = t::name(modes(), v);
             if name != () { il::publish_property(ctx, "mode", name); }
         }
         0x1fa => {
             c::put(ctx, tag, v);
-            let name = fan_name(v);
+            let name = t::name(fans(), v);
             if name != () { il::publish_property(ctx, "fan", name); }
         }
         0x333 => { il::publish_property(ctx, "pm1", v.to_string()); }
@@ -163,13 +132,13 @@ fn set_property(ctx, prop, value) {
             c::write(ctx, 0x1f7, if on { 1 } else { 0 }, if on { [0x1f9, 0x1fa] } else { [] });
         }
         "fan" => {
-            let wire = fan_wire(value);
+            let wire = t::code(fans(), value);
             if wire == () { c::reject(ctx, prop, "unknown fan speed"); return; }
             c::put(ctx, 0x1f7, 1);
             c::write(ctx, 0x1fa, wire, [0x1f7, 0x1f9]);
         }
         "mode" => {
-            let wire = mode_wire(value);
+            let wire = t::code(modes(), value);
             if wire == () { c::reject(ctx, prop, "unknown mode"); return; }
             c::put(ctx, 0x1f7, 1);
             c::write(ctx, 0x1f9, wire, [0x1f7, 0x1fa]);

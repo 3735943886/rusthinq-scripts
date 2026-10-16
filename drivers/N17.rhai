@@ -10,6 +10,7 @@
 // The start offers only the courses LG's cloud was seen starting on this appliance.
 import "aabb_common" as c;
 import "dishwasher_common" as w;
+import "table_common" as t;
 import "il_common" as il;
 
 fn courses() {
@@ -32,7 +33,7 @@ fn settings() {
 }
 
 fn descriptor(ctx) {
-    let props = w::props(c::options(courses()) + c::options(smart()));
+    let props = w::props(t::options(courses()) + t::options(smart()));
     props += w::control_props(start_courses());
     props += #{
         power_off: #{ type: "trigger" },
@@ -52,9 +53,9 @@ fn descriptor(ctx) {
 
 fn start(ctx) {
     w::query(ctx);
-    for t in [["target_course", "auto"], ["target_high_temp", "false"], ["target_extra_dry", "false"],
+    for pair in [["target_course", "auto"], ["target_high_temp", "false"], ["target_extra_dry", "false"],
               ["target_steam", "false"], ["target_delay", "0"]] {
-        il::publish_property(ctx, t[0], w::target(ctx, t[0], t[1]));
+        il::publish_property(ctx, pair[0], w::target(ctx, pair[0], pair[1]));
     }
 }
 
@@ -67,7 +68,8 @@ fn on_data(ctx, data) {
     let p = w::payload(data, 31, 0x1d);
     if p == () { return; }
     w::publish(ctx, p);
-    c::pub_name(ctx, "course", if p[20] != 0 { c::name(smart(), p[20]) } else { c::name(courses(), p[5]) });
+    let course = if p[20] != 0 { t::name(smart(), p[20]) } else { t::name(courses(), p[5]) };
+    c::pub_name(ctx, "course", course);
     il::publish_property(ctx, "initial_time", w::minutes(p, 3).to_string());
     il::publish_property(ctx, "delay_start_time", w::minutes(p, 9).to_string());
     il::publish_property(ctx, "extra_dry", c::bit(p[12], 0x04));
@@ -103,7 +105,7 @@ fn set_property(ctx, prop, value) {
         "start_course" => {
             let opt3 = w::opt(ctx, "target_high_temp", 0x08) | w::opt(ctx, "target_extra_dry", 0x04)
                 | w::opt(ctx, "target_steam", 0x80);
-            w::start_course(ctx, c::code(courses(), w::target(ctx, "target_course", "auto")), opt3, 0);
+            w::start_course(ctx, t::code(courses(), w::target(ctx, "target_course", "auto")), opt3, 0);
         }
         _ => c::reject(ctx, prop, "unknown or read-only property")
     }

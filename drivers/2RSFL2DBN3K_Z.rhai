@@ -88,6 +88,7 @@
 
 import "aabb_common" as c;
 import "fridge_common" as f;
+import "table_common" as t;
 import "il_common" as il;
 
 fn descriptor(ctx) {
@@ -103,7 +104,7 @@ fn descriptor(ctx) {
         // counts above; resets on some cycle not yet observed.
         energy_today: #{ type: "number", class: "energy", unit: "Wh", label: "Energy used today" },
         smart_care: #{ type: "binary", label: "Smart Care+" },
-        night_glare: #{ type: "select", options: ["off", "sunset_to_sunrise", "custom_schedule"],
+        night_glare: #{ type: "select", options: t::options(night_glare_modes()),
                         label: "Night glare prevention" },
         door_alarm_mute: #{ type: "binary", label: "Door-open alarm temporarily muted" },
         ai_saving: #{ type: "select", rw: true, options: ["off", "balanced", "max"],
@@ -157,17 +158,17 @@ fn status(ctx, s) {
     if f::publish(ctx, s) { il::publish_il(ctx, descriptor(ctx)); }
     il::publish_property(ctx, "express_freeze", f::express_freeze(s));
     il::publish_property(ctx, "smart_care", c::on_off(s[17]));
-    c::pub_name(ctx, "night_glare", night_glare_name(s[30]));
+    c::pub_name(ctx, "night_glare", t::name(night_glare_modes(), s[30]));
     il::publish_property(ctx, "door_alarm_mute", c::on_off(s[84]));
-    c::pub_name(ctx, "ai_saving", ai_saving_name(s[93]));
+    c::pub_name(ctx, "ai_saving", t::name(ai_saving_modes(), s[93]));
 }
 
-fn night_glare_name(v) {
-    switch v { 0 => "off", 2 => "sunset_to_sunrise", 3 => "custom_schedule", _ => () }
+fn night_glare_modes() {
+    #{ "0": "off", "2": "sunset_to_sunrise", "3": "custom_schedule" }
 }
 
-fn ai_saving_name(v) {
-    switch v { 255 => "off", 1 => "balanced", 2 => "max", _ => () }
+fn ai_saving_modes() {
+    #{ "255": "off", "1": "balanced", "2": "max" }
 }
 
 

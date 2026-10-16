@@ -133,6 +133,18 @@ fn descriptor(ctx) {
   enforces (a burner ring that ignores commands unless the panel granted remote start) — the
   script calls `il::validate` to check it before building the write.
 - A property the wire cannot yet confirm the meaning of is **left out**, not guessed.
+- **Code tables**: state each enum once as a map from the wire code, as text, to its
+  option name, and read it both ways through `table_common` (`import "table_common" as t;`):
+
+  ```rhai
+  fn courses() { #{ "0": "none", "1": "auto", "5": "eco" } }
+  // decode: t::name(courses(), code)   encode: t::code(courses(), name)
+  // descriptor: options: t::options(courses())  (distinct names, in code order)
+  ```
+
+  An unknown code reads as `()`; `t::name(errors(), v) ?? "Unknown error (" + v + ")"` gives a
+  fallback. Several codes may share a name; `t::code` returns the lowest, so a model that
+  writes another code keeps a separate write table (see `DHUM_056905_WW`).
 
 ## 3. The hooks
 

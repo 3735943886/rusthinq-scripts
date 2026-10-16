@@ -20,63 +20,61 @@
 
 import "aabb_common" as c;
 import "monitoring_common" as m;
+import "table_common" as t;
 import "il_common" as il;
 
 fn dev() { 0x31 }
 fn payload_len() { 28 }
 
 fn states() {
-    [[0, "off"], [1, "initial"], [2, "running"], [3, "paused"], [4, "complete"], [5, "error"],
-     [6, "diagnosis"], [7, "night_dry"], [8, "reserved"], [9, "sleep"],
-     // 50-59 are the steps of a running cycle; a real Indoor Dry run reported 55
-     [50, "pre_steam"], [51, "pre_heat"], [52, "steam"], [53, "stay"], [54, "cooling"],
-     [55, "drying"], [56, "end_cooling"], [57, "sterilizing"], [58, "finishing"],
-     [59, "complete_keeping_fresh"], [98, "firmware_update"]]
+    #{ "0": "off", "1": "initial", "2": "running", "3": "paused", "4": "complete", "5": "error",
+       "6": "diagnosis", "7": "night_dry", "8": "reserved", "9": "sleep",
+       // 50-59 are the steps of a running cycle; a real Indoor Dry run reported 55
+       "50": "pre_steam", "51": "pre_heat", "52": "steam", "53": "stay", "54": "cooling",
+       "55": "drying", "56": "end_cooling", "57": "sterilizing", "58": "finishing",
+       "59": "complete_keeping_fresh", "98": "firmware_update" }
 }
 
 // Swept the same way. Code 31 is the one a user meets by accident: the courses that dry into
 // the room refuse to start with the door shut.
-fn error_message(v) {
-    switch v {
-        0 => "OK", 1 => "Temperature sensor error (TE1)", 2 => "Temperature sensor error (TE2)",
-        3 => "Temperature sensor error (TE3)", 4 => "Temperature sensor error (TE4)",
-        5 => "Temperature sensor error (TE5)", 6 => "System error (E1)", 7 => "System error (E2)",
-        8 => "System error (E3)", 9 => "System error (E4)", 10 => "Motor error (LE2)",
-        11 => "Water supply error (AE)", 18 => "Motor error (LE)", 25 => "Water drain error",
-        26 => "Door open error", 31 => "Door closed - this course needs the door open",
-        32 => "System error (E6)", 33 => "Power supply error (PS)", 34 => "Unknown error (IF)",
-        _ => "Unknown error (" + v + ")"
-    }
+fn errors() {
+    #{ "0": "OK", "1": "Temperature sensor error (TE1)", "2": "Temperature sensor error (TE2)",
+       "3": "Temperature sensor error (TE3)", "4": "Temperature sensor error (TE4)",
+       "5": "Temperature sensor error (TE5)", "6": "System error (E1)", "7": "System error (E2)",
+       "8": "System error (E3)", "9": "System error (E4)", "10": "Motor error (LE2)",
+       "11": "Water supply error (AE)", "18": "Motor error (LE)", "25": "Water drain error",
+       "26": "Door open error", "31": "Door closed - this course needs the door open",
+       "32": "System error (E6)", "33": "Power supply error (PS)", "34": "Unknown error (IF)" }
 }
 
 // Course codes come from the model JSON's own ConvertingRule (code -> name), which for this
 // family is authoritative: the same table the cloud decoded an injected course=5 with (STRONG).
 fn courses() {
-    [[0, "none"], [1, "standard"], [3, "quick"], [5, "heavy"], [6, "wool_knitwear"],
-     [7, "suits_coats"], [8, "sportswear"], [9, "download_course"], [10, "functional_wear"],
-     [11, "sanitary_standard"], [12, "bedding"], [13, "kids"], [14, "dolls"],
-     [15, "drying_normal"], [16, "drying_wool_knitwear"], [17, "time_dry_30"],
-     [18, "time_dry_60"], [19, "time_dry_90"], [20, "time_dry_120"], [21, "time_dry_150"],
-     [22, "rain_snow"],
-     // dries the room, hence the door-open requirement
-     [23, "indoor_dry_120"], [24, "indoor_dry_240"],
-     [25, "night_care"], [26, "sanitary_professional"], [27, "uniform_care"],
-     [28, "padding_care"], [29, "trouser_crease_care"], [30, "fine_dust"], [31, "virus_care"],
-     [32, "jeans"], [33, "fur_leather"], [34, "static_removal"], [35, "kids_items"],
-     [67, "silent_downloaded"], [78, "fur_leather_downloaded"]]
+    #{ "0": "none", "1": "standard", "3": "quick", "5": "heavy", "6": "wool_knitwear",
+       "7": "suits_coats", "8": "sportswear", "9": "download_course", "10": "functional_wear",
+       "11": "sanitary_standard", "12": "bedding", "13": "kids", "14": "dolls",
+       "15": "drying_normal", "16": "drying_wool_knitwear", "17": "time_dry_30",
+       "18": "time_dry_60", "19": "time_dry_90", "20": "time_dry_120", "21": "time_dry_150",
+       "22": "rain_snow",
+       // dries the room, hence the door-open requirement
+       "23": "indoor_dry_120", "24": "indoor_dry_240",
+       "25": "night_care", "26": "sanitary_professional", "27": "uniform_care",
+       "28": "padding_care", "29": "trouser_crease_care", "30": "fine_dust", "31": "virus_care",
+       "32": "jeans", "33": "fur_leather", "34": "static_removal", "35": "kids_items",
+       "67": "silent_downloaded", "78": "fur_leather_downloaded" }
 }
 
 // Smart (downloadable) course codes, likewise from the model JSON's ConvertingRule.
 fn smart_courses() {
-    [[0, "none"], [61, "suits_uniforms"], [62, "scarves"], [63, "athletic_wear"],
-     [64, "smoke_removal"], [65, "food_odour_removal"], [66, "trousers"], [67, "silent"],
-     [68, "coat_warmer"], [69, "static_removal"], [70, "uniform_care"], [71, "stored_items"],
-     [72, "allergy_care"], [73, "blanket_warmer"], [74, "uniform_drying"], [75, "dress_shirts"],
-     [76, "rain_snow_drying"], [77, "spot_drying"], [78, "fur_leather"], [90, "swimwear_drying"],
-     [91, "fine_dust_removal"], [92, "virus_care"], [93, "jeans_care"],
-     [94, "baby_clothes_sanitary"], [95, "doll_sanitary"], [96, "wool_delicate_drying"],
-     [97, "rainy_days"], [98, "uniform"], [99, "padding_care"], [100, "thin_padding_care"],
-     [101, "thick_padding_care"], [102, "silk_care"]]
+    #{ "0": "none", "61": "suits_uniforms", "62": "scarves", "63": "athletic_wear",
+       "64": "smoke_removal", "65": "food_odour_removal", "66": "trousers", "67": "silent",
+       "68": "coat_warmer", "69": "static_removal", "70": "uniform_care", "71": "stored_items",
+       "72": "allergy_care", "73": "blanket_warmer", "74": "uniform_drying", "75": "dress_shirts",
+       "76": "rain_snow_drying", "77": "spot_drying", "78": "fur_leather", "90": "swimwear_drying",
+       "91": "fine_dust_removal", "92": "virus_care", "93": "jeans_care",
+       "94": "baby_clothes_sanitary", "95": "doll_sanitary", "96": "wool_delicate_drying",
+       "97": "rainy_days", "98": "uniform", "99": "padding_care", "100": "thin_padding_care",
+       "101": "thick_padding_care", "102": "silk_care" }
 }
 
 // A start command carries the whole recipe (the styler is told the entire cycle), 36 bytes per
@@ -133,16 +131,16 @@ fn descriptor(ctx) {
         props: #{
             available: #{ type: "binary", role: "available" },
             power: #{ type: "binary", class: "running", label: "Powered on" },
-            status: #{ type: "select", options: m::names(states()) },
-            course: #{ type: "select", label: "Course (dial)", options: m::names(courses()) },
+            status: #{ type: "select", options: t::options(states()) },
+            course: #{ type: "select", label: "Course (dial)", options: t::options(courses()) },
             course_select: #{ type: "select", rw: true, label: "Course for Start",
-                              options: startable().map(|v| m::name_of(courses(), v)) },
+                              options: startable().map(|v| t::name(courses(), v)) },
             start: #{ type: "trigger", requires: "remote_start" },
             pause: #{ type: "trigger", requires: "remote_start" },
             power_off: #{ type: "trigger", requires: "remote_start" },
-            smart_course: #{ type: "select", options: m::names(smart_courses()) },
+            smart_course: #{ type: "select", options: t::options(smart_courses()) },
             download_course: #{ type: "select", category: "diagnostic", label: "Downloaded course",
-                                options: m::names(smart_courses()) },
+                                options: t::options(smart_courses()) },
             remaining_time: #{ type: "number", class: "duration", unit: "min" },
             initial_time: #{ type: "number", class: "duration", category: "diagnostic", unit: "min", label: "Cycle length" },
             reserve_time: #{ type: "number", class: "duration", unit: "min", label: "Reserved finish time" },
@@ -178,15 +176,15 @@ fn on_data(ctx, data) {
     ctx.state_set("state", state);
 
     let chosen = m::follow(ctx, b[p + 5], startable());
-    if chosen != () { il::publish_property(ctx, "course_select", m::name_of(courses(), chosen)); }
+    if chosen != () { il::publish_property(ctx, "course_select", t::name(courses(), chosen)); }
 
     il::publish_property(ctx, "power", if off { "false" } else { "true" });
-    c::pub_name(ctx, "status", m::name_of(states(), state));
-    c::pub_name(ctx, "course", m::name_of(courses(), b[p + 5]));
-    c::pub_name(ctx, "smart_course", m::name_of(smart_courses(), b[p + 20]));
+    c::pub_name(ctx, "status", t::name(states(), state));
+    c::pub_name(ctx, "course", t::name(courses(), b[p + 5]));
+    c::pub_name(ctx, "smart_course", t::name(smart_courses(), b[p + 20]));
     // rec[23] counts the download-course slots in use, rec[24:28] are the slots; only the first
     // is published (this model has maxDownloadCourseNum 1, the rest are always empty)
-    c::pub_name(ctx, "download_course", m::name_of(smart_courses(), b[p + 24]));
+    c::pub_name(ctx, "download_course", t::name(smart_courses(), b[p + 24]));
 
     il::publish_property(ctx, "remaining_time", if off { "0" } else { (b[p + 1] * 60 + b[p + 2]).to_string() });
     il::publish_property(ctx, "initial_time", if off { "0" } else { (b[p + 3] * 60 + b[p + 4]).to_string() });
@@ -195,7 +193,8 @@ fn on_data(ctx, data) {
 
     let error = b[p + 6];
     il::publish_property(ctx, "error", if error != 0 { "true" } else { "false" });
-    il::publish_property(ctx, "error_message", error_message(error));
+    let message = t::name(errors(), error) ?? "Unknown error (" + error + ")";
+    il::publish_property(ctx, "error_message", message);
 
     // rec[14]: bit 0 child lock, bit 1 night dry, bit 3 remote start. Bit 5 is set on every
     // record this unit has ever sent, and no cloud field follows it: left alone rather than
@@ -208,7 +207,7 @@ fn on_data(ctx, data) {
 
 fn set_property(ctx, prop, value) {
     if prop == "course_select" {
-        let code = m::code_of(courses(), value);
+        let code = t::code(courses(), value);
         if code == () || !m::select(ctx, code, startable()) {
             c::reject(ctx, prop, "not a course this cabinet can start");
             return;

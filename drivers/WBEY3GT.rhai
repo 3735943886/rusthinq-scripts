@@ -19,6 +19,7 @@
 // (locked AND its elapsed counter is running).
 
 import "aabb_common" as c;
+import "table_common" as t;
 import "il_common" as il;
 
 fn record_len() { 48 }
@@ -45,7 +46,7 @@ fn descriptor(ctx) {
     for b in burners() {
         let k = b[0];
         props[k + "_state"] = #{ type: "select", group: k, label: b[1] + " state",
-                                 options: ["off", "cooking", "paused"] };
+                                 options: t::options(states()) };
         // 0 is off and the dial runs 1..9; the model allows up to 11 (presumably a boost step)
         props[k + "_power_level"] = #{ type: "number", series: "gauge", group: k, label: b[1] + " power level" };
         props[k + "_cook_time"] = #{ type: "number", class: "duration", group: k, unit: "min", label: b[1] + " cooking time" };
@@ -64,8 +65,8 @@ fn descriptor(ctx) {
 
 // The model's burner-state enum lists INIT, COOKING_IN_PROGRESS, PAUSED, LOCK. 0, 1 and 3 are
 // confirmed against captures; PAUSED has never appeared.
-fn state_name(v) {
-    switch v { 0 => "off", 1 => "cooking", 2 => "paused", _ => () }
+fn states() {
+    #{ "0": "off", "1": "cooking", "2": "paused" }
 }
 
 // ---- host hooks -------------------------------------------------------------------
@@ -99,7 +100,7 @@ fn on_data(ctx, data) {
         if cooking { any_cooking = true; }
         if state == 3 { locked = true; }
 
-        let name = if state == 3 { if cooking { "cooking" } else { "off" } } else { state_name(state) };
+        let name = if state == 3 { if cooking { "cooking" } else { "off" } } else { t::name(states(), state) };
         c::pub_name(ctx, b[0] + "_state", name);
         ctx.state_set(b[0] + "_level", level);
         il::publish_property(ctx, b[0] + "_power_level", level.to_string());

@@ -6,6 +6,7 @@
 // Running and Paused. 0x32 0xD8 <n> counts washes since the last Machine Clean.
 import "aabb_common" as c;
 import "dishwasher_common" as w;
+import "table_common" as t;
 import "il_common" as il;
 
 fn courses() {
@@ -19,7 +20,7 @@ fn options() {
 }
 
 fn descriptor(ctx) {
-    let props = w::props(c::options(courses()));
+    let props = w::props(t::options(courses()));
     props += #{
         initial_time: #{ type: "number", class: "duration", unit: "min", label: "Cycle time" },
         delay_start_time: #{ type: "number", class: "duration", unit: "min", label: "Delayed start" },
@@ -50,7 +51,7 @@ fn on_data(ctx, data) {
     il::publish_property(ctx, "initial_time", w::minutes(p, 3).to_string());
     il::publish_property(ctx, "delay_start_time", w::minutes(p, 9).to_string());
     let active = p[0] >= 1 && p[0] <= 3;
-    c::pub_name(ctx, "course", if active { c::name(courses(), p[5]) } else { "off" });
+    c::pub_name(ctx, "course", if active { t::name(courses(), p[5]) } else { "off" });
     let o = options();
     for k in o.keys() { il::publish_property(ctx, k, if active { c::bit(p[12], o[k]) } else { "false" }); }
     il::publish_property(ctx, "night_dry", c::bit(p[11], 0x80));

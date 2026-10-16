@@ -11,6 +11,7 @@
 // 0x2a2 UVnano, 0x21e tank light, 0x21b off timer (minutes), 0x221 error.
 
 import "tlv_common" as c;
+import "table_common" as t;
 import "il_common" as il;
 import "energy_common" as energy;
 
@@ -29,7 +30,7 @@ fn descriptor(ctx) {
             energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy since driver restart" },
             power: #{ type: "binary", rw: true, role: "on", src: #{ tlv_tag: "0x1f7" } },
             mode: #{ type: "select", rw: true, role: "mode", src: #{ tlv_tag: "0x1f9" },
-                     options: ["smart", "jet", "silent", "spot", "laundry"] },
+                     options: t::options(modes()) },
             target: #{ type: "number", rw: true, role: "target_humidity", src: #{ tlv_tag: "0x253" },
                        min: 30, max: 70, step: 1, unit: "%" },
             humidity: #{ type: "number", class: "humidity", series: "gauge", role: "current_humidity", src: #{ tlv_tag: "0x336" }, unit: "%" },
@@ -39,7 +40,7 @@ fn descriptor(ctx) {
                     options: ["low", "high"] },
             tank_full: #{ type: "binary", class: "problem", src: #{ tlv_tag: "0x186" } },
             tank_state: #{ type: "select", category: "diagnostic", src: #{ tlv_tag: "0x186" },
-                           options: ["not_full", "full_stopped", "full_fan_mode"] },
+                           options: t::options(tank_states()) },
             sterilize: #{ type: "binary", rw: true, src: #{ tlv_tag: "0x360" } },
             uvnano: #{ type: "binary", rw: true, src: #{ tlv_tag: "0x2a2" } },
             bucket_light: #{ type: "binary", rw: true, src: #{ tlv_tag: "0x21e" } },
@@ -51,40 +52,21 @@ fn descriptor(ctx) {
 }
 
 // wire mode -> IL mode. Two numbering schemes are seen on the wire (0..5 and 17..21).
-fn mode_name(raw) {
-    switch raw {
-        0 | 17 => "smart",
-        1 | 18 => "jet",
-        2 | 19 => "silent",
-        4 | 20 => "spot",
-        5 | 21 => "laundry",
-        _ => ()
-    }
+fn modes() {
+    #{ "0": "smart", "17": "smart", "1": "jet", "18": "jet", "2": "silent", "19": "silent",
+       "4": "spot", "20": "spot", "5": "laundry", "21": "laundry" }
 }
 
-fn mode_wire(name) {
-    switch name {
-        "smart" => 17,
-        "jet" => 18,
-        "silent" => 19,
-        "spot" => 20,
-        "laundry" => 21,
-        _ => ()
-    }
-}
+// Modes are written with the 17..21 codes; the appliance also reports 0..5 for the same modes.
+fn mode_writes() { #{ "17": "smart", "18": "jet", "19": "silent", "20": "spot", "21": "laundry" } }
 
 // The tags whose presence makes a frame the appliance's state (not just a stray notify).
 fn VALUE_TAGS() { [0x1f7, 0x1f9, 0x1fa, 0x21b, 0x21e, 0x186, 0x2b2, 0x253, 0x2a2, 0x336, 0x360] }
 
 fn is_silent(raw) { raw == 2 || raw == 19 }
 
-fn tank_state_name(raw) {
-    switch raw {
-        0 => "not_full",
-        1 => "full_stopped",
-        2 => "full_fan_mode",
-        _ => ()
-    }
+fn tank_states() {
+    #{ "0": "not_full", "1": "full_stopped", "2": "full_fan_mode" }
 }
 
 // ---- helpers ----------------------------------------------------------------------
@@ -154,7 +136,7 @@ fn apply(ctx, tag, v) {
         0x1f9 => {
             let prev = ctx.state_get("t505");
             c::put(ctx, tag, v);
-            let name = mode_name(v);
+            let name = t::name(modes(), v);
             if name != () { il::publish_property(ctx, "mode", name); }
             // entering silent from another mode drops the fan to low
             if is_silent(v) && (prev == () || !is_silent(prev)) {
@@ -176,7 +158,7 @@ fn apply(ctx, tag, v) {
             il::publish_property(ctx, "temperature", t);
         }
         0x186 => {
-            let name = tank_state_name(v);
+            let name = t::name(tank_states(), v);
             if name != () {
                 il::publish_property(ctx, "tank_full", c::flag(v));
                 il::publish_property(ctx, "tank_state", name);
@@ -202,7 +184,7 @@ fn set_property(ctx, prop, value) {
             c::write(ctx, 0x1f7, if on { 1 } else { 0 }, if on { [0x1f9] } else { [] });
         }
         "mode" => {
-            let wire = mode_wire(value);
+            let wire = t::code(mode_writes(), value);
             if wire == () { c::reject(ctx, prop, "unknown mode"); return; }
             let prev = c::get(ctx, 0x1f9);
             c::put(ctx, 0x1f7, 1); // selecting a mode powers on

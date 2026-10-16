@@ -7,6 +7,7 @@
 // are a plain 0xFF record without the unit byte, confirmed on a real unit upstream.
 import "aabb_common" as c;
 import "fridge_common" as f;
+import "table_common" as t;
 import "il_common" as il;
 
 fn record_len() { 68 }
@@ -19,10 +20,10 @@ fn descriptor(ctx) {
     let props = f::props(f::unit(ctx));
     props += #{
         express_freeze: #{ type: "binary", rw: true, label: "Express freeze" },
-        craft_ice_mode: #{ type: "select", rw: true, options: c::options(craft_ice()), label: "Craft ice" },
-        craft_ice_maker_status: #{ type: "select", options: c::options(ice_maker()), label: "Craft ice maker" },
-        night_view: #{ type: "select", options: c::options(night_modes()), label: "Night view" },
-        quiet_mode: #{ type: "select", options: c::options(night_modes()), label: "Quiet mode" }
+        craft_ice_mode: #{ type: "select", rw: true, options: t::options(craft_ice()), label: "Craft ice" },
+        craft_ice_maker_status: #{ type: "select", options: t::options(ice_maker()), label: "Craft ice maker" },
+        night_view: #{ type: "select", options: t::options(night_modes()), label: "Night view" },
+        quiet_mode: #{ type: "select", options: t::options(night_modes()), label: "Quiet mode" }
     };
     json_stringify(#{ il: 0, kind: "fridge", label: "Refrigerator", vendor: "LG",
                       model: ctx.model_id(), props: props })
@@ -39,17 +40,17 @@ fn on_data(ctx, data) {
     if s == () { return; }
     if f::publish(ctx, s) { il::publish_il(ctx, descriptor(ctx)); }
     il::publish_property(ctx, "express_freeze", f::express_freeze(s));
-    c::pub_name(ctx, "craft_ice_mode", c::name(craft_ice(), s[25]));
-    c::pub_name(ctx, "night_view", c::name(night_modes(), s[30]));
-    c::pub_name(ctx, "quiet_mode", c::name(night_modes(), s[31]));
-    c::pub_name(ctx, "craft_ice_maker_status", c::name(ice_maker(), s[34]));
+    c::pub_name(ctx, "craft_ice_mode", t::name(craft_ice(), s[25]));
+    c::pub_name(ctx, "night_view", t::name(night_modes(), s[30]));
+    c::pub_name(ctx, "quiet_mode", t::name(night_modes(), s[31]));
+    c::pub_name(ctx, "craft_ice_maker_status", t::name(ice_maker(), s[34]));
 }
 
 fn set_property(ctx, prop, value) {
     let base = f::ff(record_len());
     if f::set(ctx, base, prop, value) { return; }
     switch prop {
-        "craft_ice_mode" => f::write(ctx, base, 25, c::code(craft_ice(), value)),
+        "craft_ice_mode" => f::write(ctx, base, 25, t::code(craft_ice(), value)),
         _ => c::reject(ctx, prop, "unknown or read-only property")
     }
 }

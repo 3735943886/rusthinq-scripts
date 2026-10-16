@@ -20,6 +20,7 @@
 // energy monitoring: 0xAF reports approximately 15-minute Wh deltas, summed in memory.
 
 import "aabb_common" as c;
+import "table_common" as t;
 import "il_common" as il;
 import "energy_common" as energy;
 
@@ -36,17 +37,17 @@ fn descriptor(ctx) {
         props: #{
             available: #{ type: "binary", role: "available" },
             energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy since driver restart" },
-            status: #{ type: "select", category: "diagnostic", options: ["failed", "not_working", "normal"] },
+            status: #{ type: "select", category: "diagnostic", options: t::options(statuses()) },
             tap_uv: #{ type: "select", label: "Tap UV lamp",
-                       options: ["standby", "cleaning", "cleaning_manual"] },
+                       options: t::options(tap_uv_states()) },
             water_selection: #{ type: "select", label: "Water selected",
-                                options: ["hot", "normal", "cold", "clean"] },
+                                options: t::options(waters()) },
             hot_water_last_temperature: #{ type: "number", class: "temperature", series: "gauge", unit: "°C", label: "Last hot water temperature setting" },
             water_amount: #{ type: "select", label: "Amount selected",
-                             options: ["120ml", "250ml", "500ml", "continuous"] },
+                             options: t::options(amounts()) },
             default_water: #{ type: "select", category: "config", rw: true,
-                              options: ["last_used", "normal", "cold"] },
-            default_amount: #{ type: "select", category: "config", rw: true, options: ["120ml", "250ml", "500ml"] },
+                              options: t::options(default_waters()) },
+            default_amount: #{ type: "select", category: "config", rw: true, options: t::options(default_amounts()) },
             auto_care: #{ type: "binary", category: "config", rw: true },
             button_sound: #{ type: "binary", category: "config", rw: true },
             not_use_notice: #{ type: "binary", category: "config", rw: true, label: "Unused-water notice" },
@@ -60,27 +61,24 @@ fn descriptor(ctx) {
 }
 
 // (Rhai functions cannot see top-level constants, so the tables are functions.)
-fn status_name(v) {
-    switch v { 0 => "failed", 1 => "not_working", 2 => "normal", _ => () }
+fn statuses() {
+    #{ "0": "failed", "1": "not_working", "2": "normal" }
 }
-fn tap_uv_name(v) {
-    switch v { 0 => "standby", 1 => "cleaning", 2 => "cleaning_manual", _ => () }
+fn tap_uv_states() {
+    #{ "0": "standby", "1": "cleaning", "2": "cleaning_manual" }
 }
-fn water_name(v) {
-    switch v { 1 => "hot", 2 => "normal", 3 => "cold", 4 => "clean", _ => () }
+fn waters() {
+    #{ "1": "hot", "2": "normal", "3": "cold", "4": "clean" }
 }
-fn amount_name(v) {
-    switch v { 1 => "120ml", 2 => "250ml", 3 => "500ml", 4 => "continuous", _ => () }
-}
-fn default_water_name(v) {
-    switch v { 1 => "last_used", 2 => "normal", 3 => "cold", _ => () }
-}
-fn default_water_wire(name) {
-    switch name { "last_used" => 1, "normal" => 2, "cold" => 3, _ => () }
+fn amounts() {
+    #{ "1": "120ml", "2": "250ml", "3": "500ml", "4": "continuous" }
 }
 // The default may not be "continuous": that is the button held down, not a quantity.
-fn default_amount_wire(name) {
-    switch name { "120ml" => 1, "250ml" => 2, "500ml" => 3, _ => () }
+fn default_amounts() {
+    #{ "1": "120ml", "2": "250ml", "3": "500ml" }
+}
+fn default_waters() {
+    #{ "1": "last_used", "2": "normal", "3": "cold" }
 }
 
 // ---- host hooks -------------------------------------------------------------------
@@ -113,10 +111,10 @@ fn on_data(ctx, data) {
 
 fn status(ctx, r, o) {
     il::publish_property(ctx, "available", "true");
-    c::pub_name(ctx, "status", status_name(r[o + 0]));
-    c::pub_name(ctx, "tap_uv", tap_uv_name(r[o + 1]));
-    c::pub_name(ctx, "water_selection", water_name(r[o + 2]));
-    c::pub_name(ctx, "water_amount", amount_name(r[o + 3]));
+    c::pub_name(ctx, "status", t::name(statuses(), r[o + 0]));
+    c::pub_name(ctx, "tap_uv", t::name(tap_uv_states(), r[o + 1]));
+    c::pub_name(ctx, "water_selection", t::name(waters(), r[o + 2]));
+    c::pub_name(ctx, "water_amount", t::name(amounts(), r[o + 3]));
     // Selection setting, not measured water temperature. Keep it across non-hot selections.
     if r[o + 2] == 1 {
         let code = r[o + 6];
@@ -125,8 +123,8 @@ fn status(ctx, r, o) {
             il::publish_property(ctx, "hot_water_last_temperature", temperature.to_string());
         }
     }
-    c::pub_name(ctx, "default_water", default_water_name(r[o + 10]));
-    c::pub_name(ctx, "default_amount", amount_name(r[o + 11]));
+    c::pub_name(ctx, "default_water", t::name(default_waters(), r[o + 10]));
+    c::pub_name(ctx, "default_amount", t::name(amounts(), r[o + 11]));
     il::publish_property(ctx, "auto_care", c::on_off(r[o + 20]));
     il::publish_property(ctx, "button_sound", c::on_off(r[o + 12]));
     il::publish_property(ctx, "not_use_notice", c::on_off(r[o + 8]));
@@ -165,12 +163,12 @@ fn set_field(ctx, offset, value) {
 fn set_property(ctx, prop, value) {
     switch prop {
         "default_water" => {
-            let w = default_water_wire(value);
+            let w = t::code(default_waters(), value);
             if w == () { c::reject(ctx, prop, "unknown water"); return; }
             set_field(ctx, 10, w);
         }
         "default_amount" => {
-            let w = default_amount_wire(value);
+            let w = t::code(default_amounts(), value);
             if w == () { c::reject(ctx, prop, "unknown amount"); return; }
             set_field(ctx, 11, w);
         }

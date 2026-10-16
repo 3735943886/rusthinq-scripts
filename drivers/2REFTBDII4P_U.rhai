@@ -6,6 +6,7 @@
 // Writes go over the LG app's F0 17 record, with the unit only for the setpoints.
 import "aabb_common" as c;
 import "fridge_common" as f;
+import "table_common" as t;
 import "il_common" as il;
 
 fn record_len() { 68 }
@@ -24,17 +25,17 @@ fn ice_maker() { #{ "0": "off", "1": "making_ice", "2": "full", "3": "quiet_mode
 
 fn descriptor(ctx) {
     let props = f::props(f::unit(ctx));
-    let status = c::options(temperature_status());
+    let status = t::options(temperature_status());
     props += #{
         express_freeze: #{ type: "binary", rw: true, label: "Express freeze" },
         fridge_temperature_status: #{ type: "select", options: status, category: "diagnostic",
                                       label: "Fridge temperature status" },
         freezer_temperature_status: #{ type: "select", options: status, category: "diagnostic",
                                        label: "Freezer temperature status" },
-        ice_maker_status: #{ type: "select", options: c::options(ice_maker()), label: "Ice maker" },
-        fresh_air_filter_status: #{ type: "select", options: c::options(air_filter()),
+        ice_maker_status: #{ type: "select", options: t::options(ice_maker()), label: "Ice maker" },
+        fresh_air_filter_status: #{ type: "select", options: t::options(air_filter()),
                                     category: "diagnostic", label: "Fresh air filter" },
-        water_filter_status: #{ type: "select", options: c::options(water_filter()),
+        water_filter_status: #{ type: "select", options: t::options(water_filter()),
                                 category: "diagnostic", label: "Water filter" },
         water_filter_months: #{ type: "number", unit: "months", category: "diagnostic",
                                 label: "Water filter age" }
@@ -54,12 +55,12 @@ fn on_data(ctx, data) {
     if s == () { return; }
     if f::publish(ctx, s) { il::publish_il(ctx, descriptor(ctx)); }
     il::publish_property(ctx, "express_freeze", f::express_freeze(s));
-    c::pub_name(ctx, "fresh_air_filter_status", c::name(air_filter(), s[4]));
-    c::pub_name(ctx, "water_filter_status", c::name(water_filter(), s[6]));
+    c::pub_name(ctx, "fresh_air_filter_status", t::name(air_filter(), s[4]));
+    c::pub_name(ctx, "water_filter_status", t::name(water_filter(), s[6]));
     if s[6] <= 12 { il::publish_property(ctx, "water_filter_months", s[6].to_string()); }
-    c::pub_name(ctx, "fridge_temperature_status", c::name(temperature_status(), s[27]));
-    c::pub_name(ctx, "freezer_temperature_status", c::name(temperature_status(), s[28]));
-    c::pub_name(ctx, "ice_maker_status", c::name(ice_maker(), s[32]));
+    c::pub_name(ctx, "fridge_temperature_status", t::name(temperature_status(), s[27]));
+    c::pub_name(ctx, "freezer_temperature_status", t::name(temperature_status(), s[28]));
+    c::pub_name(ctx, "ice_maker_status", t::name(ice_maker(), s[32]));
 }
 
 fn set_property(ctx, prop, value) {

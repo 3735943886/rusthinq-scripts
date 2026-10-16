@@ -56,8 +56,8 @@ restore availability after reconnecting; reported values may still reflect the l
 
 ```text
 drivers/              <modelId>.rhai drivers
-modules/              IL, AABB, TLV, refrigerator, dishwasher, monitoring and
-                      energy modules;
+modules/              IL, code table, AABB, TLV, refrigerator, dishwasher,
+                      monitoring and energy modules;
                       il_config_common.rhai.example (descriptor prefix template)
 tests/                Device tests, protocol test helpers and runtime_test.rhai
 tools/prepare.py      Assembles the flat runtime directory

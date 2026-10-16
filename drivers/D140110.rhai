@@ -1,6 +1,6 @@
 // LG dishwasher D140110: device -> IL driver. A read-only AABB appliance with the record layout
 // of dishwasher_common (26-byte records, a 0x18 payload), reporting only through 0xEC frames.
-// Beyond the shared fields: 2 error (error_name()), 11 flags (bit 0 child lock, 2 rinse aid
+// Beyond the shared fields: 2 error (errors()), 11 flags (bit 0 child lock, 2 rinse aid
 // refill, 3 salt refill, 4 chime).
 //
 // Every field below was pinned by two independent readings (the appliance during a full 1:33
@@ -14,13 +14,13 @@
 
 import "aabb_common" as c;
 import "dishwasher_common" as w;
+import "table_common" as t;
 import "il_common" as il;
 
 fn descriptor(ctx) {
-    let props = w::props(["none", "auto", "intensive", "delicate", "turbo", "eco", "rinse",
-                          "refresh", "express", "machine_clean", "download_cycle"]);
+    let props = w::props(t::options(courses()));
     props += #{
-        error: #{ type: "select", category: "diagnostic", options: ["none", "HE", "IE", "OE", "FE", "TE", "AE", "EE", "LE", "NE", "BE", "F3"] },
+        error: #{ type: "select", category: "diagnostic", options: t::options(errors()) },
         running: #{ type: "binary", class: "running" },
         child_lock: #{ type: "binary" },
         chime: #{ type: "binary", category: "diagnostic" },
@@ -36,22 +36,16 @@ fn descriptor(ctx) {
 }
 
 // The model's Course table, keyed by the id it carries on the wire.
-fn course_name(v) {
-    switch v {
-        0 => "none", 1 => "auto", 2 => "intensive", 3 => "delicate", 4 => "turbo", 5 => "eco",
-        6 => "rinse", 7 => "refresh", 8 => "express", 9 => "machine_clean", 11 => "download_cycle",
-        _ => ()
-    }
+fn courses() {
+    #{ "0": "none", "1": "auto", "2": "intensive", "3": "delicate", "4": "turbo", "5": "eco",
+       "6": "rinse", "7": "refresh", "8": "express", "9": "machine_clean", "11": "download_cycle" }
 }
 
 // The model's error table in its own order. Only "no error" has ever been seen; the rest
 // keep LG's two-letter codes, which are what the panel shows.
-fn error_name(v) {
-    switch v {
-        0 => "none", 1 => "HE", 2 => "IE", 3 => "OE", 4 => "FE", 5 => "TE",
-        6 => "AE", 7 => "EE", 8 => "LE", 9 => "NE", 10 => "BE", 11 => "F3",
-        _ => ()
-    }
+fn errors() {
+    #{ "0": "none", "1": "HE", "2": "IE", "3": "OE", "4": "FE", "5": "TE", "6": "AE", "7": "EE",
+       "8": "LE", "9": "NE", "10": "BE", "11": "F3" }
 }
 
 // ---- host hooks -------------------------------------------------------------------
@@ -66,8 +60,8 @@ fn on_data(ctx, data) {
     let p = w::payload(data, 26, 0x18);
     if p == () { return; }
     w::publish(ctx, p);
-    c::pub_name(ctx, "course", course_name(p[5]));
-    c::pub_name(ctx, "error", error_name(p[2]));
+    c::pub_name(ctx, "course", t::name(courses(), p[5]));
+    c::pub_name(ctx, "error", t::name(errors(), p[2]));
     il::publish_property(ctx, "running", if p[0] == 2 { "true" } else { "false" });
     il::publish_property(ctx, "child_lock", c::bit(p[11], 0x01));
     il::publish_property(ctx, "rinse_refill", c::bit(p[11], 0x04));

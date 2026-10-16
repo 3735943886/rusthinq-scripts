@@ -8,6 +8,7 @@
 // Other bits of the flag and option bytes are model-specific. Models with remote control take
 // F0 26 commands; a remote start carries options staged beforehand in target_* properties.
 import "aabb_common" as c;
+import "table_common" as t;
 import "il_common" as il;
 
 // The status query LG's cloud sends on connect.
@@ -42,8 +43,8 @@ fn sane(p) { p[3] <= 99 && p[4] <= 59 && p[7] <= 99 && p[8] <= 59 }
 fn props(courses) {
     #{
         available: #{ type: "binary", role: "available" },
-        status: #{ type: "select", options: c::options(states()) },
-        process: #{ type: "select", label: "Cycle phase", options: c::options(processes()) },
+        status: #{ type: "select", options: t::options(states()) },
+        process: #{ type: "select", label: "Cycle phase", options: t::options(processes()) },
         course: #{ type: "select", label: "Cycle", options: courses },
         remaining_time: #{ type: "number", class: "duration", unit: "min" },
         door: #{ type: "binary", class: "door", label: "Door open" }
@@ -53,8 +54,8 @@ fn props(courses) {
 // Publishes availability, state, process, remaining time and door of payload `p`.
 fn publish(ctx, p) {
     il::publish_property(ctx, "available", "true");
-    c::pub_name(ctx, "status", c::name(states(), p[0]));
-    c::pub_name(ctx, "process", c::name(processes(), p[1]));
+    c::pub_name(ctx, "status", t::name(states(), p[0]));
+    c::pub_name(ctx, "process", t::name(processes(), p[1]));
     il::publish_property(ctx, "remaining_time", minutes(p, 7).to_string());
     il::publish_property(ctx, "door", c::bit(p[11], 0x02));
 }
