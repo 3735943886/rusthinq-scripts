@@ -56,18 +56,19 @@ restore availability after reconnecting; reported values may still reflect the l
 
 ```text
 drivers/              <modelId>.rhai drivers
-modules/              IL, AABB, TLV, monitoring and energy modules;
+modules/              IL, AABB, TLV, refrigerator, monitoring and energy modules;
                       il_config_common.rhai.example (descriptor prefix template)
 tests/                Device tests, protocol test helpers and runtime_test.rhai
 tools/prepare.py      Assembles the flat runtime directory
+tools/rethink_frames.ts  Prints upstream rethink frames for ported tests
 RUSTHINQ_REF          rusthinq ref the drivers are tested against
 dist/0.2/             Generated runtime directory (ignored by Git)
 ```
 
-The washer/dryer/styler family uses `monitoring_common`, which imports
-`aabb_common`. TLV drivers delegate handshake, retry, refresh and framing to
-`tlv_common`. Every driver publishes through `il_common`; named `*_common.rhai`
-files are modules, not device drivers.
+The washer/dryer/styler family uses `monitoring_common`, and refrigerators use
+`fridge_common`; both import `aabb_common`. TLV drivers delegate handshake,
+retry, refresh and framing to `tlv_common`. Every driver publishes through
+`il_common`; named `*_common.rhai` files are modules, not device drivers.
 
 ## Checking a change
 
@@ -127,6 +128,8 @@ rerunning a published tag does not overwrite its release assets.
 | model | appliance | protocol | status |
 |---|---|---|---|
 | `2RSFL2DBN3K_Z` | refrigerator | AABB | live |
+| `2REB1GLVB1__2` | refrigerator | AABB | captured |
+| `2RES1VE61NFA2` | refrigerator | AABB | captured |
 | `1WPU4CIGCR__2` | water purifier | AABB | captured |
 | `AIR_910604_WW` | air purifier | TLV | captured |
 | `CST_570004_WW` | ceiling-cassette air conditioner | TLV | captured |

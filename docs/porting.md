@@ -25,13 +25,14 @@ the same name (names containing `.` need rusthinq `bfb8e77` or later).
 
 1. Read the upstream driver, its shared module and its test file. The TS driver
    is the functional spec: same properties, writes and quirks; IL naming instead
-   of Home Assistant entity names.
+   of Home Assistant entity names. Keep the Rhai short: shared logic goes in a
+   module, and the header lists only the offsets the driver itself decodes.
 2. Port every upstream test that feeds a frame or checks a sent frame to
    `tests/<modelId>.test.rhai`. Keep the upstream test name in a comment so the
    two suites can be compared.
 3. Writes must be byte-identical to what the upstream driver sends for the same
-   command. Generate the expected hex by running the upstream driver, not by
-   hand.
+   command. Generate the expected hex by running the upstream driver with
+   [tools/rethink_frames.ts](../tools/rethink_frames.ts), not by hand.
 4. Cite the upstream commit and test in the driver header. An upstream value
    whose meaning upstream itself does not establish stays unpublished.
 5. Add the README driver row with status `captured` only when the upstream
@@ -58,7 +59,7 @@ Shared work that blocks several ports. Do these first.
 | module | needed by | work |
 |---|---|---|
 | `aabb_common` | 6 drivers with auto-ack; 3 with envelope status; 3 with long frames | Add the cloud ack (`f0 00 <type> 04 [seq]` sent with `ctx.send_clip("ack", 1, ...)`), envelope status (`<class> 0a ...`) and long-frame (`AA FF`, 16-bit checksum) handling from upstream `aabb_device.ts` |
-| `fridge_common` (new) | 8 refrigerators | Port upstream `fridge_common.ts` (status record fields, C/F ranges and conversion). Check whether `2RSFL2DBN3K_Z` can use it |
+| `fridge_common` | 8 refrigerators | Done: query, record extraction, unit, setpoint conversion and ranges, shared descriptor properties, `F0 17` writes. `2RSFL2DBN3K_Z` uses it with its own captured write template |
 | `washer_common` (new) | 9 EU washers, 2 ThinQ1 washers | Port the enum tables from upstream `washer_common.ts`. Distinct from `monitoring_common`, which serves the Korean monitoring-record family |
 | `dishwasher_common` (new) | 4 dishwashers | Port upstream `dishwasher_common.ts` (status fields, states, option bits) |
 | `tlv_common` | 4 TLV drivers | Compare with upstream `tlv_device.ts`, which changed after the DHUM audit (commit `cd98450d`). Re-check DHUM against the new baseline. `RAC_056905_WW` is the largest TLV driver and may need capability handling `tlv_common` lacks |
@@ -84,14 +85,14 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 
 | model | tests | fixtures | notes | status |
 |---|---|---|---|---|
-| `2REB1GLVB1__2` | 12 | 6 | | todo |
+| `2REB1GLVB1__2` | 12 | 6 | | ported |
 | `2REF11EBIVPC4` | 18 | 6 | Israeli market | todo |
 | `2REF11EIDA__4` | 14 | 5 | | todo |
 | `2REF11EIDG__4` | 6 | 16 | LRFXC2606S, Ack | todo |
 | `2REFT1DIC4P_U` | 18 | 27 | | todo |
 | `2REFTBDII4P_U` | 13 | 10 | 68-byte record | todo |
 | `2RES1VE600FWC` | 16 | 9 | different temperature encoding | todo |
-| `2RES1VE61NFA2` | 12 | 4 | | todo |
+| `2RES1VE61NFA2` | 12 | 4 | | ported |
 
 ### Dishwashers (`dishwasher_common`, AABB)
 
