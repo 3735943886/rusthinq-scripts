@@ -51,9 +51,12 @@ Shared work that blocks several ports. Do these first.
   `F_V8_Y___W.B_2QEUK.rhai` since commit `bfb8e77` on master (each
   dot-separated part must be a valid name). 12 upstream model IDs (8 drivers
   and 4 aliases) depend on it. Module names still cannot contain `.`.
-- **Aliases.** Upstream maps several model IDs to one driver. Here every model
-  needs its own file and test file. Decide between committed copies and host-side
-  aliasing before porting the aliased drivers.
+- **Aliases and extensions.** Upstream maps several model IDs to one driver,
+  and some drivers extend another. rusthinq `9db5422` lets a driver inherit a
+  module's functions with an unaliased `import "<module>";`, its own
+  definitions overriding them. Put the shared driver body in `modules/`; an
+  alias is then the one import line, and an extension overrides only what
+  differs. Each model still needs its own test file.
 
 ### Shared modules
 
@@ -73,7 +76,7 @@ Shared work that blocks several ports. Do these first.
    `aabb_common` additions).
 3. Standalone AABB drivers, smallest first.
 4. TLV: `POT_056905_WW`, then `RAC_056905_WW` (with its ThinQ1 variant).
-5. Aliased models, once the alias approach is decided.
+5. Aliased models (one-line inheriting drivers).
 6. `WIN_056905_WW` last: upstream has no tests for it.
 
 ## Tracker
