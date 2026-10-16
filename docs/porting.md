@@ -63,15 +63,15 @@ Shared work that blocks several ports. Do these first.
 | `aabb_common` | 6 drivers with auto-ack; 3 with envelope status; 3 with long frames | Cloud ack done (`c::ack`). Still to add from upstream `aabb_device.ts`: envelope status (`<class> 0a ...`) and long-frame (`AA FF`, 16-bit checksum) handling |
 | `fridge_common` | 8 refrigerators | Done: query, record extraction, unit, setpoint conversion and ranges, shared descriptor properties, and `F0 17` writes over a 0xFF record or the LG app's 118-byte record, which every captured model sends a prefix of. `2RSFL2DBN3K_Z` uses it too |
 | `washer_common` (new) | 9 EU washers, 2 ThinQ1 washers | Port the enum tables from upstream `washer_common.ts`. Distinct from `monitoring_common`, which serves the Korean monitoring-record family |
-| `dishwasher_common` (new) | 4 dishwashers | Port upstream `dishwasher_common.ts` (status fields, states, option bits) |
+| `dishwasher_common` | 4 dishwashers | Done: status query, record payload, states and phases, shared descriptor properties, `0x3E` energy, `F0 26` actions and staged remote start. `D140110` uses it too |
 | `tlv_common` | 4 TLV drivers | Compare with upstream `tlv_device.ts`, which changed after the DHUM audit (commit `cd98450d`). Re-check DHUM against the new baseline. `RAC_056905_WW` is the largest TLV driver and may need capability handling `tlv_common` lacks |
 | ThinQ1 | 3 drivers | ThinQ1 status arrives through `on_data`; commands go out with `ctx.send_json`. `RAC_056905_WW` has a ThinQ1 and a ThinQ2 variant under the same model ID: branch on `ctx.is_thinq2()` in one file |
 
 ## Order
 
-1. Refrigerators: done.
-2. Families with a shared module, one representative first, then the rest:
-   dishwashers, EU washers (these need the remaining `aabb_common` additions).
+1. Refrigerators and dishwashers: done.
+2. EU washers, one representative first (these need the remaining
+   `aabb_common` additions).
 3. Standalone AABB drivers, smallest first.
 4. TLV: `POT_056905_WW`, then `RAC_056905_WW` (with its ThinQ1 variant).
 5. Aliased models, once the alias approach is decided.
@@ -100,10 +100,10 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 
 | model | tests | fixtures | notes | status |
 |---|---|---|---|---|
-| `D0211` | 24 | 19 | DB365TXS / DBC435TSL, Ack | todo |
-| `D30` | 20 | 27 | LDT54788D | todo |
-| `H11` | 19 | 29 | | todo |
-| `N17` | 28 | 34 | LDNPQ445S | todo |
+| `D0211` | 24 | 19 | DB365TXS / DBC435TSL, Ack | ported |
+| `D30` | 20 | 27 | LDT54788D | ported |
+| `H11` | 19 | 29 | | ported |
+| `N17` | 28 | 34 | LDNPQ445S; start requires remote start armed (upstream sends it anyway) | ported |
 
 ### EU washers and washer-dryers (`washer_common`, AABB)
 

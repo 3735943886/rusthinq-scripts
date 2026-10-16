@@ -56,7 +56,8 @@ restore availability after reconnecting; reported values may still reflect the l
 
 ```text
 drivers/              <modelId>.rhai drivers
-modules/              IL, AABB, TLV, refrigerator, monitoring and energy modules;
+modules/              IL, AABB, TLV, refrigerator, dishwasher, monitoring and
+                      energy modules;
                       il_config_common.rhai.example (descriptor prefix template)
 tests/                Device tests, protocol test helpers and runtime_test.rhai
 tools/prepare.py      Assembles the flat runtime directory
@@ -66,8 +67,8 @@ RUSTHINQ_REF          rusthinq ref the drivers are tested against
 dist/0.2/             Generated runtime directory (ignored by Git)
 ```
 
-The washer/dryer/styler family uses `monitoring_common`, and refrigerators use
-`fridge_common`; both import `aabb_common`. TLV drivers delegate handshake,
+The washer/dryer/styler family uses `monitoring_common`, refrigerators use
+`fridge_common` and dishwashers `dishwasher_common`; all import `aabb_common`. TLV drivers delegate handshake,
 retry, refresh and framing to `tlv_common`. Every driver publishes through
 `il_common`; named `*_common.rhai` files are modules, not device drivers.
 
@@ -141,6 +142,10 @@ rerunning a published tag does not overwrite its release assets.
 | `AIR_910604_WW` | air purifier | TLV | captured |
 | `CST_570004_WW` | ceiling-cassette air conditioner | TLV | captured |
 | `D140110` | dishwasher (read-only) | AABB | captured |
+| `D0211` | dishwasher (read-only) | AABB | captured |
+| `D30` | dishwasher (read-only) | AABB | captured |
+| `H11` | dishwasher | AABB | captured |
+| `N17` | dishwasher | AABB | captured |
 | `DHUM_056905_WW` | dehumidifier | TLV | captured |
 | `F24VDD` | washer | AABB monitoring | captured |
 | `RH14_N_KR` | dryer | AABB monitoring | captured |
