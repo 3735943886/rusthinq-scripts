@@ -25,8 +25,16 @@ reloads the affected drivers; otherwise restart the daemon.
 
 A `.rhai` file in the checkout root overrides the one of the same name in
 `drivers/` or `modules/`. To choose the descriptor prefix (default `"il"`; `""`
-disables descriptor publication), copy `modules/il_config_common.rhai` to the root
-and edit it; Git ignores that copy. Property and command topics use the host's
+disables descriptor publication), copy the shipped default to the root and edit
+the copy:
+
+```sh
+cp modules/il_config_common.rhai il_config_common.rhai
+```
+
+Git ignores the root copy, so `git pull` never touches it. Copy rather than move,
+and leave `modules/il_config_common.rhai` unedited: it is tracked, and changing it
+makes pulls conflict. Property and command topics use the host's
 `[drivers] topic_prefix`.
 
 rusthinq must have the `scripting` feature. Driver filenames must match the
