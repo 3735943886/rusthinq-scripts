@@ -18,6 +18,8 @@
 // its own panel.
 
 import "aabb_common" as c;
+import "table_common" as t;
+import "il_common" as il;
 
 fn control_power_off() { 0x01 }
 fn control_pause() { 0x04 }
@@ -61,6 +63,85 @@ fn on_ack(ctx, ack) {
         let prop = ctx.state_get("last_cmd");
         c::reject(ctx, if prop == () { "command" } else { prop }, "refused by the appliance");
     }
+}
+
+// ---- what every model shares ------------------------------------------------------
+//
+// Payload offsets common to the family: 0 state (0 = off), 1/2 remaining, 3/4 initial and
+// 12/13 reserve time (hours, minutes), 5 course on the dial, 6 error code. Each driver decodes
+// the rest, including where its remote-start bit lives.
+
+// Descriptor properties every model has; the driver mixes in its own.
+fn props(states, courses, startable) {
+    let startable_names = [];
+    for v in startable { startable_names.push(t::name(courses, v)); }
+    #{
+        available: #{ type: "binary", role: "available" },
+        power: #{ type: "binary", class: "running", label: "Powered on" },
+        status: #{ type: "select", options: t::options(states) },
+        // "course" is where the dial sits; "course_select" is what Start will ask for. They
+        // agree until one is changed here, and turning the dial brings them back together.
+        course: #{ type: "select", label: "Course (dial)", options: t::options(courses) },
+        course_select: #{ type: "select", rw: true, label: "Course for Start",
+                          options: startable_names },
+        start: #{ type: "trigger", requires: "remote_start" },
+        pause: #{ type: "trigger", requires: "remote_start" },
+        power_off: #{ type: "trigger", requires: "remote_start" },
+        remaining_time: #{ type: "number", class: "duration", unit: "min" },
+        initial_time: #{ type: "number", class: "duration", category: "diagnostic", unit: "min", label: "Cycle length" },
+        reserve_time: #{ type: "number", class: "duration", unit: "min", label: "Reserved finish time" },
+        error: #{ type: "binary", class: "problem", category: "diagnostic" },
+        error_message: #{ type: "text", category: "diagnostic" },
+        remote_start: #{ type: "binary", category: "diagnostic", label: "Remote start armed at the panel" }
+    }
+}
+
+fn minutes(b, o) { (b[o] * 60 + b[o + 1]).to_string() }
+
+// Publishes the shared fields of record `r` and remembers its state for a later Start.
+fn publish(ctx, r, states, courses, startable, errors) {
+    let b = r.body;
+    let p = r.p;
+    il::publish_property(ctx, "available", "true");
+    let state = b[p];
+    let off = state == 0;
+    ctx.state_set("state", state);
+
+    let chosen = follow(ctx, b[p + 5], startable);
+    if chosen != () { il::publish_property(ctx, "course_select", t::name(courses, chosen)); }
+
+    il::publish_property(ctx, "power", if off { "false" } else { "true" });
+    c::pub_name(ctx, "status", t::name(states, state));
+    c::pub_name(ctx, "course", t::name(courses, b[p + 5]));
+
+    // Zeroed while off: the appliance keeps the last cycle's figures in these bytes, which would
+    // otherwise read as a countdown frozen mid-cycle.
+    il::publish_property(ctx, "remaining_time", if off { "0" } else { minutes(b, p + 1) });
+    il::publish_property(ctx, "initial_time", if off { "0" } else { minutes(b, p + 3) });
+    il::publish_property(ctx, "reserve_time", if off { "0" } else { minutes(b, p + 12) });
+
+    let error = b[p + 6];
+    il::publish_property(ctx, "error", if error != 0 { "true" } else { "false" });
+    il::publish_property(ctx, "error_message", t::name(errors, error) ?? "Unknown error (" + error + ")");
+}
+
+// Handles course_select, pause and power_off; false for any other property. `what` names the
+// appliance in a rejection ("washer").
+fn control(ctx, prop, value, courses, startable, what) {
+    switch prop {
+        "course_select" => {
+            let code = t::code(courses, value);
+            if code == () || !select(ctx, code, startable) {
+                c::reject(ctx, prop, "not a course this " + what + " can start");
+            } else {
+                il::publish_property(ctx, "course_select", value);
+            }
+        }
+        "pause" => short_control(ctx, control_pause(), prop),
+        "power_off" => short_control(ctx, control_power_off(), prop),
+        _ => { return false; }
+    }
+    true
 }
 
 fn short_control(ctx, kind, prop) {

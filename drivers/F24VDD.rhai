@@ -137,48 +137,34 @@ fn start_payload(course, resume) {
 }
 
 fn descriptor(ctx) {
+    let props = m::props(states(), courses(), startable());
+    props.mixin(#{
+        op_course: #{ type: "select", category: "diagnostic", label: "Running course",
+                      options: t::options(op_courses()) },
+        download_course: #{ type: "select", category: "diagnostic", label: "Downloaded course",
+                            options: t::options(download_courses()) },
+        soil: #{ type: "select", label: "Soil level", options: t::options(soils()) },
+        spin: #{ type: "select", options: t::options(spins()) },
+        temp: #{ type: "select", label: "Water temperature", options: t::options(temps()) },
+        rinse: #{ type: "number", series: "gauge", label: "Rinse cycles" },
+        // climbs at ~26 Wh/min while the washer heats; a 95 C boil wash finished at 1684 Wh
+        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Cycle energy" },
+        load_level: #{ type: "number", series: "gauge", category: "diagnostic", label: "Load level (AI DD estimate, 0-4)" },
+        tub_clean_count: #{ type: "number", series: "gauge", category: "diagnostic", label: "Cycles since Tub Clean" },
+        steam: #{ type: "binary" },
+        turbo_shot: #{ type: "binary", label: "TurboShot" },
+        crease_care: #{ type: "binary" },
+        fresh_care: #{ type: "binary" },
+        rinse_hold: #{ type: "binary" },
+        add_load: #{ type: "binary", label: "Add Garment available" },
+        favorite: #{ type: "binary", category: "diagnostic", label: "Favourite course" },
+        alarm: #{ type: "binary", category: "diagnostic", label: "End-of-cycle sound" },
+        door_lock: #{ type: "binary", category: "diagnostic" },
+        child_lock: #{ type: "binary", category: "diagnostic" }
+    });
     json_stringify(#{
         il: 0, kind: "washer", class: "washing_machine", label: "Washer", vendor: "LG",
-        model: ctx.model_id(),
-        props: #{
-            available: #{ type: "binary", role: "available" },
-            power: #{ type: "binary", class: "running", label: "Powered on" },
-            status: #{ type: "select", options: t::options(states()) },
-            course: #{ type: "select", label: "Course (dial)", options: t::options(courses()) },
-            course_select: #{ type: "select", rw: true, label: "Course for Start",
-                              options: startable().map(|v| t::name(courses(), v)) },
-            start: #{ type: "trigger", requires: "remote_start" },
-            pause: #{ type: "trigger", requires: "remote_start" },
-            power_off: #{ type: "trigger", requires: "remote_start" },
-            op_course: #{ type: "select", category: "diagnostic", label: "Running course",
-                          options: t::options(op_courses()) },
-            download_course: #{ type: "select", category: "diagnostic", label: "Downloaded course",
-                                options: t::options(download_courses()) },
-            remaining_time: #{ type: "number", class: "duration", unit: "min" },
-            initial_time: #{ type: "number", class: "duration", category: "diagnostic", unit: "min", label: "Cycle length" },
-            reserve_time: #{ type: "number", class: "duration", unit: "min", label: "Reserved finish time" },
-            soil: #{ type: "select", label: "Soil level", options: t::options(soils()) },
-            spin: #{ type: "select", options: t::options(spins()) },
-            temp: #{ type: "select", label: "Water temperature", options: t::options(temps()) },
-            rinse: #{ type: "number", series: "gauge", label: "Rinse cycles" },
-            // climbs at ~26 Wh/min while the washer heats; a 95 C boil wash finished at 1684 Wh
-            energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Cycle energy" },
-            load_level: #{ type: "number", series: "gauge", category: "diagnostic", label: "Load level (AI DD estimate, 0-4)" },
-            tub_clean_count: #{ type: "number", series: "gauge", category: "diagnostic", label: "Cycles since Tub Clean" },
-            error: #{ type: "binary", class: "problem", category: "diagnostic" },
-            error_message: #{ type: "text", category: "diagnostic" },
-            steam: #{ type: "binary" },
-            turbo_shot: #{ type: "binary", label: "TurboShot" },
-            crease_care: #{ type: "binary" },
-            fresh_care: #{ type: "binary" },
-            rinse_hold: #{ type: "binary" },
-            add_load: #{ type: "binary", label: "Add Garment available" },
-            favorite: #{ type: "binary", category: "diagnostic", label: "Favourite course" },
-            alarm: #{ type: "binary", category: "diagnostic", label: "End-of-cycle sound" },
-            door_lock: #{ type: "binary", category: "diagnostic" },
-            child_lock: #{ type: "binary", category: "diagnostic" },
-            remote_start: #{ type: "binary", category: "diagnostic", label: "Remote start armed at the panel" }
-        }
+        model: ctx.model_id(), props: props
     })
 }
 
@@ -194,28 +180,13 @@ fn on_data(ctx, data) {
 
     let r = m::record(data, dev(), payload_len());
     if r == () { return; }
+    m::publish(ctx, r, states(), courses(), startable(), errors());
     let b = r.body;
     let p = r.p;
 
-    il::publish_property(ctx, "available", "true");
-    let state = b[p];
-    let off = state == 0;
-    ctx.state_set("state", state);
-
-    let chosen = m::follow(ctx, b[p + 5], startable());
-    if chosen != () { il::publish_property(ctx, "course_select", t::name(courses(), chosen)); }
-
-    il::publish_property(ctx, "power", if off { "false" } else { "true" });
-    c::pub_name(ctx, "status", t::name(states(), state));
     // rec[5] is the course as selected on the dial; rec[22] is the one the machine is running
-    c::pub_name(ctx, "course", t::name(courses(), b[p + 5]));
     c::pub_name(ctx, "op_course", t::name(op_courses(), b[p + 22]));
     c::pub_name(ctx, "download_course", t::name(download_courses(), b[p + 20]));
-
-    il::publish_property(ctx, "remaining_time", if off { "0" } else { (b[p + 1] * 60 + b[p + 2]).to_string() });
-    il::publish_property(ctx, "initial_time", if off { "0" } else { (b[p + 3] * 60 + b[p + 4]).to_string() });
-    il::publish_property(ctx, "reserve_time", if off { "0" } else { (b[p + 12] * 60 + b[p + 13]).to_string() });
-
     c::pub_name(ctx, "soil", t::name(soils(), b[p + 7]));
     c::pub_name(ctx, "spin", t::name(spins(), b[p + 8]));
     c::pub_name(ctx, "temp", t::name(temps(), b[p + 9]));
@@ -224,11 +195,6 @@ fn on_data(ctx, data) {
     // rec[23] is the AI DD load estimate, 0-4; rec[21] counts wash cycles since the last Tub Clean
     il::publish_property(ctx, "load_level", b[p + 23].to_string());
     il::publish_property(ctx, "tub_clean_count", b[p + 21].to_string());
-
-    let error = b[p + 6];
-    il::publish_property(ctx, "error", if error != 0 { "true" } else { "false" });
-    let message = t::name(errors(), error) ?? "Unknown error (" + error + ")";
-    il::publish_property(ctx, "error_message", message);
 
     let flags = b[p + 14];
     il::publish_property(ctx, "crease_care", c::bit(flags, 0x01));
@@ -248,25 +214,12 @@ fn on_data(ctx, data) {
 }
 
 fn set_property(ctx, prop, value) {
-    if prop == "course_select" {
-        let code = t::code(courses(), value);
-        if code == () || !m::select(ctx, code, startable()) {
-            c::reject(ctx, prop, "not a course this washer can start");
-            return;
-        }
-        il::publish_property(ctx, "course_select", value);
-    } else if prop == "start" {
-        let resume = ctx.state_get("state") == 6;
-        let payload = start_payload(m::selected(ctx), resume);
-        if payload == () { c::reject(ctx, prop, "no course selected"); return; }
-        m::course_control(ctx, payload, prop);
-    } else if prop == "pause" {
-        m::short_control(ctx, m::control_pause(), prop);
-    } else if prop == "power_off" {
-        m::short_control(ctx, m::control_power_off(), prop);
-    } else {
-        c::reject(ctx, prop, "unknown or read-only property");
-    }
+    if m::control(ctx, prop, value, courses(), startable(), "washer") { return; }
+    if prop != "start" { c::reject(ctx, prop, "unknown or read-only property"); return; }
+    let resume = ctx.state_get("state") == 6;
+    let payload = start_payload(m::selected(ctx), resume);
+    if payload == () { c::reject(ctx, prop, "no course selected"); return; }
+    m::course_control(ctx, payload, prop);
 }
 
 // il_common validates against the descriptor and rejects invalid commands.

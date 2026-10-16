@@ -82,39 +82,21 @@ fn errors() {
 }
 
 fn descriptor(ctx) {
-    let courses = t::options(courses());
-    let startable_names = startable().map(|v| t::name(courses(), v));
+    let props = m::props(states(), courses(), startable());
+    props.mixin(#{
+        temp: #{ type: "select", label: "Water temperature",
+                 options: t::options(temps()) },
+        rinse: #{ type: "number", series: "gauge", label: "Rinse cycles" },
+        spin: #{ type: "binary" },
+        sterilize: #{ type: "binary" },
+        warm_water: #{ type: "binary" },
+        door_lock: #{ type: "binary", category: "diagnostic" },
+        child_lock: #{ type: "binary", category: "diagnostic" },
+        audible_diagnosis: #{ type: "binary", category: "diagnostic" }
+    });
     json_stringify(#{
         il: 0, kind: "washer", class: "mini_washer", label: "Mini washer", vendor: "LG",
-        model: ctx.model_id(),
-        props: #{
-            available: #{ type: "binary", role: "available" },
-            power: #{ type: "binary", class: "running", label: "Powered on" },
-            status: #{ type: "select", options: t::options(states()) },
-            // "course" is where the dial sits; "course_select" is what Start will ask for. They
-            // agree until one is changed here, and turning the dial brings them back together.
-            course: #{ type: "select", label: "Course (dial)", options: courses },
-            course_select: #{ type: "select", rw: true, label: "Course for Start",
-                              options: startable_names },
-            start: #{ type: "trigger", requires: "remote_start" },
-            pause: #{ type: "trigger", requires: "remote_start" },
-            power_off: #{ type: "trigger", requires: "remote_start" },
-            remaining_time: #{ type: "number", class: "duration", unit: "min" },
-            initial_time: #{ type: "number", class: "duration", category: "diagnostic", unit: "min", label: "Cycle length" },
-            reserve_time: #{ type: "number", class: "duration", unit: "min", label: "Reserved finish time" },
-            temp: #{ type: "select", label: "Water temperature",
-                     options: t::options(temps()) },
-            rinse: #{ type: "number", series: "gauge", label: "Rinse cycles" },
-            spin: #{ type: "binary" },
-            error: #{ type: "binary", class: "problem", category: "diagnostic" },
-            error_message: #{ type: "text", category: "diagnostic" },
-            sterilize: #{ type: "binary" },
-            warm_water: #{ type: "binary" },
-            door_lock: #{ type: "binary", category: "diagnostic" },
-            child_lock: #{ type: "binary", category: "diagnostic" },
-            audible_diagnosis: #{ type: "binary", category: "diagnostic" },
-            remote_start: #{ type: "binary", category: "diagnostic", label: "Remote start armed at the panel" }
-        }
+        model: ctx.model_id(), props: props
     })
 }
 
@@ -130,35 +112,13 @@ fn on_data(ctx, data) {
 
     let r = m::record(data, dev(), payload_len());
     if r == () { return; }
+    m::publish(ctx, r, states(), courses(), startable(), errors());
     let b = r.body;
     let p = r.p;
-
-    il::publish_property(ctx, "available", "true");
-    let state = b[p];
-    let off = state == 0;
-    ctx.state_set("state", state);
-
-    let chosen = m::follow(ctx, b[p + 5], startable());
-    if chosen != () { il::publish_property(ctx, "course_select", t::name(courses(), chosen)); }
-
-    il::publish_property(ctx, "power", if off { "false" } else { "true" });
-    c::pub_name(ctx, "status", t::name(states(), state));
-    c::pub_name(ctx, "course", t::name(courses(), b[p + 5]));
-
-    // Zeroed while off: the appliance keeps the last cycle's figures in these bytes, which would
-    // otherwise read as a countdown frozen mid-cycle.
-    il::publish_property(ctx, "remaining_time", if off { "0" } else { (b[p + 1] * 60 + b[p + 2]).to_string() });
-    il::publish_property(ctx, "initial_time", if off { "0" } else { (b[p + 3] * 60 + b[p + 4]).to_string() });
-    il::publish_property(ctx, "reserve_time", if off { "0" } else { (b[p + 12] * 60 + b[p + 13]).to_string() });
 
     c::pub_name(ctx, "temp", t::name(temps(), b[p + 9]));
     il::publish_property(ctx, "rinse", b[p + 10].to_string());
     il::publish_property(ctx, "spin", if b[p + 8] != 0 { "true" } else { "false" });
-
-    let error = b[p + 6];
-    il::publish_property(ctx, "error", if error != 0 { "true" } else { "false" });
-    let message = t::name(errors(), error) ?? "Unknown error (" + error + ")";
-    il::publish_property(ctx, "error_message", message);
 
     let flags = b[p + 14];
     il::publish_property(ctx, "child_lock", c::bit(flags, 0x01));
@@ -178,25 +138,12 @@ fn on_data(ctx, data) {
 // piece of LG's design that a command cannot switch on. While the appliance is asleep with its
 // Wi-Fi module off nothing reaches it at all.
 fn set_property(ctx, prop, value) {
-    if prop == "course_select" {
-        let code = t::code(courses(), value);
-        if code == () || !m::select(ctx, code, startable()) {
-            c::reject(ctx, prop, "not a course this drawer can start");
-            return;
-        }
-        il::publish_property(ctx, "course_select", value);
-    } else if prop == "start" {
-        let resume = ctx.state_get("state") == 2;
-        let payload = start_payload(m::selected(ctx), resume);
-        if payload == () { c::reject(ctx, prop, "no course selected"); return; }
-        m::course_control(ctx, payload, prop);
-    } else if prop == "pause" {
-        m::short_control(ctx, m::control_pause(), prop);
-    } else if prop == "power_off" {
-        m::short_control(ctx, m::control_power_off(), prop);
-    } else {
-        c::reject(ctx, prop, "unknown or read-only property");
-    }
+    if m::control(ctx, prop, value, courses(), startable(), "drawer") { return; }
+    if prop != "start" { c::reject(ctx, prop, "unknown or read-only property"); return; }
+    let resume = ctx.state_get("state") == 2;
+    let payload = start_payload(m::selected(ctx), resume);
+    if payload == () { c::reject(ctx, prop, "no course selected"); return; }
+    m::course_control(ctx, payload, prop);
 }
 
 // il_common validates against the descriptor and rejects invalid commands.

@@ -84,41 +84,26 @@ fn errors() {
 }
 
 fn descriptor(ctx) {
-    let courses = t::options(courses());
-    let startable_names = startable().map(|v| t::name(courses(), v));
+    let props = m::props(states(), courses(), startable());
+    props.mixin(#{
+        process: #{ type: "select", label: "Cycle step",
+                    options: ["none", "sensing", "steam", "drying_1", "drying_2", "drying_3",
+                              "cooling", "anti_crease", "end"] },
+        dry_level: #{ type: "select", options: t::options(dry_levels()) },
+        eco_hybrid: #{ type: "select", options: t::options(eco_hybrids()) },
+        // climbs during the cycle and resets to 0 at the next one
+        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Cycle energy" },
+        steam: #{ type: "binary" },
+        anti_crease: #{ type: "binary" },
+        hand_iron: #{ type: "binary", label: "Easy iron" },
+        damp_dry_beep: #{ type: "binary" },
+        self_clean: #{ type: "binary", label: "Condenser self-clean" },
+        reservation: #{ type: "binary" },
+        child_lock: #{ type: "binary", category: "diagnostic" }
+    });
     json_stringify(#{
-        il: 0, kind: "dryer", label: "Dryer", vendor: "LG", model: ctx.model_id(),
-        props: #{
-            available: #{ type: "binary", role: "available" },
-            power: #{ type: "binary", class: "running", label: "Powered on" },
-            status: #{ type: "select", options: t::options(states()) },
-            process: #{ type: "select", label: "Cycle step",
-                        options: ["none", "sensing", "steam", "drying_1", "drying_2", "drying_3",
-                                  "cooling", "anti_crease", "end"] },
-            course: #{ type: "select", label: "Course (dial)", options: courses },
-            course_select: #{ type: "select", rw: true, label: "Course for Start",
-                              options: startable_names },
-            start: #{ type: "trigger", requires: "remote_start" },
-            pause: #{ type: "trigger", requires: "remote_start" },
-            power_off: #{ type: "trigger", requires: "remote_start" },
-            remaining_time: #{ type: "number", class: "duration", unit: "min" },
-            initial_time: #{ type: "number", class: "duration", category: "diagnostic", unit: "min", label: "Cycle length" },
-            reserve_time: #{ type: "number", class: "duration", unit: "min", label: "Reserved finish time" },
-            dry_level: #{ type: "select", options: t::options(dry_levels()) },
-            eco_hybrid: #{ type: "select", options: t::options(eco_hybrids()) },
-            // climbs during the cycle and resets to 0 at the next one
-            energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Cycle energy" },
-            error: #{ type: "binary", class: "problem", category: "diagnostic" },
-            error_message: #{ type: "text", category: "diagnostic" },
-            steam: #{ type: "binary" },
-            anti_crease: #{ type: "binary" },
-            hand_iron: #{ type: "binary", label: "Easy iron" },
-            damp_dry_beep: #{ type: "binary" },
-            self_clean: #{ type: "binary", label: "Condenser self-clean" },
-            reservation: #{ type: "binary" },
-            child_lock: #{ type: "binary", category: "diagnostic" },
-            remote_start: #{ type: "binary", category: "diagnostic", label: "Remote start armed at the panel" }
-        }
+        il: 0, kind: "dryer", label: "Dryer", vendor: "LG",
+        model: ctx.model_id(), props: props
     })
 }
 
@@ -134,37 +119,17 @@ fn on_data(ctx, data) {
 
     let r = m::record(data, dev(), payload_len());
     if r == () { return; }
+    m::publish(ctx, r, states(), courses(), startable(), errors());
     let b = r.body;
     let p = r.p;
 
-    il::publish_property(ctx, "available", "true");
-    let state = b[p];
-    let off = state == 0;
-    ctx.state_set("state", state);
-
-    let chosen = m::follow(ctx, b[p + 5], startable());
-    if chosen != () { il::publish_property(ctx, "course_select", t::name(courses(), chosen)); }
-
-    il::publish_property(ctx, "power", if off { "false" } else { "true" });
-    c::pub_name(ctx, "status", t::name(states(), state));
-    let process = if off { () } else { t::name(processes(), b[p + 9]) };
+    let process = if b[p] == 0 { () } else { t::name(processes(), b[p + 9]) };
     il::publish_property(ctx, "process", process ?? "none");
-    c::pub_name(ctx, "course", t::name(courses(), b[p + 5]));
-
-    il::publish_property(ctx, "remaining_time", if off { "0" } else { (b[p + 1] * 60 + b[p + 2]).to_string() });
-    il::publish_property(ctx, "initial_time", if off { "0" } else { (b[p + 3] * 60 + b[p + 4]).to_string() });
-    il::publish_property(ctx, "reserve_time", if off { "0" } else { (b[p + 12] * 60 + b[p + 13]).to_string() });
-
     c::pub_name(ctx, "dry_level", t::name(dry_levels(), b[p + 7]));
     c::pub_name(ctx, "eco_hybrid", t::name(eco_hybrids(), b[p + 8]));
     // rec[17:19]: energy used by the running cycle, big-endian, in Wh. The counter climbs at
     // about 12 Wh/min during a cycle, a heat pump's ~0.7 kW.
     il::publish_property(ctx, "energy", (b[p + 17] * 256 + b[p + 18]).to_string());
-
-    let error = b[p + 6];
-    il::publish_property(ctx, "error", if error != 0 { "true" } else { "false" });
-    let message = t::name(errors(), error) ?? "Unknown error (" + error + ")";
-    il::publish_property(ctx, "error_message", message);
 
     let flags = b[p + 14];
     il::publish_property(ctx, "reservation", c::bit(flags, 0x01));
@@ -178,25 +143,12 @@ fn on_data(ctx, data) {
 }
 
 fn set_property(ctx, prop, value) {
-    if prop == "course_select" {
-        let code = t::code(courses(), value);
-        if code == () || !m::select(ctx, code, startable()) {
-            c::reject(ctx, prop, "not a course this dryer can start");
-            return;
-        }
-        il::publish_property(ctx, "course_select", value);
-    } else if prop == "start" {
-        let resume = ctx.state_get("state") == 3;
-        let payload = start_payload(m::selected(ctx), resume);
-        if payload == () { c::reject(ctx, prop, "no course selected"); return; }
-        m::course_control(ctx, payload, prop);
-    } else if prop == "pause" {
-        m::short_control(ctx, m::control_pause(), prop);
-    } else if prop == "power_off" {
-        m::short_control(ctx, m::control_power_off(), prop);
-    } else {
-        c::reject(ctx, prop, "unknown or read-only property");
-    }
+    if m::control(ctx, prop, value, courses(), startable(), "dryer") { return; }
+    if prop != "start" { c::reject(ctx, prop, "unknown or read-only property"); return; }
+    let resume = ctx.state_get("state") == 3;
+    let payload = start_payload(m::selected(ctx), resume);
+    if payload == () { c::reject(ctx, prop, "no course selected"); return; }
+    m::course_control(ctx, payload, prop);
 }
 
 // il_common validates against the descriptor and rejects invalid commands.

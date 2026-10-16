@@ -125,33 +125,19 @@ fn resume_payload(course) {
 }
 
 fn descriptor(ctx) {
+    let props = m::props(states(), courses(), startable());
+    props.mixin(#{
+        smart_course: #{ type: "select", options: t::options(smart_courses()) },
+        download_course: #{ type: "select", category: "diagnostic", label: "Downloaded course",
+                            options: t::options(smart_courses()) },
+        // holds the last cycle's total while idle, climbs during a cycle, resets at the next
+        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Cycle energy" },
+        night_dry: #{ type: "binary" },
+        child_lock: #{ type: "binary", category: "diagnostic" }
+    });
     json_stringify(#{
         il: 0, kind: "clothing_care", class: "styler", label: "Styler", vendor: "LG",
-        model: ctx.model_id(),
-        props: #{
-            available: #{ type: "binary", role: "available" },
-            power: #{ type: "binary", class: "running", label: "Powered on" },
-            status: #{ type: "select", options: t::options(states()) },
-            course: #{ type: "select", label: "Course (dial)", options: t::options(courses()) },
-            course_select: #{ type: "select", rw: true, label: "Course for Start",
-                              options: startable().map(|v| t::name(courses(), v)) },
-            start: #{ type: "trigger", requires: "remote_start" },
-            pause: #{ type: "trigger", requires: "remote_start" },
-            power_off: #{ type: "trigger", requires: "remote_start" },
-            smart_course: #{ type: "select", options: t::options(smart_courses()) },
-            download_course: #{ type: "select", category: "diagnostic", label: "Downloaded course",
-                                options: t::options(smart_courses()) },
-            remaining_time: #{ type: "number", class: "duration", unit: "min" },
-            initial_time: #{ type: "number", class: "duration", category: "diagnostic", unit: "min", label: "Cycle length" },
-            reserve_time: #{ type: "number", class: "duration", unit: "min", label: "Reserved finish time" },
-            // holds the last cycle's total while idle, climbs during a cycle, resets at the next
-            energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Cycle energy" },
-            error: #{ type: "binary", class: "problem", category: "diagnostic" },
-            error_message: #{ type: "text", category: "diagnostic" },
-            night_dry: #{ type: "binary" },
-            child_lock: #{ type: "binary", category: "diagnostic" },
-            remote_start: #{ type: "binary", category: "diagnostic", label: "Remote start armed at the panel" }
-        }
+        model: ctx.model_id(), props: props
     })
 }
 
@@ -167,34 +153,15 @@ fn on_data(ctx, data) {
 
     let r = m::record(data, dev(), payload_len());
     if r == () { return; }
+    m::publish(ctx, r, states(), courses(), startable(), errors());
     let b = r.body;
     let p = r.p;
 
-    il::publish_property(ctx, "available", "true");
-    let state = b[p];
-    let off = state == 0;
-    ctx.state_set("state", state);
-
-    let chosen = m::follow(ctx, b[p + 5], startable());
-    if chosen != () { il::publish_property(ctx, "course_select", t::name(courses(), chosen)); }
-
-    il::publish_property(ctx, "power", if off { "false" } else { "true" });
-    c::pub_name(ctx, "status", t::name(states(), state));
-    c::pub_name(ctx, "course", t::name(courses(), b[p + 5]));
     c::pub_name(ctx, "smart_course", t::name(smart_courses(), b[p + 20]));
     // rec[23] counts the download-course slots in use, rec[24:28] are the slots; only the first
     // is published (this model has maxDownloadCourseNum 1, the rest are always empty)
     c::pub_name(ctx, "download_course", t::name(smart_courses(), b[p + 24]));
-
-    il::publish_property(ctx, "remaining_time", if off { "0" } else { (b[p + 1] * 60 + b[p + 2]).to_string() });
-    il::publish_property(ctx, "initial_time", if off { "0" } else { (b[p + 3] * 60 + b[p + 4]).to_string() });
-    il::publish_property(ctx, "reserve_time", if off { "0" } else { (b[p + 12] * 60 + b[p + 13]).to_string() });
     il::publish_property(ctx, "energy", (b[p + 17] * 256 + b[p + 18]).to_string());
-
-    let error = b[p + 6];
-    il::publish_property(ctx, "error", if error != 0 { "true" } else { "false" });
-    let message = t::name(errors(), error) ?? "Unknown error (" + error + ")";
-    il::publish_property(ctx, "error_message", message);
 
     // rec[14]: bit 0 child lock, bit 1 night dry, bit 3 remote start. Bit 5 is set on every
     // record this unit has ever sent, and no cloud field follows it: left alone rather than
@@ -206,25 +173,12 @@ fn on_data(ctx, data) {
 }
 
 fn set_property(ctx, prop, value) {
-    if prop == "course_select" {
-        let code = t::code(courses(), value);
-        if code == () || !m::select(ctx, code, startable()) {
-            c::reject(ctx, prop, "not a course this cabinet can start");
-            return;
-        }
-        il::publish_property(ctx, "course_select", value);
-    } else if prop == "start" {
-        let course = m::selected(ctx);
-        let payload = if ctx.state_get("state") == 3 { resume_payload(course) } else { start_payload(course) };
-        if payload == () || course == 0 { c::reject(ctx, prop, "no course selected"); return; }
-        m::course_control(ctx, payload, prop);
-    } else if prop == "pause" {
-        m::short_control(ctx, m::control_pause(), prop);
-    } else if prop == "power_off" {
-        m::short_control(ctx, m::control_power_off(), prop);
-    } else {
-        c::reject(ctx, prop, "unknown or read-only property");
-    }
+    if m::control(ctx, prop, value, courses(), startable(), "cabinet") { return; }
+    if prop != "start" { c::reject(ctx, prop, "unknown or read-only property"); return; }
+    let course = m::selected(ctx);
+    let payload = if ctx.state_get("state") == 3 { resume_payload(course) } else { start_payload(course) };
+    if payload == () || course == 0 { c::reject(ctx, prop, "no course selected"); return; }
+    m::course_control(ctx, payload, prop);
 }
 
 // il_common validates against the descriptor and rejects invalid commands.
