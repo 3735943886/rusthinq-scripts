@@ -61,6 +61,7 @@ modules/              IL, AABB, TLV, refrigerator, monitoring and energy modules
 tests/                Device tests, protocol test helpers and runtime_test.rhai
 tools/prepare.py      Assembles the flat runtime directory
 tools/rethink_frames.ts  Prints upstream rethink frames for ported tests
+tools/rethink_fixtures.mjs  Prints an upstream rethink test's fixtures
 RUSTHINQ_REF          rusthinq ref the drivers are tested against
 dist/0.2/             Generated runtime directory (ignored by Git)
 ```
@@ -129,6 +130,12 @@ rerunning a published tag does not overwrite its release assets.
 |---|---|---|---|
 | `2RSFL2DBN3K_Z` | refrigerator | AABB | live |
 | `2REB1GLVB1__2` | refrigerator | AABB | captured |
+| `2REF11EBIVPC4` | refrigerator | AABB | constructed |
+| `2REF11EIDA__4` | refrigerator | AABB | captured |
+| `2REF11EIDG__4` | refrigerator | AABB | captured |
+| `2REFT1DIC4P_U` | refrigerator | AABB | captured |
+| `2REFTBDII4P_U` | refrigerator | AABB | captured |
+| `2RES1VE600FWC` | refrigerator | AABB | captured |
 | `2RES1VE61NFA2` | refrigerator | AABB | captured |
 | `1WPU4CIGCR__2` | water purifier | AABB | captured |
 | `AIR_910604_WW` | air purifier | TLV | captured |
@@ -144,8 +151,8 @@ rerunning a published tag does not overwrite its release assets.
 - **live**: run against the real appliance; reads and writes confirmed.
 - **captured**: tested against frames captured from a real appliance and, where
   available, writes the LG app sent; not yet run live.
-- **constructed**: status frames built from documented offsets; writes match
-  captured frames.
+- **constructed**: status frames built from documented offsets or around a
+  captured record; writes match captured frames.
 
 Each test file cites the captures its driver is checked against.
 Drivers planned from upstream rethink are tracked in

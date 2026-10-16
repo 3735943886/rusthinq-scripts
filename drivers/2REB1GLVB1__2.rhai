@@ -2,17 +2,13 @@
 // (commit 0e57069). 17-byte status records; fridge_common decodes the shared fields, plus
 //   12 eco friendly (0 off, 1 on)
 //   16 express cool (0 off, 1 on)
-// Eco friendly is written with the LG app's own 41-byte F0 17 command, captured through the
-// rethink bridge: 0xFF except the eco byte and fixed zeros, and no unit byte.
+// Eco friendly is written as the LG app sends it, captured through the rethink bridge: the
+// first 41 bytes of the app's record, without a unit byte.
 import "aabb_common" as c;
 import "fridge_common" as f;
 import "il_common" as il;
 
 fn record_len() { 17 }
-
-fn eco_command() {
-    "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF"
-}
 
 fn descriptor(ctx) {
     let props = f::props(f::unit(ctx));
@@ -35,21 +31,18 @@ fn on_data(ctx, data) {
     let s = f::record(data, record_len());
     if s == () { return; }
     if f::publish(ctx, s) { il::publish_il(ctx, descriptor(ctx)); }
-    il::publish_property(ctx, "express_freeze", if s[3] == 2 { "true" } else { "false" });
+    il::publish_property(ctx, "express_freeze", f::express_freeze(s));
     il::publish_property(ctx, "eco_friendly", c::on_off(s[12]));
     il::publish_property(ctx, "express_cool", c::on_off(s[16]));
 }
 
 fn set_property(ctx, prop, value) {
-    if f::set(ctx, record_len(), prop, value) { return; }
+    let base = f::with_unit(ctx, f::ff(record_len()));
+    if f::set(ctx, base, prop, value) { return; }
     let on = if c::to_bool(value) { 1 } else { 0 };
     switch prop {
-        "express_cool" => f::write(ctx, record_len(), 16, on),
-        "eco_friendly" => {
-            let msg = hex_decode(eco_command());
-            msg[12] = on;
-            f::send(ctx, msg);
-        }
+        "express_cool" => f::write(ctx, base, 16, on),
+        "eco_friendly" => f::write(ctx, f::app(41), 12, on),
         _ => c::reject(ctx, prop, "unknown or read-only property")
     }
 }

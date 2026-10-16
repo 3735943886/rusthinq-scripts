@@ -1,0 +1,112 @@
+import "runtime_test" as runtime;
+
+// Tests of 2REF11EBIVPC4.rhai (fridge), ported from upstream rethink's test suite (commit
+// 0e57069; frames built by upstream around a captured baseline record). Expected values and writes are what upstream's driver
+// publishes and sends for the same input.
+
+fn sample_initial() { "AA3110EB02070701FFFFFF00FFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00BB" }
+fn sample_delta_door_open() { "AA5C10EC02070701FFFFFF00FFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF02070701FFFFFF01FFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00BB" }
+fn sample_delta_fridge_4c() { "AA5C10EC02070701FFFFFF00FFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF02050701FFFFFF00FFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00BB" }
+fn sample_delta_freezer_17c() { "AA5C10EC02070701FFFFFF00FFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF02070501FFFFFF00FFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00BB" }
+fn sample_delta_express_on() { "AA5C10EC02070701FFFFFF00FFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF02070702FFFFFF00FFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00BB" }
+fn sample_delta_shabbat_on() { "AA5C10EC02070701FFFFFF00FFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF02070701FFFFFF00FFFFFFFFFFFF01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00BB" }
+
+fn last(d) { let s = d.sent(); hex_encode_upper(s[s.len() - 1]) }
+
+fn test_sample_initial() {
+    let d = device();
+    d.feed(sample_initial());
+    expect_props(d, #{ door: "false", fridge_setpoint: "3", freezer_setpoint: "-18", express_freeze: "false", shabbat_mode: "false" });
+}
+
+fn test_sample_delta_door_open() {
+    let d = device();
+    d.feed(sample_delta_door_open());
+    expect_props(d, #{ door: "true", fridge_setpoint: "3", freezer_setpoint: "-18", express_freeze: "false", shabbat_mode: "false" });
+}
+
+fn test_sample_delta_fridge_4c() {
+    let d = device();
+    d.feed(sample_delta_fridge_4c());
+    expect_props(d, #{ door: "false", fridge_setpoint: "4", freezer_setpoint: "-18", express_freeze: "false", shabbat_mode: "false" });
+}
+
+fn test_sample_delta_freezer_17c() {
+    let d = device();
+    d.feed(sample_delta_freezer_17c());
+    expect_props(d, #{ door: "false", fridge_setpoint: "3", freezer_setpoint: "-17", express_freeze: "false", shabbat_mode: "false" });
+}
+
+fn test_sample_delta_express_on() {
+    let d = device();
+    d.feed(sample_delta_express_on());
+    expect_props(d, #{ door: "false", fridge_setpoint: "3", freezer_setpoint: "-18", express_freeze: "true", shabbat_mode: "false" });
+}
+
+fn test_sample_delta_shabbat_on() {
+    let d = device();
+    d.feed(sample_delta_shabbat_on());
+    expect_props(d, #{ door: "false", fridge_setpoint: "3", freezer_setpoint: "-18", express_freeze: "false", shabbat_mode: "true" });
+}
+
+fn test_start() {
+    let d = device();
+    d.start();
+    expect_eq(d.sent().len(), 0);
+}
+
+fn test_writes_match_upstream() {
+    let d = device();
+    d.start();
+    d.feed(sample_initial());
+    for w in [
+        ["fridge_setpoint", "5", "AA7CF017FF03FFFFFFFFFFFF01FFFFFFFFFFFFFFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFBBBB"],
+        ["fridge_setpoint", "1", "AA7CF017FF07FFFFFFFFFFFF01FFFFFFFFFFFFFFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA7BB"],
+        ["fridge_setpoint", "7", "AA7CF017FF01FFFFFFFFFFFF01FFFFFFFFFFFFFFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFB9BB"],
+        ["freezer_setpoint", "-20", "AA7CF017FFFF06FFFFFFFFFF01FFFFFFFFFFFFFFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA4BB"],
+        ["freezer_setpoint", "-23", "AA7CF017FFFF09FFFFFFFFFF01FFFFFFFFFFFFFFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA1BB"],
+        ["freezer_setpoint", "-15", "AA7CF017FFFF01FFFFFFFFFF01FFFFFFFFFFFFFFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFB9BB"],
+        ["express_freeze", "true", "AA7CF017FFFFFF02FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFBEBB"],
+        ["express_freeze", "false", "AA7CF017FFFFFF01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFBFBB"],
+        ["shabbat_mode", "true", "AA7CF017FFFFFFFFFFFFFFFFFFFFFFFFFFFF01FFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFBFBB"],
+        ["shabbat_mode", "false", "AA7CF017FFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFBCBB"],
+    ] {
+        d.set(w[0], w[1]);
+        expect_eq(last(d), w[2]);
+    }
+}
+
+fn test_unknown_and_read_only_writes_are_rejected() {
+    let d = device();
+    d.start();
+    d.feed(sample_initial());
+    let n = d.sent().len();
+    d.set("does_not_exist", "1");
+    d.set("door", "true");
+    expect_eq(d.sent().len(), n);
+    expect(d.event("reject") != (), "rejects are published");
+}
+
+fn test_other_frames_are_ignored() {
+    let d = device();
+    d.feed("001122");
+    d.feed("AA08109901020304BB");
+    expect_eq(d.property("door"), ());
+}
+
+fn test_the_descriptor_is_celsius_from_the_start() {
+    let d = device();
+    d.start();
+    let desc = runtime::descriptor(d);
+    expect_eq(desc.props.fridge_setpoint.unit, "°C");
+    expect_eq(desc.props.freezer_setpoint.min, -23);
+    expect(desc.props.shabbat_mode.rw, "shabbat mode is writable");
+}
+
+// Upstream reads setpoints in half degrees; its fixtures only carry whole ones, so this is
+// its initial frame with both setpoint bytes set to 6.
+fn test_an_odd_wire_value_reads_as_a_half_degree() {
+    let d = device();
+    d.feed("AA3110EB02060601FFFFFF00FFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00BB");
+    expect_props(d, #{ fridge_setpoint: "3.5", freezer_setpoint: "-17.5" });
+}

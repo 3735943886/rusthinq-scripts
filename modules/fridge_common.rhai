@@ -5,7 +5,9 @@
 //   3 express freeze (1 off, 2 on)
 //   7 any door open (1 open; 0 and 2 both closed)
 //   8 display unit (0 °F, 1 °C)
-// Writes are F0 17 plus a record, 0xFF ("leave unchanged") except the unit and one field.
+// Writes are F0 17 plus a record in which 0xFF means "leave unchanged". A driver builds the
+// record from ff() or app(), adds the unit with with_unit() where its model expects it, and
+// passes it to set() or write().
 import "aabb_common" as c;
 import "il_common" as il;
 
@@ -47,49 +49,65 @@ fn props(u) {
     }
 }
 
-// Publishes the shared fields of record `s`. Returns true when the unit changed, so the
-// driver must republish its descriptor.
-fn publish(ctx, s) {
+fn express_freeze(s) { if s[3] == 2 { "true" } else { "false" } }
+
+// Publishes availability, the door and the unit of record `s`. Returns true when the unit
+// changed, so the driver must republish its descriptor.
+fn publish_base(ctx, s) {
     let u = if s[8] == 1 { "C" } else { "F" };
     let changed = u != unit(ctx);
     if changed { ctx.state_set("unit", u); }
     il::publish_property(ctx, "available", "true");
-    il::publish_property(ctx, "fridge_setpoint", fridge_temp(u, s[1]).to_string());
-    il::publish_property(ctx, "freezer_setpoint", freezer_temp(u, s[2]).to_string());
     il::publish_property(ctx, "door", c::on_off(s[7]));
     changed
 }
 
-// Sends F0 17 + `record` as is. Nothing is published: the appliance's next status record
-// carries the result.
-fn send(ctx, record) {
+// publish_base plus the setpoints in the family's encoding.
+fn publish(ctx, s) {
+    let changed = publish_base(ctx, s);
+    let u = unit(ctx);
+    il::publish_property(ctx, "fridge_setpoint", fridge_temp(u, s[1]).to_string());
+    il::publish_property(ctx, "freezer_setpoint", freezer_temp(u, s[2]).to_string());
+    changed
+}
+
+fn ff(len) { blob(len, 0xff) }
+
+// The record of the F0 17 command the LG app sends (118 bytes): 0xFF except fixed bytes the
+// app always includes. Captured from several models; shorter models send a prefix of it.
+fn app(len) {
+    hex_decode("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+        .extract(0, len)
+}
+
+fn with_unit(ctx, r) {
+    r[8] = if unit(ctx) == "F" { 0 } else { 1 };
+    r
+}
+
+// Sends F0 17 + `r`. Nothing is published: the appliance's next status record carries the
+// result.
+fn send(ctx, r) {
     let msg = blob(2);
     msg[0] = 0xf0;
     msg[1] = 0x17;
-    msg += record;
+    msg += r;
     ctx.send_raw(aabb_wrap(msg));
 }
 
-// Sends `base` (a record blob) with the current unit and `value` at `offset`.
-fn write_record(ctx, base, offset, value) {
-    base[8] = if unit(ctx) == "F" { 0 } else { 1 };
+fn write(ctx, base, offset, value) {
     base[offset] = value;
     send(ctx, base);
 }
 
-fn write(ctx, len, offset, value) { write_record(ctx, blob(len, 0xff), offset, value); }
-
-// Handles the setpoints and express freeze, writing over `base`. Returns false for any
-// other property.
-fn set_on(ctx, base, prop, value) {
+// Writes the setpoints and express freeze over `base`. Returns false for any other property.
+fn set(ctx, base, prop, value) {
     let u = unit(ctx);
     switch prop {
-        "fridge_setpoint" => write_record(ctx, base, 1, fridge_temp(u, c::to_number(value).to_int())),
-        "freezer_setpoint" => write_record(ctx, base, 2, freezer_temp(u, c::to_number(value).to_int())),
-        "express_freeze" => write_record(ctx, base, 3, if c::to_bool(value) { 2 } else { 1 }),
+        "fridge_setpoint" => write(ctx, base, 1, fridge_temp(u, c::to_number(value).to_int())),
+        "freezer_setpoint" => write(ctx, base, 2, freezer_temp(u, c::to_number(value).to_int())),
+        "express_freeze" => write(ctx, base, 3, if c::to_bool(value) { 2 } else { 1 }),
         _ => { return false; }
     }
     true
 }
-
-fn set(ctx, len, prop, value) { set_on(ctx, blob(len, 0xff), prop, value) }

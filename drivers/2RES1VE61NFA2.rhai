@@ -27,14 +27,15 @@ fn on_data(ctx, data) {
     let s = f::record(data, record_len());
     if s == () { return; }
     if f::publish(ctx, s) { il::publish_il(ctx, descriptor(ctx)); }
-    il::publish_property(ctx, "express_freeze", if s[3] == 2 { "true" } else { "false" });
+    il::publish_property(ctx, "express_freeze", f::express_freeze(s));
     il::publish_property(ctx, "express_cool", c::on_off(s[16]));
 }
 
 fn set_property(ctx, prop, value) {
-    if f::set(ctx, record_len(), prop, value) { return; }
+    let base = f::with_unit(ctx, f::ff(record_len()));
+    if f::set(ctx, base, prop, value) { return; }
     switch prop {
-        "express_cool" => f::write(ctx, record_len(), 16, if c::to_bool(value) { 1 } else { 0 }),
+        "express_cool" => f::write(ctx, base, 16, if c::to_bool(value) { 1 } else { 0 }),
         _ => c::reject(ctx, prop, "unknown or read-only property")
     }
 }

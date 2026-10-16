@@ -83,7 +83,7 @@ fixtures to driver tests.
 |---|---|---|---|
 | TLV | `[hdr..] len [tag,val].. crc16` | `tlv_common.rhai` (`import "tlv_common" as c;`) | the device answers a caps/values handshake (CST_570004_WW, DHUM_056905_WW, AIR_910604_WW) |
 | AABB, fixed status | `AA len inner csum BB`, inner is a flat byte record | `aabb_common.rhai` | the device pushes/answers with one fixed-layout status record (1WPU4CIGCR__2, WBEY3GT) |
-| AABB, refrigerator | class `0x10` EB/EC records, `F0 17` writes | `fridge_common.rhai` (imports `aabb_common`) | LG refrigerators (2RSFL2DBN3K_Z, 2RES1VE61NFA2, 2REB1GLVB1__2) |
+| AABB, refrigerator | class `0x10` EB/EC records, `F0 17` writes | `fridge_common.rhai` (imports `aabb_common`) | LG refrigerators (2RSFL2DBN3K_Z and the `2RE*` models) |
 | AABB, monitoring record | `AA len inner csum BB`, inner has its own sub-framing (`addr, cmd, [0, len, payload]..`) | `monitoring_common.rhai` (itself imports `aabb_common`) | washer/dryer/styler family (F24VDD, RH14_N_KR, S3BF_POD_DN4, Pd0F_F) |
 
 For fixed-length EB/EC status bodies, unwrap and check the device class with

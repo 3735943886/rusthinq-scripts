@@ -25,12 +25,55 @@ fn common_status_offset(body, status_length) {
     ()
 }
 
+// Acks a received frame as the LG cloud does (upstream aabb_device.ts), for drivers whose
+// appliance repeats unacked frames: F0 00 <type> 04, plus the sequence number for an
+// envelope (0x0A). The appliance's own acks (0x00), 0xC3 heartbeats and plain EB/EC status
+// records are not acked.
+fn ack(ctx, data) {
+    let body = aabb_unwrap(data);
+    if body == () || body.len() < 2 { return; }
+    let t = body[1];
+    if t == 0x00 || t == 0xc3 || t == 0xeb || t == 0xec { return; }
+    let msg = [0xf0, 0x00, t, 0x04];
+    if t == 0x0a {
+        // AA FF frames carry a 16-bit checksum, which leaves one byte at the end of the body.
+        if body.len() - (if data[1] == 0xff { 1 } else { 0 }) < 13 { return; }
+        msg.push(body[5]);
+        msg.push(body[6]);
+    }
+    ctx.send_clip("ack", 1, "\"" + hex_encode_upper(aabb_wrap(msg)) + "\"");
+}
+
 fn pad2(n) { if n < 10 { "0" + n } else { n.to_string() } }
 
 // Publish `name` unless it is `()` (a wire code the table does not know is left unpublished
 // rather than published as a made-up value).
 fn pub_name(ctx, prop, name) {
     if name != () { il::publish_property(ctx, prop, name); }
+}
+
+// Wire code tables are maps from the code as text to its option name; several codes may
+// share a name.
+fn name(table, v) { table[v.to_string()] }
+
+// The lowest wire code with option `name`, or `()`.
+fn code(table, name) {
+    let codes = table.keys().map(|k| k.parse_int());
+    codes.sort();
+    for k in codes { if table[k.to_string()] == name { return k; } }
+    ()
+}
+
+// The distinct option names of `table`, in wire-code order.
+fn options(table) {
+    let codes = table.keys().map(|k| k.parse_int());
+    codes.sort();
+    let out = [];
+    for k in codes {
+        let n = table[k.to_string()];
+        if !out.contains(n) { out.push(n); }
+    }
+    out
 }
 
 // A binary property from a wire number that is 1 when on.

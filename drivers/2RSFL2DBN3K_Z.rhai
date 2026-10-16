@@ -78,10 +78,10 @@
 // Care off, all plausible defaults) and every property below toggled once from the LG app
 // while this driver's decode was checked live against the resulting frames.
 //
-// The write command is F0 17 followed by a 118-byte record, captured verbatim from a live
-// unit with every setting byte blanked to FF (0xFF means "leave this field as it is"); unlike
-// a plain FF-everywhere-but-one-field template, this one carries a handful of fixed non-FF
-// bytes at other offsets that a generic fill would lose, so the base is the literal capture.
+// The write command is F0 17 followed by the LG app's 118-byte record (fridge_common's app()),
+// captured verbatim from a live unit and identical to what rethink captured from other
+// models: 0xFF ("leave this field as it is") except a handful of fixed non-FF bytes that a
+// generic fill would lose.
 // Every field this driver offers a write for also has a confirmed read path, echoed back by
 // the appliance's own status frame -- except `ai_saving_max_schedule`, which has none (see the
 // offset table above) and so is the only property here that echoes its own write instead.
@@ -89,10 +89,6 @@
 import "aabb_common" as c;
 import "fridge_common" as f;
 import "il_common" as il;
-
-fn f017_base() {
-    "F017FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FFFF00FFFFFFFF00FFFFFFFFFFFFFFFFFF00FFFFFF1EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
-}
 
 fn descriptor(ctx) {
     let props = f::props(f::unit(ctx));
@@ -159,7 +155,7 @@ fn door_stats(ctx, r) {
 
 fn status(ctx, s) {
     if f::publish(ctx, s) { il::publish_il(ctx, descriptor(ctx)); }
-    il::publish_property(ctx, "express_freeze", if s[3] == 2 { "true" } else { "false" });
+    il::publish_property(ctx, "express_freeze", f::express_freeze(s));
     il::publish_property(ctx, "smart_care", c::on_off(s[17]));
     c::pub_name(ctx, "night_glare", night_glare_name(s[30]));
     il::publish_property(ctx, "door_alarm_mute", c::on_off(s[84]));
@@ -174,13 +170,11 @@ fn ai_saving_name(v) {
     switch v { 255 => "off", 1 => "balanced", 2 => "max", _ => () }
 }
 
-// The F0 17 record, without its two command bytes.
-fn f017_record() { hex_decode(f017_base()).extract(2) }
 
 // AI Saving Mode's write is a short, separate F0 10 frame, not the F0 17 record every other
 // write here uses -- these three are the literal frames a live toggle through each transition
 // sent, verbatim (the "max" one carries several bytes beyond a plain level byte that this
-// driver does not otherwise understand, so, like f017_base(), it is used as-captured rather
+// driver does not otherwise understand, so, like the F0 17 record, it is used as-captured rather
 // than reconstructed field by field).
 fn ai_saving_frame(name) {
     switch name {
@@ -194,7 +188,7 @@ fn ai_saving_frame(name) {
 // The fixed part of the AI Saving Mode record when it is carrying a max-mode schedule (byte
 // 4 = 0x03); bytes 8/9 (start hour/minute) and 14/15 (end hour/minute) are filled in by the
 // caller. The bytes this driver does not understand (5-7, 10-13, 16) are copied verbatim from
-// a live capture, same discipline as f017_base().
+// a live capture, same discipline as the F0 17 record.
 fn ai_saving_schedule_base() {
     "F010070D031A09160000001A0916000000"
 }
@@ -211,7 +205,7 @@ fn parse_hhmm(text, offset) {
 }
 
 fn set_property(ctx, prop, value) {
-    if f::set_on(ctx, f017_record(), prop, value) { return; }
+    if f::set(ctx, f::with_unit(ctx, f::app(118)), prop, value) { return; }
     switch prop {
         "ai_saving" => {
             let f = ai_saving_frame(value);

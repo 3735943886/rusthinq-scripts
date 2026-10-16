@@ -32,7 +32,9 @@ the same name (names containing `.` need rusthinq `bfb8e77` or later).
    two suites can be compared.
 3. Writes must be byte-identical to what the upstream driver sends for the same
    command. Generate the expected hex by running the upstream driver with
-   [tools/rethink_frames.ts](../tools/rethink_frames.ts), not by hand.
+   [tools/rethink_frames.ts](../tools/rethink_frames.ts), not by hand;
+   [tools/rethink_fixtures.mjs](../tools/rethink_fixtures.mjs) prints the
+   upstream test's fixtures.
 4. Cite the upstream commit and test in the driver header. An upstream value
    whose meaning upstream itself does not establish stays unpublished.
 5. Add the README driver row with status `captured` only when the upstream
@@ -58,8 +60,8 @@ Shared work that blocks several ports. Do these first.
 
 | module | needed by | work |
 |---|---|---|
-| `aabb_common` | 6 drivers with auto-ack; 3 with envelope status; 3 with long frames | Add the cloud ack (`f0 00 <type> 04 [seq]` sent with `ctx.send_clip("ack", 1, ...)`), envelope status (`<class> 0a ...`) and long-frame (`AA FF`, 16-bit checksum) handling from upstream `aabb_device.ts` |
-| `fridge_common` | 8 refrigerators | Done: query, record extraction, unit, setpoint conversion and ranges, shared descriptor properties, `F0 17` writes. `2RSFL2DBN3K_Z` uses it with its own captured write template |
+| `aabb_common` | 6 drivers with auto-ack; 3 with envelope status; 3 with long frames | Cloud ack done (`c::ack`). Still to add from upstream `aabb_device.ts`: envelope status (`<class> 0a ...`) and long-frame (`AA FF`, 16-bit checksum) handling |
+| `fridge_common` | 8 refrigerators | Done: query, record extraction, unit, setpoint conversion and ranges, shared descriptor properties, and `F0 17` writes over a 0xFF record or the LG app's 118-byte record, which every captured model sends a prefix of. `2RSFL2DBN3K_Z` uses it too |
 | `washer_common` (new) | 9 EU washers, 2 ThinQ1 washers | Port the enum tables from upstream `washer_common.ts`. Distinct from `monitoring_common`, which serves the Korean monitoring-record family |
 | `dishwasher_common` (new) | 4 dishwashers | Port upstream `dishwasher_common.ts` (status fields, states, option bits) |
 | `tlv_common` | 4 TLV drivers | Compare with upstream `tlv_device.ts`, which changed after the DHUM audit (commit `cd98450d`). Re-check DHUM against the new baseline. `RAC_056905_WW` is the largest TLV driver and may need capability handling `tlv_common` lacks |
@@ -67,9 +69,9 @@ Shared work that blocks several ports. Do these first.
 
 ## Order
 
-1. Shared `aabb_common` additions, with their own tests.
+1. Refrigerators: done.
 2. Families with a shared module, one representative first, then the rest:
-   refrigerators, dishwashers, EU washers.
+   dishwashers, EU washers (these need the remaining `aabb_common` additions).
 3. Standalone AABB drivers, smallest first.
 4. TLV: `POT_056905_WW`, then `RAC_056905_WW` (with its ThinQ1 variant).
 5. Aliased models, once the alias approach is decided.
@@ -86,12 +88,12 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | model | tests | fixtures | notes | status |
 |---|---|---|---|---|
 | `2REB1GLVB1__2` | 12 | 6 | | ported |
-| `2REF11EBIVPC4` | 18 | 6 | Israeli market | todo |
-| `2REF11EIDA__4` | 14 | 5 | | todo |
-| `2REF11EIDG__4` | 6 | 16 | LRFXC2606S, Ack | todo |
-| `2REFT1DIC4P_U` | 18 | 27 | | todo |
-| `2REFTBDII4P_U` | 13 | 10 | 68-byte record | todo |
-| `2RES1VE600FWC` | 16 | 9 | different temperature encoding | todo |
+| `2REF11EBIVPC4` | 18 | 6 | Israeli market; upstream reads setpoints in half degrees but writes whole ones | ported |
+| `2REF11EIDA__4` | 14 | 5 | | ported |
+| `2REF11EIDG__4` | 6 | 16 | LRFXC2606S, Ack | ported |
+| `2REFT1DIC4P_U` | 18 | 27 | | ported |
+| `2REFTBDII4P_U` | 13 | 10 | 68-byte record | ported |
+| `2RES1VE600FWC` | 16 | 9 | different temperature encoding | ported |
 | `2RES1VE61NFA2` | 12 | 4 | | ported |
 
 ### Dishwashers (`dishwasher_common`, AABB)
