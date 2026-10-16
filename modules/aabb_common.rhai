@@ -25,6 +25,22 @@ fn common_status_offset(body, status_length) {
     ()
 }
 
+// The current record of an enveloped status frame, or `()` for anything else. Some appliances
+// wrap their EB/EC records in an envelope (upstream aabb_device.ts, processEnvelopedStatus):
+//   <class> 0A <len16> <seq16> .. .. .. <EB|EC> <records len16> <records>
+// An AA FF frame's 16-bit checksum leaves one byte after the records; any other excess means
+// the layout is not what it seems.
+fn enveloped_status(data, class, status_length) {
+    let body = inner(data, class);
+    if body == () || body.len() < 13 || body[1] != 0x0a { return (); }
+    let n = body[11] * 256 + body[12];
+    let trailing = body.len() - 13 - n;
+    if trailing != 0 && trailing != 1 { return (); }
+    if body[10] == 0xeb && n == status_length { return body.extract(13, status_length); }
+    if body[10] == 0xec && n == 2 * status_length { return body.extract(13 + status_length, status_length); }
+    ()
+}
+
 // Acks a received frame as the LG cloud does (upstream aabb_device.ts), for drivers whose
 // appliance repeats unacked frames: F0 00 <type> 04, plus the sequence number for an
 // envelope (0x0A). The appliance's own acks (0x00), 0xC3 heartbeats and plain EB/EC status

@@ -85,6 +85,7 @@ fixtures to driver tests.
 | AABB, fixed status | `AA len inner csum BB`, inner is a flat byte record | `aabb_common.rhai` | the device pushes/answers with one fixed-layout status record (1WPU4CIGCR__2, WBEY3GT) |
 | AABB, refrigerator | class `0x10` EB/EC records, `F0 17` writes | `fridge_common.rhai` (imports `aabb_common`) | LG refrigerators (2RSFL2DBN3K_Z and the `2RE*` models) |
 | AABB, EU washer | class `0x20` EC frame of two 37-byte records, `F0 24`/`F0 2A` commands | `washer_common.rhai`, a whole driver: a model inherits it with `import "washer_common";` and overrides `features()` | LG EU front-load washers (F_V8_Y, F_VB_Y, F_VB_F, F_V__F and aliases) |
+| AABB, enveloped status | `<class> 0A <len16> <seq16> .. .. .. <EB/EC> <len16> <records>`, often `AA FF` framed | `aabb_common`'s `enveloped_status`; `washer_y8_common.rhai` is a whole driver to inherit | Y_V8_Y, Y_VB_Y (extends it), Y_V8_F |
 | AABB, dishwasher | class `0x32` EB/EC records `<flag> <len> <payload>`, `F0 26` commands | `dishwasher_common.rhai` (imports `aabb_common`) | LG dishwashers (D140110, D0211, D30, H11, N17) |
 | AABB, monitoring record | `AA len inner csum BB`, inner has its own sub-framing (`addr, cmd, [0, len, payload]..`) | `monitoring_common.rhai` (itself imports `aabb_common`) | washer/dryer/styler family (F24VDD, RH14_N_KR, S3BF_POD_DN4, Pd0F_F) |
 

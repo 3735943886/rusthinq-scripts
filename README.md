@@ -140,6 +140,9 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `F_VB_Y___W.B_2QEUK` | washer | AABB | captured |
 | `F_VB_F___W.B_2QEUK` | washer-dryer | AABB | constructed |
 | `F_V__F___W.B_1QEUK`, `F_VA_F___W.B__QEUK` | washer-dryer | AABB | constructed |
+| `Y_V8_Y___W.B32QEUK` | washer | AABB envelope | captured |
+| `Y_VB_Y___W.B32QEUK` | washer with ezDispense | AABB envelope | captured |
+| `Y_V8_F___W.B_2QEUK` | washer-dryer | AABB envelope | captured |
 | `F24VDD` | washer | AABB monitoring | captured |
 | `RH14_N_KR` | dryer | AABB monitoring | captured |
 | `S3BF_POD_DN4` | styler | AABB monitoring | captured |

@@ -77,6 +77,24 @@ fn doses() { #{ "0": "off", "1": "low", "2": "medium", "3": "high" } }
 
 fn soil_levels() { #{ "0": "none", "1": "turbo_wash", "2": "time_save", "3": "normal", "4": "intensive" } }
 
+fn rinses() {
+    #{ "0": "none", "1": "normal", "2": "rinse_plus", "3": "rinse_plus_plus", "4": "normal_hold",
+       "5": "rinse_plus_hold" }
+}
+
+// The downloaded courses, consistent across models. Upstream leaves the codes it has only seen
+// in a scan of the cloud unnamed, and so does this.
+fn smart_courses() {
+    #{ "0": "none", "52": "kids_wear", "53": "school_uniform", "54": "swimming_wear",
+       "55": "rainy_season", "56": "gym_clothes", "57": "jeans", "58": "blanket", "59": "sweat_stain",
+       "62": "single_garment", "63": "colour_protection", "64": "noise_minimize", "71": "baby_care",
+       "72": "hygiene", "73": "small_load", "74": "lingerie", "75": "wool", "76": "skin_care",
+       "77": "cold_wash", "100": "rinse_spin", "101": "lightly_soiled_items",
+       "102": "minimize_detergent_residue", "103": "one_hour_wash", "107": "sleeve_hems_collars",
+       "108": "juice_food_stains", "111": "minimize_wrinkles", "113": "quick_tub_clean", "121": "drain",
+       "122": "spin", "132": "silent_wash", "134": "microplastic_care" }
+}
+
 fn options() { #{ turbo_wash: 0x01, pre_wash: 0x40, steam: 0x80 } }
 
 fn descriptor(ctx) {
