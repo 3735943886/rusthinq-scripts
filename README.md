@@ -1,70 +1,51 @@
 # rusthinq-scripts
 
-Device drivers for [rusthinq](https://github.com/3735943886/rusthinq), shared by
-rusthinq 0.1 and 0.2. Each `<modelId>.rhai` implements one LG ThinQ appliance's
-IL descriptor, values and commands. Version-specific IL handling lives in
-`compat/`; device drivers and protocol modules have one shared source.
+Device drivers for [rusthinq](https://github.com/3735943886/rusthinq) 0.2. Each
+`<modelId>.rhai` implements one LG ThinQ appliance's IL descriptor, values and
+commands.
+
+rusthinq 0.1 is no longer supported here. The last layout that built and
+released for both 0.1 and 0.2 is kept on the
+[`legacy`](https://github.com/3735943886/rusthinq-scripts/tree/legacy) branch;
+use it or its earlier dated releases for a 0.1 host.
 
 ## Using it
 
-Prepare the directory for your rusthinq version (Python 3 required):
+Prepare the runtime directory (Python 3 required):
 
 ```sh
-python3 tools/prepare.py 0.2
-# For rusthinq 0.1 instead:
-python3 tools/prepare.py 0.1
+python3 tools/prepare.py
 ```
 
-For 0.1, point `[scripting] rhai_dir` at `/path/to/rusthinq-scripts/dist/0.1`.
-For 0.2, point `[drivers] directory` at `/path/to/rusthinq-scripts/dist/0.2`.
+Point `[drivers] directory` at `/path/to/rusthinq-scripts/dist/0.2`.
 Enable `watch = true` in the same section if you want automatic reloads.
-Both hosts expect a flat runtime directory; do not point them at the source root.
+The host expects a flat runtime directory; do not point it at the source root.
 Run the preparation command again after changing or updating source files.
 With watching enabled, prepare while the daemon is stopped to avoid loading a
 partially copied update; otherwise prepare and restart the daemon.
 
-In 0.2, edit `dist/0.2/il_config_common.rhai` to choose the descriptor prefix
+Edit `dist/0.2/il_config_common.rhai` to choose the descriptor prefix
 (default `"il"`; `""` disables descriptor publication). Preparation preserves
-this local file. In 0.1, configure `[scripting] il_prefix` in rusthinq instead.
-Property and command topics use the host's topic prefix (`[mqtt] rusthinq_prefix` in 0.1;
-`[drivers] topic_prefix` in 0.2).
-If upgrading from the previous flat checkout, copy your local
-`il_config_common.rhai` to `dist/0.2/il_config_common.rhai` after preparation.
+this local file. Property and command topics use the host's
+`[drivers] topic_prefix`.
 
 rusthinq must have the `scripting` feature. Driver filenames must match the
 appliance's reported `modelId`, including case and underscores.
 
-## Compatibility and migration
+## The IL in Rhai
 
-0.1 drivers calling `ctx.publish_il`, `ctx.publish_property` or
-`ctx.publish_event` directly do not run unchanged on 0.2. The 0.2 core is
-IL-independent: Rhai handles descriptors, values, validation and rejects.
-This repository shares drivers by calling `il::...` through a version-specific
-`il_common.rhai`:
+The rusthinq 0.2 core is IL-independent. `modules/il_common.rhai` handles
+descriptors, values, command validation and rejects in Rhai and publishes
+through `ctx.publish_raw`. Drivers call `il::publish_il`, `il::publish_property`,
+`il::publish_event` and `il::validate`; see
+[docs/writing-a-driver.md](docs/writing-a-driver.md).
 
-| Operation | 0.1 adapter | 0.2 adapter |
-|---|---|---|
-| Descriptor, property and event publication | delegates to `ctx.publish_*` | handles IL in Rhai and calls `ctx.publish_raw` |
-| `il::validate` | returns the value already validated by the host | validates and canonicalizes in Rhai; rejects return `()` |
-| Descriptor prefix | host's `[scripting] il_prefix` | local `il_config_common.rhai` |
-
-To migrate your own driver, import `il_common` and replace `ctx.publish_*(...)`
-with `il::publish_*(ctx, ...)`. Publish the descriptor from `publish_config(ctx)`.
-In `on_set_property`, call `il::validate(ctx, prop, value)` before sending a
-command and stop if it returns `()`. Use the adapter matching your host.
-The shared drivers and `aabb_common`, `tlv_common`, `monitoring_common` work with
-both versions; no per-device version branches are needed.
-
-Shared source does not guarantee identical host behavior: 0.1 can replace the
-descriptor label with a user-configured device name; the 0.2 adapter currently
-uses the driver's label. Both versions are tested against the same driver suite.
-Host refs are recorded separately in `compat/<version>/RUSTHINQ_REF`.
-For daemon configuration and state migration, see the
-[0.1 → 0.2 migration guide](https://github.com/3735943886/rusthinq/blob/dev/0.2/docs/0.2-tools-migration.md#release-notes-upgrading).
+The descriptor label is the driver's own label. For daemon configuration and
+state migration from 0.1, see the
+[0.1 → 0.2 migration guide](https://github.com/3735943886/rusthinq/blob/master/docs/0.2-tools-migration.md#release-notes-upgrading).
 
 Non-IL scripts can use supported hooks and `ctx.publish_raw(topic, payload,
-retain)` in either host. Compatibility still depends on the other host APIs they
-use; such scripts must validate their own commands. See
+retain)`; such scripts must validate their own commands. See
 [non-IL drivers](docs/writing-a-driver.md#drivers-that-do-not-use-the-il).
 
 Driver `available` follows the connection lifecycle: initialization publishes `true`,
@@ -74,13 +55,13 @@ restore availability after reconnecting; reported values may still reflect the l
 ## Layout
 
 ```text
-drivers/              Shared <modelId>.rhai drivers
-modules/              Shared AABB, TLV and monitoring modules
-compat/0.1/           Thin IL wrapper, host ref and test adapter
-compat/0.2/           Rhai IL implementation, config template, host ref and test adapter
-tests/                Shared device tests and protocol test helpers
-tools/prepare.py      Assembles a flat directory for either host
-dist/0.1/, dist/0.2/  Generated runtime directories (ignored by Git)
+drivers/              <modelId>.rhai drivers
+modules/              IL, AABB, TLV, monitoring and energy modules;
+                      il_config_common.rhai.example (descriptor prefix template)
+tests/                Device tests, protocol test helpers and runtime_test.rhai
+tools/prepare.py      Assembles the flat runtime directory
+RUSTHINQ_REF          rusthinq ref the drivers are tested against
+dist/0.2/             Generated runtime directory (ignored by Git)
 ```
 
 The washer/dryer/styler family uses `monitoring_common`, which imports
@@ -90,15 +71,11 @@ files are modules, not device drivers.
 
 ## Checking a change
 
-Prepare both versions, then run each host's runner against its output:
+Prepare the runtime, then run the host's runner against it:
 
 ```sh
-python3 tools/prepare.py 0.1
-python3 tools/prepare.py 0.2
-# From the matching rusthinq checkout:
-# 0.1:
-cargo run -p rusthinq-devices --features scripting --bin rusthinq-script-test -- /path/to/rusthinq-scripts/dist/0.1
-# 0.2:
+python3 tools/prepare.py
+# From a rusthinq checkout:
 cargo run -p rusthinq-tools --bin rusthinq-script-test -- /path/to/rusthinq-scripts/dist/0.2
 ```
 
@@ -108,10 +85,9 @@ The preparation tool has its own checks:
 python3 -m unittest discover -s tools -p 'test_*.py'
 ```
 
-Use `"il"` as the 0.2 descriptor prefix for tests. CI runs the shared tests with
-both host versions. `compat/<version>/tests/runtime_test.rhai` hides the runners'
-different descriptor lookup APIs. Move the corresponding `RUSTHINQ_REF` forward
-when a change needs a newer host.
+Use `"il"` as the descriptor prefix for tests. CI runs the driver tests against
+the rusthinq ref in `RUSTHINQ_REF`; move it forward when a change needs a newer
+host.
 
 To write a new driver, see [docs/writing-a-driver.md](docs/writing-a-driver.md).
 
@@ -128,24 +104,22 @@ Tags must be valid calendar dates in `yyyy.mm.dd` form. For another release on
 that date, use `yyyy.mm.dd.1`, then `.2`, and so on; existing releases are not
 replaced. Use the Asia/Seoul date when choosing the tag.
 
-After both host versions pass the shared suite, the workflow publishes one
-GitHub Release with:
+After the driver suite passes, the workflow publishes one GitHub Release with:
 
-- `rusthinq-scripts-0.1-<tag>.tar.gz`
 - `rusthinq-scripts-0.2-<tag>.tar.gz`
 - `SHA256SUMS`
 
-Each archive contains a flat runtime under `rusthinq-scripts-<version>/`,
+The archive contains a flat runtime under `rusthinq-scripts-0.2/`,
 `INSTALL.txt`, the license, and `RELEASE.json` with the exact scripts and tested
-rusthinq commits. No local settings or test fixtures are included. The 0.2
-archive supplies `il_config_common.rhai.example`; copy it to
-`il_config_common.rhai` on first installation and preserve your local file on
-updates. Extract the matching archive, then point your host at the extracted
-directory as described above. Python is not needed to use release archives.
-Stop rusthinq before extracting an update over its active runtime directory.
+rusthinq commits. No local settings or test fixtures are included. The archive
+supplies `il_config_common.rhai.example`; copy it to `il_config_common.rhai` on
+first installation and preserve your local file on updates. Extract the archive,
+then point your host at the extracted directory as described above. Python is
+not needed to use release archives. Stop rusthinq before extracting an update
+over its active runtime directory.
 
-Verify downloads with `sha256sum -c SHA256SUMS` in the directory containing both
-archives. Changing the source or packaging implementation requires a new tag;
+Verify downloads with `sha256sum -c SHA256SUMS` in the directory containing the
+archive. Changing the source or packaging implementation requires a new tag;
 rerunning a published tag does not overwrite its release assets.
 
 ## Drivers

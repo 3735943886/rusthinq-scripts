@@ -11,10 +11,7 @@ permissions:
 
 jobs:
   drivers:
-    name: rusthinq ${{ matrix.version }} driver tests and checks
-    strategy:
-      matrix:
-        version: ["0.1", "0.2"]
+    name: rusthinq 0.2 driver tests and checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -28,7 +25,7 @@ jobs:
 
       - name: Read the rusthinq ref
         id: ref
-        run: echo "ref=$(tr -d '[:space:]' < compat/${{ matrix.version }}/RUSTHINQ_REF)" >> "$GITHUB_OUTPUT"
+        run: echo "ref=$(tr -d '[:space:]' < RUSTHINQ_REF)" >> "$GITHUB_OUTPUT"
 
       - name: Check out rusthinq
         uses: actions/checkout@v7
@@ -45,14 +42,7 @@ jobs:
         with:
           workspaces: rusthinq
 
-      - name: Build the 0.1 driver runner
-        if: matrix.version == '0.1'
-        run: >
-          cargo build --release --manifest-path rusthinq/Cargo.toml
-          -p rusthinq-devices --features scripting --bin rusthinq-script-test
-
-      - name: Build the 0.2 driver runner
-        if: matrix.version == '0.2'
+      - name: Build the driver runner
         run: >
           cargo build --release --manifest-path rusthinq/Cargo.toml
           -p rusthinq-tools --bin rusthinq-script-test
@@ -61,18 +51,17 @@ jobs:
         run: python3 -m unittest discover -s tools -p 'test_*.py'
 
       - name: Prepare the runtime directory
-        run: python3 tools/prepare.py ${{ matrix.version }}
+        run: python3 tools/prepare.py
 
       - name: Test and check the drivers
-        run: rusthinq/target/release/rusthinq-script-test dist/${{ matrix.version }}
+        run: rusthinq/target/release/rusthinq-script-test dist/0.2
 
       - name: Package the tested runtime
         if: startsWith(github.ref, 'refs/tags/')
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-          RUNTIME_VERSION: ${{ matrix.version }}
         run: |
-          python3 tools/package_release.py --version "$RUNTIME_VERSION" \
+          python3 tools/package_release.py \
             --tag "$RELEASE_TAG" --host-commit "$(git -C rusthinq rev-parse HEAD)" \
             --scripts-commit "$(git rev-parse HEAD)"
 
@@ -80,7 +69,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.version }}
+          name: release
           path: dist/releases/*.tar.gz
           if-no-files-found: error
 
@@ -95,11 +84,10 @@ jobs:
       group: release-${{ github.ref }}
       cancel-in-progress: false
     steps:
-      - name: Download both tested packages
+      - name: Download the tested package
         uses: actions/download-artifact@v4
         with:
-          pattern: release-*
-          merge-multiple: true
+          name: release
           path: release-assets
 
       - name: Create checksums and release notes
@@ -107,17 +95,16 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         working-directory: release-assets
         run: |
-          test -f "rusthinq-scripts-0.1-$RELEASE_TAG.tar.gz"
           test -f "rusthinq-scripts-0.2-$RELEASE_TAG.tar.gz"
           sha256sum *.tar.gz > SHA256SUMS
           cat > ../release-notes.md <<'EOF'
-          Shared device drivers packaged separately for rusthinq 0.1 and 0.2.
-          Both packages passed their matching host's driver test suite.
+          Device drivers for rusthinq 0.2, tested against the host's driver suite.
+          For rusthinq 0.1, use the legacy branch and its earlier releases.
 
-          Extract the package for your host version and follow INSTALL.txt.
-          On first installation with 0.2, copy il_config_common.rhai.example to
-          il_config_common.rhai. Existing local configuration is not included
-          in either archive and is preserved when extracting updates.
+          Extract the package and follow INSTALL.txt. On first installation,
+          copy il_config_common.rhai.example to il_config_common.rhai. Existing
+          local configuration is not included in the archive and is preserved
+          when extracting updates.
 
           RELEASE.json records the exact tested rusthinq and scripts commits.
           Verify downloads with: sha256sum -c SHA256SUMS

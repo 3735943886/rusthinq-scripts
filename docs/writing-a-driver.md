@@ -1,8 +1,8 @@
 # Writing a `.rhai` driver
 
-A checklist-shaped recipe for adding a shared driver under `drivers/`. Prepare
-`dist/<version>` for execution; see [README.md](../README.md#using-it). Read
-[0.2-runtime.md](https://github.com/3735943886/rusthinq/blob/dev/0.2/docs/0.2-runtime.md) first for what each hook means and what the host does around
+A checklist-shaped recipe for adding a driver under `drivers/`. Prepare
+`dist/0.2` for execution; see [README.md](../README.md#using-it). Read
+[0.2-runtime.md](https://github.com/3735943886/rusthinq/blob/master/docs/0.2-runtime.md) first for what each hook means and what the host does around
 it (that document is in the rusthinq repository); this document is the step-by-step of turning a device's wire protocol into one. It is
 written to be read by an AI agent driving the work as much as by a person.
 
@@ -21,11 +21,10 @@ written to be read by an AI agent driving the work as much as by a person.
   The IL is this repository's convention; rusthinq 0.2 does not require it — see
   [Drivers that do not use the IL](#drivers-that-do-not-use-the-il).
 - **Can you capture live?** Record a complete cycle and annotate each panel/app action.
-  Use the version-specific instructions below; the 0.1 and 0.2 capture commands differ.
 
 ### Capturing appliance traffic
 
-For rusthinq **0.2**, use its management API capture tool. It does not require
+Use rusthinq's management API capture tool. It does not require
 `raw_prefix`. Set the API URL to your daemon's configured management address;
 `http://127.0.0.1:8080/` is the tool default, not necessarily your installation's port.
 
@@ -43,7 +42,7 @@ appliance. Stop an interactive capture with Ctrl+C. Keep the original file and
 record the app's corresponding values, units and time intervals separately.
 `--cloud` also captures LG notifications when supported and configured; it is
 not necessary for local wire capture. See the host's
-[capture documentation](https://github.com/3735943886/rusthinq/blob/dev/0.2/docs/0.2-dashboard.md#lg-notification-observation-and-correlated-captures).
+[capture documentation](https://github.com/3735943886/rusthinq/blob/master/docs/0.2-dashboard.md#lg-notification-observation-and-correlated-captures).
 
 For a bounded background capture on a Linux host running systemd:
 
@@ -65,17 +64,6 @@ capture, omit `RuntimeMaxSec`; for capture across reboots, install a regular
 systemd service with `Restart=always` and enable it. When finished, stop/disable
 that service, remove its unit file, and run `systemctl daemon-reload`. Preserve
 capture files separately from service cleanup.
-
-For rusthinq **0.1**, the older tool uses MQTT raw topics:
-
-```bash
-export RUSTHINQ_RAW_PREFIX=rusthinq-raw
-rusthinq-capture MQTT_HOST:1883 DEVICE_UUID capture.jsonl
-```
-
-Match `RUSTHINQ_RAW_PREFIX` to the host's `[mqtt] raw_prefix` and enable at least
-`rx`, `tx`, and `clip_tx` in its raw configuration. A wrong prefix can produce an
-empty capture even when the appliance is active.
 
 Check the capture before drawing conclusions: connection alone does not prove
 that any device frames were received. Inspect rx counts, timestamps and loss
@@ -250,12 +238,9 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
 1. `drivers/<exact wire modelId>.rhai` — the filename is the lookup key
    (`scripting::has_script_for`), so it must match the `modelId` the device reports exactly,
    including case and underscores.
-2. `tests/<Model>.test.rhai` in the shared test directory.
-3. Prepare both runtimes with `python3 tools/prepare.py 0.1` and
-   `python3 tools/prepare.py 0.2`, then run both matching host runners as shown in
-   [README.md](../README.md#checking-a-change).
-   Both runners execute the shared device assertions. The 0.1 runner also performs
-   its host-side IL descriptor checks.
+2. `tests/<Model>.test.rhai`.
+3. Prepare the runtime with `python3 tools/prepare.py`, then run the host runner as
+   shown in [README.md](../README.md#checking-a-change).
 4. Add one row to the driver table in [README.md](../README.md#drivers) stating
    exactly what was and was not verified against a real appliance — copy the phrasing style
    of an existing row, do not oversell "tested".
@@ -266,8 +251,7 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
 ## Drivers that do not use the IL
 
 Everything above assumes the IL because every driver in this repository uses it, and
-the shared tests assert descriptors. The 0.1 runner additionally checks the IL.
-rusthinq 0.2 itself does not care: a driver in your own `rhai_dir` can skip `il_common` and publish in whatever shape
+the tests assert descriptors. rusthinq 0.2 itself does not care: a driver in your own `rhai_dir` can skip `il_common` and publish in whatever shape
 its consumer wants, for example:
 
 - **Home Assistant MQTT discovery**: publish each entity's config to
@@ -285,9 +269,9 @@ driver is yours to keep; it does not belong in this repository.
 
 ## 9. Before calling it done
 
-- [ ] Both version-specific driver runners — new tests pass, nothing else broke, no driver check fails
+- [ ] The driver runner — new tests pass, nothing else broke, no driver check fails
 - [ ] every published property/value/reject traces to a real capture or the old TS driver's
       confirmed behavior — nothing invented
 - [ ] README table row added
-- [ ] if the driver needs a host function or behavior newer than `RUSTHINQ_REF`, the corresponding `compat/<version>/RUSTHINQ_REF`
+- [ ] if the driver needs a host function or behavior newer than `RUSTHINQ_REF`, `RUSTHINQ_REF`
       is moved forward in the same change
