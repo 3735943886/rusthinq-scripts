@@ -142,7 +142,7 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | `RV13U6AM8W_D_US_WIFI` | 28 | 23 | DLE7300WE dryer, Ack (`dryer_rv13_common`) | ported |
 | `RV13B6BSD_D_US_WIFI` | 11 | 22 | electric dryer (`dryer_rv13_common`) | ported |
 | `RV13B6ES_D_US_WIFI` | 15 | 20 | electric dryer, layout of `RV13B6BSD_D_US_WIFI` (`dryer_rv13_common`) | ported |
-| `BDH_D30007_US` | 18 | 29 | DLHC5502V heat-pump dryer, Long | todo |
+| `BDH_D30007_US` | 18 | 29 | DLHC5502V heat-pump dryer, Long | ported |
 | `RC90U2_WW` | 12 | 19 | RC9DN9029 heat-pump dryer (EU; `dryer_rc90_common`); alias `RC90V9_WW` | ported |
 | `ST_B_E4H01Y_APL` | 33 | 49 | Styler S5BBP | todo |
 
