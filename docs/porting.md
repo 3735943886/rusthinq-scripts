@@ -77,7 +77,7 @@ Shared work that blocks several ports. Do these first.
 3. Standalone AABB drivers, smallest first.
 4. TLV air conditioners on `climate_common`: `POT_056905_WW` and `RAC_056905_WW` (with its ThinQ1 variant) done.
 5. Aliased models (one-line inheriting drivers).
-6. `WIN_056905_WW` last: upstream has no tests for it.
+6. `WIN_056905_WW`: done, with constructed tests (upstream has none).
 
 ## Tracker
 
@@ -164,4 +164,4 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | `DHUM_056905_WW` | 16 | 12 | dehumidifier; re-check against the new baseline | ported |
 | `POT_056905_WW` | 7 | 11 | LP1022FVSM portable air conditioner (`climate_common`) | ported |
 | `RAC_056905_WW` | 8 + 12 | 22 | air conditioner (`rac_common`); ThinQ1 variant `RAC_056905_WW_T1` in the same file; alias `RAC_0B0001_WW`. Filter reset not offered: it needs today's date | ported |
-| `WIN_056905_WW` | 0 | 0 | LW1823HRSM window air conditioner; no upstream tests | todo |
+| `WIN_056905_WW` | 0 | 0 | LW1823HRSM window air conditioner (`climate_common`); no upstream tests, so constructed ones; dry left out, as upstream reads no code for it | ported |
