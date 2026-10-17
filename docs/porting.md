@@ -153,7 +153,7 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | `STUDIO_HOOD` | 17 | 7 | range hood | ported |
 | `WMVEM1825` | 15 | 15 | microwave | ported |
 | `WMVEL2137` | 17 | 29 | MVEL2033F microwave/hood, Long | ported |
-| `WLREL6323S` | 10 | 17 | LREL6323S electric range | todo |
+| `WLREL6323S` | 10 | 17 | LREL6323S electric range | ported |
 | `WLSI_633_` | 21 | 42 | LSIS6338FE induction range | todo |
 | `WFV474PGV` | 52 | 58 | double oven range | todo |
 
