@@ -132,7 +132,7 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 
 | model | tests | fixtures | notes | status |
 |---|---|---|---|---|
-| `T1789EFH_F` | 21 | 22 | WT7300CW top-load washer, Ack | todo |
+| `T1789EFH_F` | 21 | 22 | WT7300CW top-load washer, Ack | ported |
 | `TLVE5BB` | 6 | 7 | WT21BWV6 top-load washer, Env | ported |
 | `F3L2CYU__` | 8 | 32 | front-load washer (`washer_f3l_common`) | ported |
 | `F3L7CYK5W_US_WIFI` | 18 | 29 | same layout as `F3L2CYU__`, own course table and bits (`washer_f3l_common`) | ported |

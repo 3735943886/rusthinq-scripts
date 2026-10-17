@@ -154,6 +154,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `S3BF_POD_DN4` | styler | AABB monitoring | captured |
 | `WBEY3GT` | cooktop | AABB | captured |
 | `Pd0F_F` | mini washer | AABB monitoring | constructed |
+| `T1789EFH_F` | top-load washer (read-only) | AABB | captured |
 | `TLVE5BB` | top-load washer (read-only) | AABB envelope | captured |
 | `F3L2CYU__` | washer (read-only) | AABB | captured |
 | `F3L7CYK5W_US_WIFI` | washer (read-only) | AABB | captured |
