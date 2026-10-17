@@ -166,6 +166,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `BDH_D30007_US` | heat pump dryer (read-only) | AABB envelope | captured |
 | `RC90U2_WW` | heat pump dryer (read-only) | AABB | captured |
 | `RC90V9_WW` | heat pump dryer (read-only; alias of `RC90U2_WW`) | AABB | captured |
+| `WTL_FXU_BDV_NA_01` | WashTower (washer and dryer) | AABB | captured |
 | `WTDN3` | washer-dryer | ThinQ1 | captured |
 | `WTWN3` | washer | ThinQ1 | captured |
 
