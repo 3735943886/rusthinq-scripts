@@ -157,6 +157,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `TLVE5BB` | top-load washer (read-only) | AABB envelope | captured |
 | `F3L2CYU__` | washer (read-only) | AABB | captured |
 | `F3L7CYK5W_US_WIFI` | washer (read-only) | AABB | captured |
+| `F3P3CYK2_` | washer (power off only) | AABB | captured |
 | `RV13B6BSD_D_US_WIFI` | dryer (read-only) | AABB | captured |
 | `RV13B6ES_D_US_WIFI` | dryer (read-only) | AABB | captured |
 | `RV13U6AM8W_D_US_WIFI` | dryer (read-only) | AABB | captured |
