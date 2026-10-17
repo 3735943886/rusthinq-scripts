@@ -160,6 +160,8 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `RV13B6BSD_D_US_WIFI` | dryer (read-only) | AABB | captured |
 | `RV13B6ES_D_US_WIFI` | dryer (read-only) | AABB | captured |
 | `RV13U6AM8W_D_US_WIFI` | dryer (read-only) | AABB | captured |
+| `RC90U2_WW` | heat pump dryer (read-only) | AABB | captured |
+| `RC90V9_WW` | heat pump dryer (read-only; alias of `RC90U2_WW`) | AABB | captured |
 | `WTDN3` | washer-dryer | ThinQ1 | captured |
 | `WTWN3` | washer | ThinQ1 | captured |
 
