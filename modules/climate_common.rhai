@@ -46,13 +46,24 @@ fn apply_extra(ctx, tag, v) {}
 fn after_values(ctx, tlvs, before) {}
 // True when the model handled the write.
 fn set_extra(ctx, prop, value) { false }
+// True when the model consumed a frame that is not a TLV state frame (its own protocol).
+fn own_frame(ctx, data) { false }
+// The capability reply's tags, for capability-dependent features. True to republish the descriptor.
+fn after_caps(ctx, tlvs) { false }
+// Once, after the first state frame (and the report masking).
+fn first_values(ctx) {}
+// True when the model handled a timer of its own.
+fn timer_extra(ctx, name) { false }
 
 // ---- descriptor -------------------------------------------------------------------
 
 fn range_min(ctx) { let v = ctx.state_get("range_min"); if v == () { range()[0] } else { v } }
 fn range_max(ctx) { let v = ctx.state_get("range_max"); if v == () { range()[1] } else { v } }
 
-fn descriptor(ctx) {
+// A driver that overrides a hook can still reach this one as `climate_<hook>`.
+fn descriptor(ctx) { climate_descriptor(ctx) }
+
+fn climate_descriptor(ctx) {
     let props = #{
         available: #{ type: "binary", role: "available" },
         power: #{ type: "binary", rw: true, role: "on", src: #{ tlv_tag: "0x1f7" } },
@@ -128,7 +139,9 @@ fn publish_action(ctx) {
 
 // ---- host hooks -------------------------------------------------------------------
 
-fn start(ctx) {
+fn start(ctx) { climate_start(ctx); }
+
+fn climate_start(ctx) {
     ctx.state_set("active", false);
     c::start(ctx);
 }
@@ -137,18 +150,23 @@ fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
-fn on_timer(ctx, name) {
+fn on_timer(ctx, name) { climate_on_timer(ctx, name); }
+
+fn climate_on_timer(ctx, name) {
     if name == "poll" {
         if ctx.state_get("active") == true {
             c::query(ctx, 2);
             ctx.set_timer("poll", poll_ms());
         }
-    } else {
+    } else if !timer_extra(ctx, name) {
         c::on_timer(ctx, name);
     }
 }
 
-fn on_data(ctx, data) {
+fn on_data(ctx, data) { climate_on_data(ctx, data); }
+
+fn climate_on_data(ctx, data) {
+    if own_frame(ctx, data) { return; }
     let frame = c::receive(ctx, data, state_min_tags(), state_tags());
     if frame == () { return; }
     if frame.caps { on_caps(ctx, frame.tlvs); return; }
@@ -164,6 +182,7 @@ fn on_data(ctx, data) {
     if frame.first {
         il::publish_property(ctx, "available", "true");
         if masks_reports() { ctx.send_clip("setMaskingInfo", 0, "{\"blacklist_tlv\":\"1200\"}"); }
+        first_values(ctx);
     }
 }
 
@@ -176,13 +195,13 @@ fn on_caps(ctx, tlvs) {
         if e.t == 0x2e1 { lo = e.v; }
         if e.t == 0x2e2 { hi = e.v; }
     }
-    if lo == () || hi == () || lo >= hi { return; }
-    let lo = deg(lo);
-    let hi = deg(hi);
-    if lo == range_min(ctx) && hi == range_max(ctx) { return; }
-    ctx.state_set("range_min", lo);
-    ctx.state_set("range_max", hi);
-    il::publish_il(ctx, descriptor(ctx));
+    let changed = after_caps(ctx, tlvs);
+    if lo != () && hi != () && lo < hi && (deg(lo) != range_min(ctx) || deg(hi) != range_max(ctx)) {
+        ctx.state_set("range_min", deg(lo));
+        ctx.state_set("range_max", deg(hi));
+        changed = true;
+    }
+    if changed { il::publish_il(ctx, descriptor(ctx)); }
 }
 
 fn apply(ctx, tag, v) {
@@ -205,7 +224,9 @@ fn apply(ctx, tag, v) {
 
 // ---- writes -----------------------------------------------------------------------
 
-fn set_property(ctx, prop, value) {
+fn set_property(ctx, prop, value) { climate_set_property(ctx, prop, value); }
+
+fn climate_set_property(ctx, prop, value) {
     switch prop {
         "power" => {
             let on = c::to_bool(value);

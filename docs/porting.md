@@ -66,16 +66,16 @@ Shared work that blocks several ports. Do these first.
 | `fridge_common` | 8 refrigerators | Done: query, record extraction, unit, setpoint conversion and ranges, shared descriptor properties, and `F0 17` writes over a 0xFF record or the LG app's 118-byte record, which every captured model sends a prefix of. `2RSFL2DBN3K_Z` uses it too |
 | `washer_common` | 9 EU washers, 2 ThinQ1 washers | Done: the tables of upstream `washer_common.ts` and a whole driver that `F_V8_Y` and relatives inherit, overriding `features()`; `washer_v__f_common` carries `F_V__F` for its alias. `washer_y8_common` is the `Y_V8_Y` driver, which `Y_VB_Y` extends. `F_C__Y` and `VCDWL2QEUK` use only its tables, as does `washer_t1_common`, the ThinQ1 driver that `WTDN3` and `WTWN3` inherit |
 | `dishwasher_common` | 4 dishwashers | Done: status query, record payload, states and phases, shared descriptor properties, `0x3E` energy, `F0 26` actions and staged remote start. `D140110` uses it too |
-| `tlv_common` | 4 TLV drivers | Compare with upstream `tlv_device.ts`, which changed after the DHUM audit (commit `cd98450d`). Re-check DHUM against the new baseline. `RAC_056905_WW` is the largest TLV driver and may need capability handling `tlv_common` lacks |
-| `climate_common` | 4 air conditioners | Done: a whole driver over `tlv_common` for power, mode, fan, setpoint, room temperature, the action and its 28 s polling, the setpoint range from the capabilities and the 1200 masking, taken from `CST_570004_WW` (which inherits it, descriptor unchanged). `POT_056905_WW` inherits it. Still to come for `RAC_056905_WW`: the private `0xfd` filter commands, capability-bit features and the mode-dependent switches (energy saving as `CST_570004_WW` does it, jet, air purify) |
-| ThinQ1 | 3 drivers | Done for the washers (`washer_t1_common`): status arrives through `on_data`, decoded from the push's base64; `start` sends Mon/Start, commands go out with `ctx.send_json`; acks need rusthinq `2fe89dd` or later. `RAC_056905_WW` has a ThinQ1 and a ThinQ2 variant under the same model ID: branch on `ctx.is_thinq2()` in one file |
+| `tlv_common` | 4 TLV drivers | Compared with upstream `tlv_device.ts` for RAC: its private `0xfd` commands (the filter) are `rac_common`'s own frames, and the faster polling is `climate_common`'s. Re-check DHUM against the new baseline |
+| `climate_common` | 4 air conditioners | Done: a whole driver over `tlv_common` for power, mode, fan, setpoint, room temperature, the action and its 28 s polling, the setpoint range from the capabilities and the 1200 masking, taken from `CST_570004_WW` (which inherits it, descriptor unchanged). Hooks for capability features, the first state, own frames and timers; a driver that overrides a hook reaches it as `climate_<hook>`. `POT_056905_WW` and `rac_common` (`RAC_056905_WW`, `RAC_0B0001_WW`, with the ThinQ1 variant) inherit it |
+| ThinQ1 | 3 drivers | Done: `washer_t1_common` and `rac_common`'s ThinQ1 branch. Status arrives through `on_data`, decoded from the push's base64; `start` sends Mon/Start, commands go out with `ctx.send_json`. Acks need rusthinq `2fe89dd` or later, and the RAC's ~2 KB JSON status needs the larger blob limit of rusthinq `bb81da0` or later |
 
 ## Order
 
 1. Refrigerators and dishwashers: done.
 2. EU and ThinQ1 washers: done.
 3. Standalone AABB drivers, smallest first.
-4. TLV air conditioners on `climate_common`: `POT_056905_WW` done; `RAC_056905_WW` (with its ThinQ1 variant) next.
+4. TLV air conditioners on `climate_common`: `POT_056905_WW` and `RAC_056905_WW` (with its ThinQ1 variant) done.
 5. Aliased models (one-line inheriting drivers).
 6. `WIN_056905_WW` last: upstream has no tests for it.
 
@@ -163,5 +163,5 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 |---|---|---|---|---|
 | `DHUM_056905_WW` | 16 | 12 | dehumidifier; re-check against the new baseline | ported |
 | `POT_056905_WW` | 7 | 11 | LP1022FVSM portable air conditioner (`climate_common`) | ported |
-| `RAC_056905_WW` | 8 + 12 | 22 | air conditioner; ThinQ1 variant `RAC_056905_WW_T1`; alias `RAC_0B0001_WW` | todo |
+| `RAC_056905_WW` | 8 + 12 | 22 | air conditioner (`rac_common`); ThinQ1 variant `RAC_056905_WW_T1` in the same file; alias `RAC_0B0001_WW`. Filter reset not offered: it needs today's date | ported |
 | `WIN_056905_WW` | 0 | 0 | LW1823HRSM window air conditioner; no upstream tests | todo |

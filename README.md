@@ -130,6 +130,8 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `AIR_910604_WW` | air purifier | TLV | captured |
 | `CST_570004_WW` | ceiling-cassette air conditioner | TLV | captured |
 | `POT_056905_WW` | portable air conditioner | TLV | captured |
+| `RAC_056905_WW` | split air conditioner | TLV or ThinQ1 | captured |
+| `RAC_0B0001_WW` | split air conditioner (alias of `RAC_056905_WW`) | TLV | captured |
 | `D140110` | dishwasher (read-only) | AABB | captured |
 | `D0211` | dishwasher (read-only) | AABB | captured |
 | `D30` | dishwasher (read-only) | AABB | captured |

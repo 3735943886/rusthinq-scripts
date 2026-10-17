@@ -82,7 +82,7 @@ fixtures to driver tests.
 | family | framing | shared module | pick when |
 |---|---|---|---|
 | TLV | `[hdr..] len [tag,val].. crc16` | `tlv_common.rhai` (`import "tlv_common" as c;`) | the device answers a caps/values handshake (CST_570004_WW, DHUM_056905_WW, AIR_910604_WW) |
-| TLV, air conditioner | as TLV, with power/mode/fan/setpoint tags `0x1f7`/`0x1f9`/`0x1fa`/`0x1fe` | `climate_common.rhai`, a whole driver: a model inherits it with `import "climate_common";` and overrides its code tables, `*_attach()` lists and the `extra_props`/`apply_extra`/`after_values`/`set_extra` hooks | CST_570004_WW, POT_056905_WW |
+| TLV, air conditioner | as TLV, with power/mode/fan/setpoint tags `0x1f7`/`0x1f9`/`0x1fa`/`0x1fe` | `climate_common.rhai`, a whole driver: a model inherits it with `import "climate_common";` and overrides its code tables, `*_attach()` lists and the `extra_props`/`apply_extra`/`after_values`/`set_extra` hooks | CST_570004_WW, POT_056905_WW, RAC_056905_WW (`rac_common`, which also branches to ThinQ1 on `ctx.is_thinq2()`) |
 | AABB, fixed status | `AA len inner csum BB`, inner is a flat byte record | `aabb_common.rhai` | the device pushes/answers with one fixed-layout status record (1WPU4CIGCR__2, WBEY3GT) |
 | AABB, refrigerator | class `0x10` EB/EC records, `F0 17` writes | `fridge_common.rhai` (imports `aabb_common`) | LG refrigerators (2RSFL2DBN3K_Z and the `2RE*` models) |
 | AABB, EU washer | class `0x20` EC frame of two 37-byte records, `F0 24`/`F0 2A` commands | `washer_common.rhai`, a whole driver: a model inherits it with `import "washer_common";` and overrides `features()` | LG EU front-load washers (F_V8_Y, F_VB_Y, F_VB_F, F_V__F and aliases) |
@@ -229,6 +229,11 @@ is what moves the property; a rejected write just leaves it where it was.
   inside the closure: a `fn value_tags()` broke `tlv_common::receive`'s
   `|t| value_tags.contains(t.t)` ("contains (Fn, i64)"), faulting the driver. Give hook
   functions names no module uses for a parameter.
+- An overridden inherited hook has no `super`. A base that expects overrides exposes its hook
+  bodies under other names (`climate_common`'s `climate_start`, `climate_on_data`, ...), which
+  the driver calls for the case it does not handle itself (see `rac_common`'s ThinQ1 branch).
+- A `Blob` is bounded like an array. Before rusthinq `bb81da0` raised that bound to the string budget, a
+  frame over 1024 bytes (the RAC's ThinQ1 JSON status) failed with "Size of array/BLOB too large".
 - A `Blob` element (from `hex_decode`, `aabb_unwrap`, indexing a frame) compares directly
   against an int literal (`if inner[1] == 0xec`) and works in a `switch`; call `.to_int()`
   only when you need it in float arithmetic or string formatting (`(v / 10.0)`,
