@@ -1,98 +1,63 @@
 // LG ceiling-cassette indoor unit CST_570004_WW (multi-split, cooling only): device -> IL driver.
 //
-// A TLV (DualCool family) appliance; the handshake, timers and write framing are shared in
-// `tlv_common`. This script is for this model only, so it carries no capability probing: the
-// tag numbers, wire scales and feature set below are what this unit reports and accepts.
+// A TLV (DualCool family) appliance on `climate_common`, which carries power, mode, fan,
+// setpoint, room temperature, the action and its polling. This script is for this model only,
+// so it carries no capability probing: the tag numbers, wire scales and feature set below are
+// what this unit reports and accepts.
 //
-// Wire tags: 0x1f7 power, 0x1f9 mode (cool 0, dry 1, fan 2, auto 3), 0x1fa fan (auto 8,
-// very low 1, low 2, medium 4, high 6, power 7), 0x1fd room temperature and 0x1fe setpoint
-// (half degrees), 0x205 / 0x206 vertical / horizontal swing (on/off), 0x20d energy saving
-// (only meaningful in cool), 0x20e auto dry (0 off, 1 10 min, 2 30 min, 3 60 min, 255 smart),
-// 0x225 auto dry minutes left, 0x21a sleep timer (minutes), 0x21f display brightness
-// (100 off, 150 half, 200 full), 0x221 error, 0x23f comfort energy saving, 0x2b3 power draw
-// (W), 0x336 humidity (tenths of a percent), 0x355 / 0x356 filter hours left / rated life,
-// 0x189 or 0x6c whether the unit is actually cooling right now (when it reports either),
-// 0x290 / 0x291 / 0x3d5 / 0x3d6 / 0x3d7 the wind-mode flags (exactly one set, or none).
+// Wire tags: 0x1f9 mode (cool 0, dry 1, fan 2, auto 3), 0x1fa fan (auto 8, very low 1, low 2,
+// medium 4, high 6, power 7), 0x205 / 0x206 vertical / horizontal swing (on/off), 0x20d energy
+// saving (only meaningful in cool), 0x20e auto dry (0 off, 1 10 min, 2 30 min, 3 60 min,
+// 255 smart), 0x225 auto dry minutes left, 0x21a sleep timer (minutes), 0x21f display
+// brightness (100 off, 150 half, 200 full), 0x221 error, 0x23f comfort energy saving, 0x2b3
+// power draw (W), 0x336 humidity (tenths of a percent), 0x355 / 0x356 filter hours left /
+// rated life, 0x189 or 0x6c whether the unit is actually cooling right now (when it reports
+// either), 0x290 / 0x291 / 0x3d5 / 0x3d6 / 0x3d7 the wind-mode flags (exactly one set, or none).
 //
-// The unit ignores a mode write while it is off, so a mode write carries power on; the
-// app does the same. Frames from this model have byte 6 = 0xa7, which `tlv_frame_parse`
-// accepts.
+// Frames from this model have byte 6 = 0xa7, which `tlv_frame_parse` accepts.
 
+import "climate_common";
 import "tlv_common" as c;
 import "table_common" as t;
 import "il_common" as il;
 
 // ---- model ------------------------------------------------------------------------
 
-fn descriptor(ctx) {
-    json_stringify(#{
-        il: 0,
-        kind: "climate",
-        class: "air_conditioner",
-        label: "Air conditioner",
-        vendor: "LG",
-        model: ctx.model_id(),
-        props: #{
-            available: #{ type: "binary", role: "available" },
-            power: #{ type: "binary", rw: true, role: "on", src: #{ tlv_tag: "0x1f7" } },
-            mode: #{ type: "select", rw: true, role: "mode", src: #{ tlv_tag: "0x1f9" },
-                     options: t::options(modes()) },
-            fan: #{ type: "select", rw: true, role: "fan_speed", src: #{ tlv_tag: "0x1fa" },
-                    options: ["auto", "very_low", "low", "medium", "high", "power"] },
-            target: #{ type: "number", rw: true, role: "target_temperature", src: #{ tlv_tag: "0x1fe" },
-                       min: range_min(ctx), max: range_max(ctx), step: 0.5, unit: "°C" },
-            temperature: #{ type: "number", role: "current_temperature", src: #{ tlv_tag: "0x1fd" },
-                            unit: "°C" },
-            humidity: #{ type: "number", class: "humidity", series: "gauge", role: "current_humidity", src: #{ tlv_tag: "0x336" }, unit: "%" },
-            action: #{ type: "select", role: "action", options: ["off", "idle", "cooling", "drying", "fan", "active"] },
-            swing_vertical: #{ type: "binary", rw: true, role: "swing_vertical", src: #{ tlv_tag: "0x205" } },
-            swing_horizontal: #{ type: "binary", rw: true, role: "swing_horizontal", src: #{ tlv_tag: "0x206" } },
-            energy_save: #{ type: "binary", category: "config", rw: true, src: #{ tlv_tag: "0x20d" } },
-            comfort_saving: #{ type: "binary", category: "config", rw: true, src: #{ tlv_tag: "0x23f" } },
-            wind_mode: #{ type: "select", category: "config", rw: true,
-                          options: ["off", "manner", "long_power", "study", "auto_temp"] },
-            auto_dry: #{ type: "select", category: "config", rw: true, src: #{ tlv_tag: "0x20e" },
-                         options: t::options(auto_dry_modes()) },
-            auto_dry_remaining: #{ type: "number", class: "duration", category: "diagnostic", src: #{ tlv_tag: "0x225" }, unit: "min" },
-            sleep_timer: #{ type: "number", class: "duration", rw: true, src: #{ tlv_tag: "0x21a" },
-                            min: 0, max: 900, step: 1, unit: "min" },
-            display: #{ type: "select", category: "config", rw: true, src: #{ tlv_tag: "0x21f" },
-                        options: t::options(displays()) },
-            power_draw: #{ type: "number", class: "power", series: "gauge", src: #{ tlv_tag: "0x2b3" }, unit: "W" },
-            filter_remaining: #{ type: "number", series: "gauge", category: "diagnostic", src: #{ tlv_tag: "0x355" }, unit: "%" },
-            filter_used: #{ type: "number", class: "duration", series: "counter", category: "diagnostic", src: #{ tlv_tag: "0x355" }, unit: "h" },
-            filter_life: #{ type: "number", class: "duration", category: "diagnostic", src: #{ tlv_tag: "0x356" }, unit: "h" },
-            error: #{ type: "number", category: "diagnostic", src: #{ tlv_tag: "0x221" } }
-        }
-    })
+fn modes() { #{ "0": "cool", "1": "dry", "2": "fan_only", "3": "auto" } }
+
+fn fans() { #{ "8": "auto", "1": "very_low", "2": "low", "4": "medium", "6": "high", "7": "power" } }
+fn fan_options() { ["auto", "very_low", "low", "medium", "high", "power"] }
+
+fn tracks_action() { true }
+fn masks_reports() { true }
+
+fn auto_dry_modes() { #{ "0": "off", "1": "10min", "2": "30min", "3": "60min", "255": "smart" } }
+
+fn displays() { #{ "100": "off", "150": "50%", "200": "100%" } }
+
+fn extra_props(ctx) {
+    #{
+        humidity: #{ type: "number", class: "humidity", series: "gauge", role: "current_humidity", src: #{ tlv_tag: "0x336" }, unit: "%" },
+        swing_vertical: #{ type: "binary", rw: true, role: "swing_vertical", src: #{ tlv_tag: "0x205" } },
+        swing_horizontal: #{ type: "binary", rw: true, role: "swing_horizontal", src: #{ tlv_tag: "0x206" } },
+        energy_save: #{ type: "binary", category: "config", rw: true, src: #{ tlv_tag: "0x20d" } },
+        comfort_saving: #{ type: "binary", category: "config", rw: true, src: #{ tlv_tag: "0x23f" } },
+        wind_mode: #{ type: "select", category: "config", rw: true,
+                      options: ["off", "manner", "long_power", "study", "auto_temp"] },
+        auto_dry: #{ type: "select", category: "config", rw: true, src: #{ tlv_tag: "0x20e" },
+                     options: t::options(auto_dry_modes()) },
+        auto_dry_remaining: #{ type: "number", class: "duration", category: "diagnostic", src: #{ tlv_tag: "0x225" }, unit: "min" },
+        sleep_timer: #{ type: "number", class: "duration", rw: true, src: #{ tlv_tag: "0x21a" },
+                        min: 0, max: 900, step: 1, unit: "min" },
+        display: #{ type: "select", category: "config", rw: true, src: #{ tlv_tag: "0x21f" },
+                    options: t::options(displays()) },
+        power_draw: #{ type: "number", class: "power", series: "gauge", src: #{ tlv_tag: "0x2b3" }, unit: "W" },
+        filter_remaining: #{ type: "number", series: "gauge", category: "diagnostic", src: #{ tlv_tag: "0x355" }, unit: "%" },
+        filter_used: #{ type: "number", class: "duration", series: "counter", category: "diagnostic", src: #{ tlv_tag: "0x355" }, unit: "h" },
+        filter_life: #{ type: "number", class: "duration", category: "diagnostic", src: #{ tlv_tag: "0x356" }, unit: "h" },
+        error: #{ type: "number", category: "diagnostic", src: #{ tlv_tag: "0x221" } }
+    }
 }
-
-// The setpoint range the unit reports in its capabilities (0x2e1 / 0x2e2, half degrees); what
-// the captured unit reports until a capability reply says otherwise.
-fn range_min(ctx) { let v = ctx.state_get("range_min"); if v == () { 16 } else { v } }
-fn range_max(ctx) { let v = ctx.state_get("range_max"); if v == () { 30 } else { v } }
-
-fn deg(v) { if v % 2 == 0 { v / 2 } else { v / 2.0 } }
-
-fn modes() {
-    #{ "0": "cool", "1": "dry", "2": "fan_only", "3": "auto" }
-}
-
-
-fn fans() {
-    #{ "8": "auto", "1": "very_low", "2": "low", "4": "medium", "6": "high", "7": "power" }
-}
-
-
-fn auto_dry_modes() {
-    #{ "0": "off", "1": "10min", "2": "30min", "3": "60min", "255": "smart" }
-}
-
-
-fn displays() {
-    #{ "100": "off", "150": "50%", "200": "100%" }
-}
-
 
 // The five wind-mode flags, in the order the app writes them.
 fn wind_flags() { [0x290, 0x291, 0x3d5, 0x3d6, 0x3d7] }
@@ -115,127 +80,13 @@ fn wind_name(ctx) {
     else { "off" }
 }
 
-// ---- derived state ----------------------------------------------------------------
+// ---- reads ------------------------------------------------------------------------
 
-// "off" while the unit is powered off, else the mode name.
-fn effective_mode(ctx) {
-    if c::get(ctx, 0x1f7) == 0 { "off" } else { t::name(modes(), c::get(ctx, 0x1f9)) }
-}
+// Energy saving is settled after the frame, against the mode it leaves the unit in.
+fn held(tag) { tag == 0x20d }
 
-// Whether the indoor unit is really cooling, when the unit says (true if it never does).
-fn running(ctx) {
-    for tag in [0x189, 0x6c] {
-        let v = ctx.state_get("t" + tag);
-        if v != () { return v != 0; }
-    }
-    true
-}
-
-fn action_name(ctx) {
-    let mode = effective_mode(ctx);
-    if mode == "off" { "off" }
-    else if mode == () { () }
-    else if mode == "fan_only" { "fan" }
-    else if !running(ctx) { "idle" }
-    else if mode == "cool" { "cooling" }
-    else if mode == "dry" { "drying" }
-    else { "active" }
-}
-
-// The compressor side changes fast while running, so poll more often then.
-fn poll_ms() { 28000 }
-
-fn half(v) {
-    if v % 2 == 0 { (v / 2).to_string() } else { (v / 2.0).to_string() }
-}
-
-// ---- host hooks -------------------------------------------------------------------
-
-fn start(ctx) {
-    ctx.state_set("active", false);
-    c::start(ctx);
-}
-
-fn publish_config(ctx) {
-    il::publish_il(ctx, descriptor(ctx));
-}
-
-fn on_drop(ctx) {
-    il::publish_property(ctx, "available", "false");
-}
-
-fn on_timer(ctx, name) {
-    if name == "poll" {
-        if ctx.state_get("active") == true {
-            c::query(ctx, 2);
-            ctx.set_timer("poll", poll_ms());
-        }
-    } else {
-        c::on_timer(ctx, name);
-    }
-}
-
-fn on_data(ctx, data) {
-    let frame = c::receive(ctx, data, 10, [0x1f7]);
-    if frame == () { return; }
-    if frame.caps { on_caps(ctx, frame.tlvs); return; }
-
-    let before = ctx.state_get("emode");
-    let energy = ();
-    for e in frame.tlvs {
-        if e.t == 0x20d { energy = e.v; }
-        else { apply(ctx, e.t, e.v); }
-    }
-
-    let mode = effective_mode(ctx);
-    ctx.state_set("emode", mode);
-    settle_energy(ctx, energy, before != mode && mode == "cool");
-    if frame.tlvs.some(|e| e.t == 0x290 || e.t == 0x291 || e.t == 0x3d5 || e.t == 0x3d6 || e.t == 0x3d7) {
-        il::publish_property(ctx, "wind_mode", wind_name(ctx));
-    }
-    if frame.tlvs.some(|e| e.t == 0x355 || e.t == 0x356) { publish_filter(ctx); }
-    publish_action(ctx);
-
-    if frame.first {
-        il::publish_property(ctx, "available", "true");
-        // Ask the cloud not to relay tag 1200 (the appliance's noisy periodic report).
-        ctx.send_clip("setMaskingInfo", 0, "{\"blacklist_tlv\":\"1200\"}");
-    }
-}
-
-// The capability reply: adopt the setpoint range the unit reports, and say so in the descriptor
-// (il_common then refuses a setpoint outside it).
-fn on_caps(ctx, tlvs) {
-    let lo = ();
-    let hi = ();
-    for e in tlvs {
-        if e.t == 0x2e1 { lo = e.v; }
-        if e.t == 0x2e2 { hi = e.v; }
-    }
-    if lo == () || hi == () || lo >= hi { return; }
-    let lo = deg(lo);
-    let hi = deg(hi);
-    if lo == range_min(ctx) && hi == range_max(ctx) { return; }
-    ctx.state_set("range_min", lo);
-    ctx.state_set("range_max", hi);
-    il::publish_il(ctx, descriptor(ctx));
-}
-
-// Apply one wire tag.
-fn apply(ctx, tag, v) {
-    c::put(ctx, tag, v);
+fn apply_extra(ctx, tag, v) {
     switch tag {
-        0x1f7 => { il::publish_property(ctx, "power", c::flag(v)); }
-        0x1f9 => {
-            let name = t::name(modes(), v);
-            if name != () { il::publish_property(ctx, "mode", name); }
-        }
-        0x1fa => {
-            let name = t::name(fans(), v);
-            if name != () { il::publish_property(ctx, "fan", name); }
-        }
-        0x1fd => { il::publish_property(ctx, "temperature", half(v)); }
-        0x1fe => { il::publish_property(ctx, "target", half(v)); }
         0x336 => { il::publish_property(ctx, "humidity", (v / 10.0).round().to_int().to_string()); }
         0x205 => { il::publish_property(ctx, "swing_vertical", c::flag(v)); }
         0x206 => { il::publish_property(ctx, "swing_horizontal", c::flag(v)); }
@@ -254,6 +105,17 @@ fn apply(ctx, tag, v) {
         0x2b3 => { il::publish_property(ctx, "power_draw", v.to_string()); }
         _ => {}
     }
+}
+
+fn after_values(ctx, tlvs, before) {
+    let energy = ();
+    for e in tlvs { if e.t == 0x20d { energy = e.v; } }
+    let mode = effective_mode(ctx);
+    settle_energy(ctx, energy, before != mode && mode == "cool");
+    if tlvs.some(|e| e.t == 0x290 || e.t == 0x291 || e.t == 0x3d5 || e.t == 0x3d6 || e.t == 0x3d7) {
+        il::publish_property(ctx, "wind_mode", wind_name(ctx));
+    }
+    if tlvs.some(|e| e.t == 0x355 || e.t == 0x356) { publish_filter(ctx); }
 }
 
 // Energy saving only takes effect in cool, and the unit forgets it over a power cycle. So a
@@ -281,41 +143,10 @@ fn publish_filter(ctx) {
     }
 }
 
-fn publish_action(ctx) {
-    let action = action_name(ctx);
-    if action != () { il::publish_property(ctx, "action", action); }
-
-    let active = action == "cooling" || action == "drying" || action == "active";
-    let was = ctx.state_get("active") == true;
-    ctx.state_set("active", active);
-    if active && !was { ctx.set_timer("poll", poll_ms()); }
-    if !active && was { ctx.cancel_timer("poll"); }
-}
-
 // ---- writes -----------------------------------------------------------------------
 
-fn set_property(ctx, prop, value) {
+fn set_extra(ctx, prop, value) {
     switch prop {
-        "power" => {
-            let on = c::to_bool(value);
-            c::write(ctx, 0x1f7, if on { 1 } else { 0 }, if on { [0x1f9, 0x1fa, 0x1fe] } else { [] });
-        }
-        "mode" => {
-            let wire = t::code(modes(), value);
-            if wire == () { c::reject(ctx, prop, "unknown mode"); return; }
-            c::put(ctx, 0x1f7, 1); // the mode write powers the unit on
-            c::write(ctx, 0x1f9, wire, [0x1f7, 0x1fa, 0x1fe]);
-        }
-        "fan" => {
-            let wire = t::code(fans(), value);
-            if wire == () { c::reject(ctx, prop, "unknown fan speed"); return; }
-            c::write(ctx, 0x1fa, wire, [0x1f9, 0x1fe]);
-        }
-        "target" => {
-            let n = c::to_number(value);
-            if n == () { c::reject(ctx, prop, "not a number"); return; }
-            c::write(ctx, 0x1fe, (n * 2).round().to_int(), [0x1f9, 0x1fa]);
-        }
         "swing_vertical" => { c::write(ctx, 0x205, if c::to_bool(value) { 1 } else { 0 }, []); }
         "swing_horizontal" => { c::write(ctx, 0x206, if c::to_bool(value) { 1 } else { 0 }, []); }
         "comfort_saving" => { c::write(ctx, 0x23f, if c::to_bool(value) { 1 } else { 0 }, []); }
@@ -328,22 +159,22 @@ fn set_property(ctx, prop, value) {
         }
         "auto_dry" => {
             let wire = t::code(auto_dry_modes(), value);
-            if wire == () { c::reject(ctx, prop, "unknown auto dry setting"); return; }
+            if wire == () { c::reject(ctx, prop, "unknown auto dry setting"); return true; }
             c::write(ctx, 0x20e, wire, []);
         }
         "display" => {
             let wire = t::code(displays(), value);
-            if wire == () { c::reject(ctx, prop, "unknown brightness"); return; }
+            if wire == () { c::reject(ctx, prop, "unknown brightness"); return true; }
             c::write(ctx, 0x21f, wire, []);
         }
         "sleep_timer" => {
             let n = c::to_number(value);
-            if n == () { c::reject(ctx, prop, "not a number"); return; }
+            if n == () { c::reject(ctx, prop, "not a number"); return true; }
             c::write(ctx, 0x21a, n.round().to_int(), []);
         }
         "wind_mode" => {
             let on = wind_flag(value);
-            if on == () && value != "off" { c::reject(ctx, prop, "unknown wind mode"); return; }
+            if on == () && value != "off" { c::reject(ctx, prop, "unknown wind mode"); return true; }
             // exactly one flag set, or none
             let tlvs = [];
             for f in wind_flags() {
@@ -354,12 +185,7 @@ fn set_property(ctx, prop, value) {
             ctx.send_raw(tlv_frame_build(c::write_header(), tlvs));
             il::publish_property(ctx, "wind_mode", value);
         }
-        _ => { c::reject(ctx, prop, "unknown or read-only property"); }
+        _ => { return false; }
     }
-}
-
-// il_common validates against the descriptor and rejects invalid commands.
-fn on_set_property(ctx, prop, value) {
-    let value = il::validate(ctx, prop, value);
-    if value != () { set_property(ctx, prop, value); }
+    true
 }

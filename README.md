@@ -129,6 +129,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `1WPU4CIGCR__2` | water purifier | AABB | captured |
 | `AIR_910604_WW` | air purifier | TLV | captured |
 | `CST_570004_WW` | ceiling-cassette air conditioner | TLV | captured |
+| `POT_056905_WW` | portable air conditioner | TLV | captured |
 | `D140110` | dishwasher (read-only) | AABB | captured |
 | `D0211` | dishwasher (read-only) | AABB | captured |
 | `D30` | dishwasher (read-only) | AABB | captured |
