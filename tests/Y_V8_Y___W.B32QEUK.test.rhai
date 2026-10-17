@@ -97,6 +97,34 @@ fn test_a_status_envelope_is_acked() {
     expect_eq(d.sent().len(), 0);
 }
 
+// The cloud's acks for captured frames, from upstream rethink 09f2530 (formerly the host's
+// reference vectors): envelopes carry their sequence number; the appliance's own acks, 0xC3
+// heartbeats, EB/EC records and frames too short or malformed to read are not acked.
+fn test_ack_frames_match_the_cloud() {
+    for pair in [
+        ["aaff310a00230053ed000101030011100b0306100000008a00000000000000059317bb", "AA0AF0000A0453EDA7BB"],
+        ["aaff200a00120010130001007f0000e91dbb", "AA0AF0000A04101380BB"],
+        ["aa11200a00110010b00001007f000063bb", "AA0AF0000A0410B027BB"],
+        ["aa0720d801ffbb", "AA08F000D8042BBB"],
+        ["aa0720720111bb", "AA08F00072044DBB"],
+        ["aa0720e901eebb", "AA08F000E904DABB"],
+    ] {
+        let d = device();
+        d.feed(pair[0]);
+        let clips = d.clips();
+        expect_eq(clips.len(), 1, pair[0]);
+        expect_eq(clips[0].data, pair[1], pair[0]);
+    }
+    for frame in [
+        "AA084000430060BB", "aa0731c302f2bb", "aa0720eb01e8bb", "aa0720ec01ebbb", "0102030405",
+        "AA08200A01020304BB", "aaff200a00110010120001007f00decabb", "aa10200a00100010c00001007f0011bb",
+    ] {
+        let d = device();
+        d.feed(frame);
+        expect_eq(d.clips().len(), 0, frame);
+    }
+}
+
 // 0x00ec state pairs: switching on is reported, so the power switch holds
 fn test_pair_power_on() {
     let d = device();

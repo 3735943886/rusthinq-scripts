@@ -157,6 +157,16 @@ fn descriptor(ctx) {
 | `on_data(ctx, data)` | every frame from the device | discriminate the frame kind (first byte(s)/tag), decode, `il::publish_property(ctx, name, canonical_text)` |
 | `on_set_property(ctx, prop, value)` | a command reached this device; call `il::validate(ctx, prop, value)` against the descriptor first and return if it yields `()` | build and `ctx.send_raw(...)` the write frame; `c::reject(ctx, prop, reason)` for anything the script itself must still refuse (an unknown `prop`, a value the descriptor's static range cannot express) |
 | `on_drop(ctx)` | device disconnected | `il::publish_property(ctx, "available", "false")` |
+| `describe(data, to_device)` (optional) | the dashboard's packet analysis, never live traffic | return `#{ summary, fields: [#{ name, value, start, length }], notes: [..] }` or `()`; see below |
+
+The host's packet analysis decodes framing only; what a frame means comes from the
+model's driver. Without `describe`, it runs `on_data` once on a fresh, detached context
+and lists the properties published for the frame, which covers status frames for free.
+Write `describe` when that is not enough: to name the bytes behind each value (`start`,
+`length` are offsets in `data`), to explain writes (`to_device` true, which `on_data`
+never sees), or to annotate a frame that needs state from earlier frames. It gets no
+`ctx` and must not send or publish. Test it with `d.describe(hex, to_device)`, which
+returns what the hook returned.
 
 Everything else (timers, `on_timer`, TLV handshake retries) is what the shared module or
 `0.2-runtime.md`'s hook documentation cover; most single-status AABB devices need none of it.
