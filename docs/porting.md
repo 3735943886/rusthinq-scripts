@@ -139,9 +139,9 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | `F3P3CYK2_` | 13 | 17 | WM4200HBA, 44-byte records | todo |
 | `FAFXU25006` | 28 | 42 | WM5800HVA, Env, Long, 72-byte records | todo |
 | `WTL_FXU_BDV_NA_01` | 28 | 29 | WashTower | todo |
-| `RV13U6AM8W_D_US_WIFI` | 28 | 23 | DLE7300WE dryer, Ack | todo |
-| `RV13B6BSD_D_US_WIFI` | 11 | 22 | electric dryer | todo |
-| `RV13B6ES_D_US_WIFI` | 15 | 20 | electric dryer, layout of `RV13B6BSD_D_US_WIFI` | todo |
+| `RV13U6AM8W_D_US_WIFI` | 28 | 23 | DLE7300WE dryer, Ack (`dryer_rv13_common`) | ported |
+| `RV13B6BSD_D_US_WIFI` | 11 | 22 | electric dryer (`dryer_rv13_common`) | ported |
+| `RV13B6ES_D_US_WIFI` | 15 | 20 | electric dryer, layout of `RV13B6BSD_D_US_WIFI` (`dryer_rv13_common`) | ported |
 | `BDH_D30007_US` | 18 | 29 | DLHC5502V heat-pump dryer, Long | todo |
 | `RC90U2_WW` | 12 | 19 | RC9DN9029 heat-pump dryer (EU); alias `RC90V9_WW` | todo |
 | `ST_B_E4H01Y_APL` | 33 | 49 | Styler S5BBP | todo |
