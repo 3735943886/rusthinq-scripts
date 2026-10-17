@@ -150,7 +150,7 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 
 | model | tests | fixtures | notes | status |
 |---|---|---|---|---|
-| `STUDIO_HOOD` | 17 | 7 | range hood | todo |
+| `STUDIO_HOOD` | 17 | 7 | range hood | ported |
 | `WMVEM1825` | 15 | 15 | microwave | todo |
 | `WMVEL2137` | 17 | 29 | MVEL2033F microwave/hood, Long | todo |
 | `WLREL6323S` | 10 | 17 | LREL6323S electric range | todo |

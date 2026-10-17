@@ -153,6 +153,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `RH14_N_KR` | dryer | AABB monitoring | captured |
 | `S3BF_POD_DN4` | styler | AABB monitoring | captured |
 | `ST_B_E4H01Y_APL` | styler | AABB | captured |
+| `STUDIO_HOOD` | range hood | AABB | captured |
 | `WBEY3GT` | cooktop | AABB | captured |
 | `Pd0F_F` | mini washer | AABB monitoring | constructed |
 | `T1789EFH_F` | top-load washer (read-only) | AABB | captured |
