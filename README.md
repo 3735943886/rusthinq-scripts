@@ -150,6 +150,8 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `S3BF_POD_DN4` | styler | AABB monitoring | captured |
 | `WBEY3GT` | cooktop | AABB | captured |
 | `Pd0F_F` | mini washer | AABB monitoring | constructed |
+| `WTDN3` | washer-dryer | ThinQ1 | captured |
+| `WTWN3` | washer | ThinQ1 | captured |
 
 - **live**: run against the real appliance; reads and writes confirmed.
 - **captured**: tested against frames captured from a real appliance and, where

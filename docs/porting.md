@@ -64,15 +64,15 @@ Shared work that blocks several ports. Do these first.
 |---|---|---|
 | `aabb_common` | 6 drivers with auto-ack; 3 with envelope status; 3 with long frames | Cloud ack (`c::ack`) and envelope status (`c::enveloped_status`) done. Long frames (`AA FF`) need nothing more: the host's `aabb_unwrap` leaves the 16-bit checksum's extra byte on the body, as upstream does |
 | `fridge_common` | 8 refrigerators | Done: query, record extraction, unit, setpoint conversion and ranges, shared descriptor properties, and `F0 17` writes over a 0xFF record or the LG app's 118-byte record, which every captured model sends a prefix of. `2RSFL2DBN3K_Z` uses it too |
-| `washer_common` | 9 EU washers, 2 ThinQ1 washers | Done: the tables of upstream `washer_common.ts` and a whole driver that `F_V8_Y` and relatives inherit, overriding `features()`; `washer_v__f_common` carries `F_V__F` for its alias. `washer_y8_common` is the `Y_V8_Y` driver, which `Y_VB_Y` extends. `F_C__Y` and `VCDWL2QEUK` use only its tables. Still to come: ThinQ1 |
+| `washer_common` | 9 EU washers, 2 ThinQ1 washers | Done: the tables of upstream `washer_common.ts` and a whole driver that `F_V8_Y` and relatives inherit, overriding `features()`; `washer_v__f_common` carries `F_V__F` for its alias. `washer_y8_common` is the `Y_V8_Y` driver, which `Y_VB_Y` extends. `F_C__Y` and `VCDWL2QEUK` use only its tables, as does `washer_t1_common`, the ThinQ1 driver that `WTDN3` and `WTWN3` inherit |
 | `dishwasher_common` | 4 dishwashers | Done: status query, record payload, states and phases, shared descriptor properties, `0x3E` energy, `F0 26` actions and staged remote start. `D140110` uses it too |
 | `tlv_common` | 4 TLV drivers | Compare with upstream `tlv_device.ts`, which changed after the DHUM audit (commit `cd98450d`). Re-check DHUM against the new baseline. `RAC_056905_WW` is the largest TLV driver and may need capability handling `tlv_common` lacks |
-| ThinQ1 | 3 drivers | ThinQ1 status arrives through `on_data`; commands go out with `ctx.send_json`. `RAC_056905_WW` has a ThinQ1 and a ThinQ2 variant under the same model ID: branch on `ctx.is_thinq2()` in one file |
+| ThinQ1 | 3 drivers | Done for the washers (`washer_t1_common`): status arrives through `on_data`, decoded from the push's base64; `start` sends Mon/Start, commands go out with `ctx.send_json`; acks need rusthinq `2fe89dd` or later. `RAC_056905_WW` has a ThinQ1 and a ThinQ2 variant under the same model ID: branch on `ctx.is_thinq2()` in one file |
 
 ## Order
 
 1. Refrigerators and dishwashers: done.
-2. EU washers: done.
+2. EU and ThinQ1 washers: done.
 3. Standalone AABB drivers, smallest first.
 4. TLV: `POT_056905_WW`, then `RAC_056905_WW` (with its ThinQ1 variant).
 5. Aliased models (one-line inheriting drivers).
@@ -120,12 +120,12 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | `Y_V8_Y___W.B32QEUK` | 31 | 14 | FSR7A04PG, Ack, Env | ported |
 | `Y_VB_Y___W.B32QEUK` | 25 | 19 | F14R76BSTA; extends `Y_V8_Y___W.B32QEUK` | ported |
 
-### ThinQ1 washers (`washer_common`, JSON)
+### ThinQ1 washers (`washer_t1_common`, JSON)
 
 | model | tests | fixtures | notes | status |
 |---|---|---|---|---|
-| `WTDN3` | 13 | 7 | | todo |
-| `WTWN3` | 9 | 8 | F4J7TN1W | todo |
+| `WTDN3` | 13 | 7 | F2J7HG1W washer-dryer | ported |
+| `WTWN3` | 9 | 8 | F4J7TN1W | ported |
 
 ### US and other laundry (AABB, standalone)
 
