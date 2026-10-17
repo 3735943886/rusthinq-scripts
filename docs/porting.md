@@ -137,7 +137,7 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | `F3L2CYU__` | 8 | 32 | front-load washer (`washer_f3l_common`) | ported |
 | `F3L7CYK5W_US_WIFI` | 18 | 29 | same layout as `F3L2CYU__`, own course table and bits (`washer_f3l_common`) | ported |
 | `F3P3CYK2_` | 13 | 17 | WM4200HBA, 44-byte records; power off only | ported |
-| `FAFXU25006` | 28 | 42 | WM5800HVA, Env, Long, 72-byte records | todo |
+| `FAFXU25006` | 28 | 42 | WM5800HVA, Env, Long, 72-byte records | ported |
 | `WTL_FXU_BDV_NA_01` | 28 | 29 | WashTower | todo |
 | `RV13U6AM8W_D_US_WIFI` | 28 | 23 | DLE7300WE dryer, Ack (`dryer_rv13_common`) | ported |
 | `RV13B6BSD_D_US_WIFI` | 11 | 22 | electric dryer (`dryer_rv13_common`) | ported |

@@ -26,6 +26,17 @@ fn publish_property(ctx, prop, value) {
     ctx.publish_raw(ctx.device_topic() + "/" + prop, value, true);
 }
 
+// The property no longer has a value (il.md V-1): an empty retained payload (il-mqtt.md M-10),
+// rather than a placeholder.
+fn publish_absent(ctx, prop) {
+    let values = ctx.state_get("__il_values");
+    if values != () && values.contains(prop) {
+        values.remove(prop);
+        ctx.state_set("__il_values", values);
+    }
+    ctx.publish_raw(ctx.device_topic() + "/" + prop, "", true);
+}
+
 fn publish_event(ctx, suffix, payload) {
     if suffix == "reject" {
         let doc = json_parse(payload);

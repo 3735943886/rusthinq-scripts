@@ -137,6 +137,9 @@ fn descriptor(ctx) {
   enforces (a burner ring that ignores commands unless the panel granted remote start) — the
   script calls `il::validate` to check it before building the write.
 - A property the wire cannot yet confirm the meaning of is **left out**, not guessed.
+- A value the device stops reporting (a sentinel such as "not weighed yet") is **absent**, not a
+  placeholder (il.md V-1): `il::publish_absent(ctx, prop)`. A code that is a real state, such as
+  "no course selected", can be a `none` option instead.
 - **Code tables**: state each enum once as a map from the wire code, as text, to its
   option name, and read it both ways through `table_common` (`import "table_common" as t;`):
 
