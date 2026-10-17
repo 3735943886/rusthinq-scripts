@@ -154,7 +154,7 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | `WMVEM1825` | 15 | 15 | microwave | ported |
 | `WMVEL2137` | 17 | 29 | MVEL2033F microwave/hood, Long | ported |
 | `WLREL6323S` | 10 | 17 | LREL6323S electric range | ported |
-| `WLSI_633_` | 21 | 42 | LSIS6338FE induction range | todo |
+| `WLSI_633_` | 21 | 42 | LSIS6338FE induction range | ported |
 | `WFV474PGV` | 52 | 58 | double oven range | todo |
 
 ### Air (TLV)

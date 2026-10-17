@@ -156,6 +156,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `STUDIO_HOOD` | range hood | AABB | captured |
 | `WBEY3GT` | cooktop | AABB | captured |
 | `WLREL6323S` | electric range (read-only) | AABB | captured |
+| `WLSI_633_` | induction range (read-only) | AABB | captured |
 | `WMVEL2137` | microwave/hood | AABB | captured |
 | `WMVEM1825` | microwave | AABB | captured |
 | `Pd0F_F` | mini washer | AABB monitoring | constructed |
