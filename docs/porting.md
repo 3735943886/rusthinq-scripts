@@ -134,8 +134,8 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 |---|---|---|---|---|
 | `T1789EFH_F` | 21 | 22 | WT7300CW top-load washer, Ack | todo |
 | `TLVE5BB` | 6 | 7 | WT21BWV6 top-load washer, Env | ported |
-| `F3L2CYU__` | 8 | 32 | front-load washer | todo |
-| `F3L7CYK5W_US_WIFI` | 18 | 29 | same layout as `F3L2CYU__` | todo |
+| `F3L2CYU__` | 8 | 32 | front-load washer (`washer_f3l_common`) | ported |
+| `F3L7CYK5W_US_WIFI` | 18 | 29 | same layout as `F3L2CYU__`, own course table and bits (`washer_f3l_common`) | ported |
 | `F3P3CYK2_` | 13 | 17 | WM4200HBA, 44-byte records | todo |
 | `FAFXU25006` | 28 | 42 | WM5800HVA, Env, Long, 72-byte records | todo |
 | `WTL_FXU_BDV_NA_01` | 28 | 29 | WashTower | todo |
