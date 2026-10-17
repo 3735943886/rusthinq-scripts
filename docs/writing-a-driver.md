@@ -245,6 +245,9 @@ is what moves the property; a rejected write just leaves it where it was.
   `n` elements; most decoders instead pass the whole record plus an integer offset and index
   `r[offset + k]` throughout (see any `status(ctx, r, o)` function). For a `String`,
   `s.sub_string(start, len)`.
+- Iterating a `Blob` yields `u8` values, not ints: `for x in blob { arr.push(x.to_int()); }` when
+  building an `Array` for `aabb_wrap` (whose array form takes ints only), and `+=` of a `Blob` onto
+  an `Array` fails.
 - `aabb_wrap`/`tlv_frame_build` accept either an `Array` of small ints or a `Blob`
   (`Vec<u8>`) — build with whichever is more convenient, no conversion needed.
 - `hex_decode`/`hex_encode`/`hex_encode_upper`, `crc16`, `tlv_parse`/`tlv_build`,
