@@ -12,12 +12,6 @@
 //       if value != () { set_property(ctx, prop, value); }
 //   }
 
-import "il_config_common" as config;
-
-// il-mqtt M-1: the descriptor goes to `<il_prefix>/<id>`, retained.
-// Configure the prefix in the ignored local module; "" publishes no descriptor.
-fn prefix() { config::prefix() }
-
 fn publish_property(ctx, prop, value) {
     let values = ctx.state_get("__il_values");
     if values == () { values = #{}; }
@@ -56,7 +50,7 @@ fn publish_il(ctx, text) {
         doc["x-mqtt"] = #{state: root + "{id}/{prop}", set: root + "{id}/{prop}/set", reject: root + "{id}/reject"};
     }
     ctx.state_set("__il_descriptor", doc);
-    if prefix() != "" { ctx.publish_raw(prefix() + "/" + ctx.id(), json_stringify(doc), true); }
+    ctx.publish_raw(ctx.device_topic() + "/descriptor", json_stringify(doc), true);
     // The host initializes drivers only for online devices. Reinitialization
     // restores availability without waiting for an appliance state report.
     if doc.props != () {

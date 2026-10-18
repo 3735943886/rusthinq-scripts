@@ -318,3 +318,31 @@ driver is yours to keep; it does not belong in this repository.
 - [ ] README table row added
 - [ ] if the driver needs a host function or behavior newer than `RUSTHINQ_REF`, `RUSTHINQ_REF`
       is moved forward in the same change
+
+## Common and IL contract checks
+
+Register every driver in `tests/contracts.json` with `contract: "il"` or
+`contract: "raw"` and `transport: "thinq1"` or `"thinq2"`. This declaration is
+explicit: a missing IL descriptor is a failure, not automatic reclassification
+as a raw driver. New drivers without declarations fail the common check.
+
+Run `python3 tools/check_contracts.py /path/to/rusthinq-script-test` alongside
+the normal model suite. CI runs both. The checker uses a temporary checkout
+with the production runner and generates the same tests for every driver:
+
+- All drivers: startup, empty/short input smoke checks, one invocation of each
+  installed timer, disconnect and reinitialization without callback errors.
+- IL drivers additionally: required descriptor publication at
+  `<prefix>/<id>/descriptor`, version/id/topic patterns, supported property
+  types, ordered ranges and positive steps, select option arrays, invalid
+  typed/read-only writes rejected without packet or command output, and
+  declared availability across disconnect/reinitialization.
+
+Raw drivers receive the common lifecycle checks without an IL requirement.
+The short inputs are smoke tests, not exhaustive malformed-frame fuzzing.
+These checks do not prove protocol field meanings, all emitted values, timer
+convergence, arbitrary-prefix behavior, or physical command correctness. Keep
+capture-based model tests and explicit control-interlock tests.
+
+The host's `[drivers] topic_prefix` controls all topics. There is no separate
+IL prefix module; see [migration and retained cleanup](mqtt-topics.md).

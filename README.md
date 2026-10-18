@@ -16,6 +16,7 @@ Point `[drivers] directory` at this checkout (or an extracted release):
 ```toml
 [drivers]
 directory = "/path/to/rusthinq-scripts"
+topic_prefix = "rusthinq"
 watch = true
 ```
 
@@ -24,18 +25,12 @@ needs rusthinq `bfb8e77` or later. With `watch = true`, `git pull` or an edit
 reloads the affected drivers; otherwise restart the daemon.
 
 A `.rhai` file in the checkout root overrides the one of the same name in
-`drivers/` or `modules/`. To choose the descriptor prefix (default `"il"`; `""`
-disables descriptor publication), copy the shipped default to the root and edit
-the copy:
-
-```sh
-cp modules/il_config_common.rhai il_config_common.rhai
-```
-
-Git ignores the root copy, so `git pull` never touches it. Copy rather than move,
-and leave `modules/il_config_common.rhai` unedited: it is tracked, and changing it
-makes pulls conflict. Property and command topics use the host's
-`[drivers] topic_prefix`.
+`drivers/` or `modules/`. Set `[drivers] topic_prefix` in the host configuration
+(default deployment value: `"rusthinq"`). States, commands and IL descriptors all
+use this prefix: `<prefix>/<id>/<prop>`, `<prefix>/<id>/<prop>/set` and
+`<prefix>/<id>/descriptor`. There is no separate IL prefix configuration.
+See [prefix migration and retained cleanup](docs/mqtt-topics.md) before upgrading
+from the old `il/<id>` descriptor topic or changing the host prefix.
 
 rusthinq must have the `scripting` feature. Driver filenames must match the
 appliance's reported `modelId`, including case and underscores.
@@ -65,13 +60,11 @@ restore availability after reconnecting; reported values may still reflect the l
 ```text
 drivers/              <modelId>.rhai drivers
 modules/              IL, code table, AABB, TLV, refrigerator, dishwasher,
-                      monitoring and energy modules;
-                      il_config_common.rhai (default descriptor prefix)
+                      monitoring and energy modules
 tests/                Device tests, protocol test helpers and runtime_test.rhai
 tools/rethink_frames.ts  Prints upstream rethink frames for ported tests
 tools/rethink_fixtures.mjs  Prints an upstream rethink test's fixtures
 RUSTHINQ_REF          rusthinq ref the drivers are tested against
-il_config_common.rhai Local override (ignored by Git)
 ```
 
 The washer/dryer/styler family uses `monitoring_common`, refrigerators use
@@ -90,7 +83,14 @@ Run the host's runner against the checkout:
 cargo run -p rusthinq-tools --bin rusthinq-script-test -- /path/to/rusthinq-scripts
 ```
 
-Use `"il"` as the descriptor prefix for tests. CI runs the driver tests against
+Run the common and IL contracts as well:
+
+```sh
+python3 tools/check_contracts.py /path/to/rusthinq-script-test
+```
+
+Declare each driver in `tests/contracts.json` (`il` or `raw`, and transport).
+CI runs both suites against
 the rusthinq ref in `RUSTHINQ_REF`; move it forward when a change needs a newer
 host.
 

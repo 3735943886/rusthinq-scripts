@@ -54,6 +54,9 @@ jobs:
       - name: Test and check the drivers
         run: rusthinq/target/release/rusthinq-script-test .
 
+      - name: Check common and IL contracts
+        run: python3 tools/check_contracts.py rusthinq/target/release/rusthinq-script-test
+
       - name: Record the tested rusthinq commit
         id: host
         run: echo "commit=$(git -C rusthinq rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -80,8 +83,8 @@ jobs:
           Device drivers for rusthinq 0.2, tested against rusthinq $HOST_COMMIT.
           For rusthinq 0.1, use the legacy branch and its earlier releases.
 
-          Extract the source archive and point [drivers] directory at it. A copy of
-          modules/il_config_common.rhai in that directory's root overrides the
-          default descriptor prefix.
+          Extract the source archive and point [drivers] directory at it.
+          All driver topics, including IL descriptors, use [drivers] topic_prefix.
+          See docs/mqtt-topics.md for retained cleanup before changing mappings.
           EOF
           gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes-file notes.md
