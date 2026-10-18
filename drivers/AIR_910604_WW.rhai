@@ -40,7 +40,7 @@ fn descriptor(ctx) {
             top_filter_remaining_time: #{ type: "number", unit: "h", category: "diagnostic" },
             top_filter_life_time: #{ type: "number", unit: "h", category: "diagnostic" },
             pm1: #{ type: "number", class: "pm1", series: "gauge", src: #{ tlv_tag: "0x333" }, unit: "μg/m³" },
-            "pm2.5": #{ type: "number", class: "pm2.5", series: "gauge", src: #{ tlv_tag: "0x334" }, unit: "μg/m³" },
+            "pm2.5": #{ type: "number", class: "pm25", series: "gauge", src: #{ tlv_tag: "0x334" }, unit: "μg/m³" },
             pm10: #{ type: "number", class: "pm10", series: "gauge", src: #{ tlv_tag: "0x335" }, unit: "μg/m³" },
             air_quality: #{ type: "number", series: "gauge", src: #{ tlv_tag: "0x240" }, min: 1, max: 4 },
             odor: #{ type: "number", series: "gauge", src: #{ tlv_tag: "0x241" }, min: 1, max: 4 },
