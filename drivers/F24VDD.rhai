@@ -196,7 +196,9 @@ fn on_data(ctx,data) {
  if b.len()<2 {return;}
  if b[0]!=(if is_dryer() {0x30} else {0x20}) {return;}
  if !is_dryer() {
-  if b[1]==0x72 && b.len()==5 {il::publish_property(ctx,"remote_start",c::bit(b[3],1));return;}
+  // 0x72 is a rare event, not a heartbeat: only its C8/C9 form is remote start (off/on).
+  // The user's capture also has 72 00 00 00 at cycle end, which says nothing about it.
+  if b[1]==0x72 && b.len()==5 {if b[3]==0xc8 || b[3]==0xc9 {il::publish_property(ctx,"remote_start",c::bit(b[3],1));}return;}
   if b[1]==0xd8 && b.len()==3 {il::publish_property(ctx,"power",c::bit(b[2],255));return;}
   if (b[1]==0xcd && b.len()==405) || (b[1]==0xbd && [406,476].contains(b.len())) {
    // The user's app-checked 1941 Wh capture disproves the PR's low-byte read.

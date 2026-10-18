@@ -197,8 +197,7 @@ Each test file cites the captures its driver is checked against.
 Drivers planned from upstream rethink are tracked in
 [docs/porting.md](docs/porting.md). Additional open PR ports from `dohun0310` and
 `tunarabuuu`, including exact revisions and runtime differences, are recorded in
-[docs/porting-prs.md](docs/porting-prs.md). Conflicts with existing live-verified
-drivers are reviewed in [docs/pr-conflicts.md](docs/pr-conflicts.md).
+[docs/porting-prs.md](docs/porting-prs.md).
 
 ## License
 

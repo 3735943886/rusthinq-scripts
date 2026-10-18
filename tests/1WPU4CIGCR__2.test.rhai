@@ -298,7 +298,8 @@ fn test_repeated_reports_do_not_invent_cumulative_usage() {
  expect_eq(d.script_error(),());
 }
 
-// Independent user-labelled pours, 2026-10-10 KST; see docs/pr-conflicts.md.
+// Independent user-labelled pours, 2026-10-10 KST (purifier-20261010-mapping.jsonl, SHA-256
+// a1df50946b86f0330343638bf4eaff5ba841edf1fa8ec6e9730f26f672cbee7a).
 // Includes a real 910 mL normal-water report which PR #118 rejects (it only reads one byte).
 fn test_user_capture_keeps_two_byte_volumes_and_last_report_semantics() {
  let d=device();

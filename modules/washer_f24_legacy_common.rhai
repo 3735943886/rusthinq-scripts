@@ -5,7 +5,8 @@
 //         at the start of a cycle
 //   0x00  the answer to a command
 //   0x31  two board serial numbers in ASCII, each with a counter beside it
-//   0xBD / 0xCD  ~405-byte diagnostic dumps, and 0x72, 0xD8, 0x19: not decoded. The dumps are
+//   0xBD / 0xCD  ~405-byte diagnostic dumps, and 0x72, 0xD8, 0x19: not decoded here (F24VDD.rhai
+//         reads the dumps' energy, 0xD8 power and 0x72's C8/C9 remote-start form). The dumps are
 //         telemetry, not settings; the rest is sensor history in rolling groups of four to five
 //         bytes that nothing names (the obvious reading, that the ramp climbing to ~88 is the
 //         water temperature, dies on the evidence: it peaks at the same value in a 60 C wash

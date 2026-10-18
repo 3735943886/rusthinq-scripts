@@ -26,8 +26,7 @@ lifecycle rather than adding a device.
 
 ## IL and runtime differences
 
-Conflict decisions and independent user-capture counterexamples are recorded in
-[pr-conflicts.md](pr-conflicts.md). PR parity is not treated as proof of correctness.
+PR parity is not treated as proof of correctness.
 
 Existing IL property/option names remain stable. New drivers use lowercase
 options and IL booleans. Durations use minutes (including HUM's timer, which

@@ -444,6 +444,17 @@ fn test_pr_180_17() {
     expect_eq(d.script_error(), ());
 }
 
+// (user capture, 2026-10-09 20:54:34) 72 00 00 00 at cycle end is not the C8/C9 form and
+// leaves remote_start as the last C8/C9 or status record set it
+fn test_a_non_c8_c9_0x72_event_leaves_remote_start() {
+    let d = device();
+    d.feed("aa09207200c9005bbb");
+    d.feed("aa09207200000010bb");
+    expect_props(d, #{"remote_start": "true"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
 // HA write power=ON is refused: no ON command was ever captured
 fn test_pr_180_18() {
     let d = device();
@@ -2375,7 +2386,8 @@ fn test_valid_empty_envelope_does_not_decode_as_status() {
  let d=device();d.feed("aa00ffbb");expect_eq(d.script_error(),());
 }
 
-// Independent user capture, 2026-10-09 KST; SHA-256 in docs/pr-conflicts.md.
+// Independent user capture, 2026-10-09 KST (washer.out, SHA-256
+// 74441008d1754ba97ff81f2b9c848457713eb8cb71fb111269db234c61d4c508).
 // All 92 monitoring + 20 diagnostic reports, in received order. PR #180's
 // one-byte decoder fails all 20 diagnostics; these expectations include >255 Wh.
 fn test_user_capture_preserves_full_width_energy_across_all_reports() {
