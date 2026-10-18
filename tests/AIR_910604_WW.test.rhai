@@ -12,7 +12,7 @@ fn running() { t::running(device(), caps(), values()) }
 fn test_the_captured_state_becomes_il_properties() {
     expect_props(running(), #{
         available: "true", power: "false", mode: "auto", fan: "auto", sterilize: "true",
-        light: "false", pm1: "8", pm25: "8", pm10: "10", air_quality: "1", odor: "1",
+        light: "false", pm1: "8", "pm2.5": "8", pm10: "10", air_quality: "1", odor: "1",
         filter_life: "93",      // 3707 of 4000 hours left
         top_filter_life: "92",  // 3670 of 4000
         sleep_timer: "0", error: "0"

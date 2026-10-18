@@ -40,7 +40,7 @@ fn descriptor(ctx) {
             top_filter_remaining_time: #{ type: "number", unit: "h", category: "diagnostic" },
             top_filter_life_time: #{ type: "number", unit: "h", category: "diagnostic" },
             pm1: #{ type: "number", class: "pm1", series: "gauge", src: #{ tlv_tag: "0x333" }, unit: "μg/m³" },
-            pm25: #{ type: "number", class: "pm25", series: "gauge", src: #{ tlv_tag: "0x334" }, unit: "μg/m³" },
+            "pm2.5": #{ type: "number", class: "pm2.5", series: "gauge", src: #{ tlv_tag: "0x334" }, unit: "μg/m³" },
             pm10: #{ type: "number", class: "pm10", series: "gauge", src: #{ tlv_tag: "0x335" }, unit: "μg/m³" },
             air_quality: #{ type: "number", series: "gauge", src: #{ tlv_tag: "0x240" }, min: 1, max: 4 },
             odor: #{ type: "number", series: "gauge", src: #{ tlv_tag: "0x241" }, min: 1, max: 4 },
@@ -114,7 +114,7 @@ fn apply(ctx, tag, v) {
         0x326 => { c::put(ctx, tag, v); let name=t::name(fans(),v);if name!=() {il::publish_property(ctx,"booster_fan",name);} }
         0x327 => { c::put(ctx, tag, v); il::publish_property(ctx, "circulation_rotation", c::flag(v)); }
         0x333 => { il::publish_property(ctx, "pm1", v.to_string()); }
-        0x334 => { il::publish_property(ctx, "pm25", v.to_string()); }
+        0x334 => { il::publish_property(ctx, "pm2.5", v.to_string()); }
         0x335 => { il::publish_property(ctx, "pm10", v.to_string()); }
         0x240 => { il::publish_property(ctx, "air_quality", v.to_string()); }
         0x241 => { il::publish_property(ctx, "odor", v.to_string()); }
