@@ -1,5 +1,7 @@
+// Also ports rethink PR #172 at eb15cc6954db7d68d1a71c55280f995cf02ad5dc.
 // LG air purifier AIR_910604_WW: device -> IL driver. A TLV (DualCool family) appliance;
-// the handshake, timers and write framing are shared in `tlv_common`.
+// handshake, timers and write framing are shared in `tlv_common`. The PR adds
+// fields; unsolicited reports alone do not justify removing existing refreshes.
 //
 // Tag names are the cloud's own (established live against the appliance): 0x1f7 power,
 // 0x1f9 operating mode, 0x1fa wind strength, 0x24e indicator lamp, 0x360 sterilization,
@@ -31,6 +33,12 @@ fn descriptor(ctx) {
                      options: t::options(modes()) },
             fan: #{ type: "select", rw: true, role: "fan_speed", src: #{ tlv_tag: "0x1fa" },
                     options: t::options(fans()) },
+            booster_fan: #{ type: "select", rw: true, options: t::options(fans()) },
+            circulation_rotation: #{ type: "binary", rw: true },
+            filter_remaining_time: #{ type: "number", unit: "h", category: "diagnostic" },
+            filter_life_time: #{ type: "number", unit: "h", category: "diagnostic" },
+            top_filter_remaining_time: #{ type: "number", unit: "h", category: "diagnostic" },
+            top_filter_life_time: #{ type: "number", unit: "h", category: "diagnostic" },
             pm1: #{ type: "number", class: "pm1", series: "gauge", src: #{ tlv_tag: "0x333" }, unit: "μg/m³" },
             pm25: #{ type: "number", class: "pm25", series: "gauge", src: #{ tlv_tag: "0x334" }, unit: "μg/m³" },
             pm10: #{ type: "number", class: "pm10", series: "gauge", src: #{ tlv_tag: "0x335" }, unit: "μg/m³" },
@@ -81,7 +89,7 @@ fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
-fn on_timer(ctx, name) { c::on_timer(ctx, name); }
+fn on_timer(ctx, name) { c::on_timer(ctx,name); }
 
 fn on_data(ctx, data) {
     let frame = c::receive(ctx, data, 10, [0x1f7]);
@@ -103,13 +111,15 @@ fn apply(ctx, tag, v) {
             let name = t::name(fans(), v);
             if name != () { il::publish_property(ctx, "fan", name); }
         }
+        0x326 => { c::put(ctx, tag, v); let name=t::name(fans(),v);if name!=() {il::publish_property(ctx,"booster_fan",name);} }
+        0x327 => { c::put(ctx, tag, v); il::publish_property(ctx, "circulation_rotation", c::flag(v)); }
         0x333 => { il::publish_property(ctx, "pm1", v.to_string()); }
         0x334 => { il::publish_property(ctx, "pm25", v.to_string()); }
         0x335 => { il::publish_property(ctx, "pm10", v.to_string()); }
         0x240 => { il::publish_property(ctx, "air_quality", v.to_string()); }
         0x241 => { il::publish_property(ctx, "odor", v.to_string()); }
-        0x355 | 0x356 => { c::put(ctx, tag, v); filter_life(ctx, "filter_life", 0x355, 0x356); }
-        0x363 | 0x364 => { c::put(ctx, tag, v); filter_life(ctx, "top_filter_life", 0x363, 0x364); }
+        0x355 | 0x356 => { il::publish_property(ctx, if tag == 0x355 {"filter_remaining_time"} else {"filter_life_time"}, v.to_string()); c::put(ctx, tag, v); filter_life(ctx, "filter_life", 0x355, 0x356); }
+        0x363 | 0x364 => { il::publish_property(ctx, if tag == 0x363 {"top_filter_remaining_time"} else {"top_filter_life_time"}, v.to_string()); c::put(ctx, tag, v); filter_life(ctx, "top_filter_life", 0x363, 0x364); }
         0x24e => { c::put(ctx, tag, v); il::publish_property(ctx, "light", c::flag(v)); }
         0x360 => { c::put(ctx, tag, v); il::publish_property(ctx, "sterilize", c::flag(v)); }
         0x21a => { c::put(ctx, tag, v); il::publish_property(ctx, "sleep_timer", v.to_string()); }
@@ -143,6 +153,12 @@ fn set_property(ctx, prop, value) {
             c::put(ctx, 0x1f7, 1);
             c::write(ctx, 0x1f9, wire, [0x1f7, 0x1fa]);
         }
+        "booster_fan" => {
+            let wire = t::code(fans(), value);
+            c::put(ctx, 0x1f7, 1);
+            c::write(ctx, 0x326, wire, [0x1f7]);
+        }
+        "circulation_rotation" => { c::write(ctx, 0x327, if c::to_bool(value) {1} else {0}, []); }
         "light" => { c::write(ctx, 0x24e, if c::to_bool(value) { 1 } else { 0 }, []); }
         "sterilize" => { c::write(ctx, 0x360, if c::to_bool(value) { 1 } else { 0 }, []); }
         "sleep_timer" => {

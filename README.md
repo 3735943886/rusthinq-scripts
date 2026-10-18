@@ -77,7 +77,8 @@ il_config_common.rhai Local override (ignored by Git)
 The washer/dryer/styler family uses `monitoring_common`, refrigerators use
 `fridge_common`, dishwashers `dishwasher_common` and the EU washers
 `washer_common`; all import `aabb_common`. TLV drivers delegate handshake,
-retry, refresh and framing to `tlv_common`. Every driver publishes through
+retry, refresh and framing to `tlv_common`; PAC listens passively. `tlv_fields_common` supplies fixed field maps for the newer
+TLV profiles, and `washtower_kr_common` handles the Korean split WashTower. Every driver publishes through
 `il_common`; named `*_common.rhai` files are modules, not device drivers.
 
 ## Checking a change
@@ -127,7 +128,11 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `2RES1VE600FWC` | refrigerator | AABB | captured |
 | `2RES1VE61NFA2` | refrigerator | AABB | captured |
 | `1WPU4CIGCR__2` | water purifier | AABB | captured |
+| `1WPD6CMIDR__3` | water/ice purifier (WD722RH) | AABB | captured |
 | `AIR_910604_WW` | air purifier | TLV | captured |
+| `HUM_056905_WW` | humidifying air purifier | TLV | captured |
+| `HWWA9K_F2` | CordZero A9 stick vacuum | AABB | captured |
+| `PAC_910604_WW` | floor-standing air conditioner | TLV | captured |
 | `CST_570004_WW` | ceiling-cassette air conditioner | TLV | captured |
 | `POT_056905_WW` | portable air conditioner | TLV | captured |
 | `RAC_056905_WW` | split air conditioner | TLV or ThinQ1 | captured |
@@ -139,6 +144,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `H11` | dishwasher | AABB | captured |
 | `N17` | dishwasher | AABB | captured |
 | `DHUM_056905_WW` | dehumidifier | TLV | captured |
+| `DHUM_231006_WW` | dehumidifier | TLV | captured |
 | `F_V8_Y___W.B_2QEUK` | washer | AABB | captured |
 | `F_V7_Y___W.B_2QEUK`, `F_V7_Y___W.B__QEUK`, `F_V__Y___W.B_2QEUK` | washer (alias of `F_V8_Y___W.B_2QEUK`) | AABB | captured |
 | `F_VB_Y___W.B_2QEUK` | washer | AABB | captured |
@@ -151,8 +157,10 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `Y_V8_F___W.B_2QEUK` | washer-dryer | AABB envelope | captured |
 | `F24VDD` | washer | AABB monitoring | captured |
 | `RH14_N_KR` | dryer | AABB monitoring | captured |
+| `RH16_T_KR` | heat-pump dryer | AABB | captured |
 | `S3BF_POD_DN4` | styler | AABB monitoring | captured |
 | `ST_B_E4H01Y_APL` | styler | AABB | captured |
+| `S5MPC` | styler | AABB | captured |
 | `STUDIO_HOOD` | range hood | AABB | captured |
 | `WBEY3GT` | cooktop | AABB | captured |
 | `WFV474PGV` | double oven range | AABB | captured |
@@ -174,6 +182,8 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `RC90U2_WW` | heat pump dryer (read-only) | AABB | captured |
 | `RC90V9_WW` | heat pump dryer (read-only; alias of `RC90U2_WW`) | AABB | captured |
 | `WTL_FXU_BDV_NA_01` | WashTower (washer and dryer) | AABB | captured |
+| `FAKPK21021` | Korean WashTower washer | AABB envelope | captured |
+| `BDH_D39301_KR` | Korean WashTower dryer | AABB envelope | captured |
 | `WTDN3` | washer-dryer | ThinQ1 | captured |
 | `WTWN3` | washer | ThinQ1 | captured |
 
@@ -185,7 +195,10 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 
 Each test file cites the captures its driver is checked against.
 Drivers planned from upstream rethink are tracked in
-[docs/porting.md](docs/porting.md).
+[docs/porting.md](docs/porting.md). Additional open PR ports from `dohun0310` and
+`tunarabuuu`, including exact revisions and runtime differences, are recorded in
+[docs/porting-prs.md](docs/porting-prs.md). Conflicts with existing live-verified
+drivers are reviewed in [docs/pr-conflicts.md](docs/pr-conflicts.md).
 
 ## License
 

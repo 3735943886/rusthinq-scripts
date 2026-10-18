@@ -1,3 +1,4 @@
+// Checked against rethink PR #113, 1419bf64e130f9c1268297221b62869b75ae383c (dhum_common).
 // LG dehumidifier DHUM_056905_WW: device -> IL driver.
 //
 // Speaks the TLV protocol to the appliance and describes/reports it in the neutral IL

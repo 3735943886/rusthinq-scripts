@@ -5,6 +5,9 @@ Plan and tracker for porting every device driver in
 [writing-a-driver.md](writing-a-driver.md); this page records what exists
 upstream, what must be built first, and the order of work.
 
+Additional open PRs are tracked separately in [porting-prs.md](porting-prs.md);
+they do not move this master baseline.
+
 ## Upstream baseline
 
 | | |

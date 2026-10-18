@@ -1,3 +1,4 @@
+// Also ports rethink PR #118 at b815692e1dc6f6e028b6fe9278fbd55979a5806a.
 // LG water purifier 1WPU4CIGCR__2 (cold / hot / purified / sterilised water): device -> IL
 // driver. An AABB (`AA len .. checksum BB`) appliance that reports on its own; nothing is
 // asked for. Frames are discriminated by inner byte 1 (inner byte 0 is 0x12):
@@ -15,8 +16,8 @@
 // bytes are writable too but deliberately not offered: a time-only write moves the weekly run
 // to another weekday.
 //
-// Not published: fields that only ever read IGNORE, the unidentified bytes (7, 9, 21, 23,
-// 24), and unidentified dispensing slots 3/4. ThinQ's app shows
+// Not published: fields that only ever read IGNORE, unidentified bytes 7/9/21,
+// and the individual unidentified dispensing slots 3/4. ThinQ's app shows
 // energy monitoring: 0xAF reports approximately 15-minute Wh deltas, summed in memory.
 
 import "aabb_common" as c;
@@ -37,6 +38,10 @@ fn descriptor(ctx) {
         props: #{
             available: #{ type: "binary", role: "available" },
             energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy since driver restart" },
+            sterilize_state: #{type:"select",options:["standby","water_line_sterilizing","outlet_sterilizing","cancelling_sterilize"]},
+            filter_flushing: #{type:"select",options:["off","filter_replacement"]},
+            app_version: #{type:"number",category:"diagnostic"},
+            data_refresh: #{type:"number",category:"diagnostic"},
             status: #{ type: "select", category: "diagnostic", options: t::options(statuses()) },
             tap_uv: #{ type: "select", label: "Tap UV lamp",
                        options: t::options(tap_uv_states()) },
@@ -129,6 +134,11 @@ fn status(ctx, r, o) {
     il::publish_property(ctx, "button_sound", c::on_off(r[o + 12]));
     il::publish_property(ctx, "not_use_notice", c::on_off(r[o + 8]));
 
+    let sterilize = switch r[o+23] {0=>"standby",1|2|3=>"water_line_sterilizing",4=>"outlet_sterilizing",5=>"cancelling_sterilize",_=>()};
+    c::pub_name(ctx,"sterilize_state",sterilize);
+    c::pub_name(ctx,"filter_flushing",switch r[o+24] {0=>"off",1=>"filter_replacement",_=>()});
+    il::publish_property(ctx,"app_version",r[o+25].to_string());
+    il::publish_property(ctx,"data_refresh",r[o+22].to_string());
     // The next self-clean, as month / day / hour / minute with no year, in UTC. Converting
     // to local time needs a timezone and a calendar, which is a consumer's business.
     let month = r[o + 15];
@@ -140,7 +150,9 @@ fn status(ctx, r, o) {
 }
 
 // Six BE volumes: live-verified normal/hot/cold at slots 0/1/2, clean at 5.
-// Slots 3/4 remain unidentified. Reports replace values, not daily totals.
+// Slots 3/4 remain unidentified. Reports replace last-dispense values.
+// There is no independent evidence that every repeated 1F report is a new pour;
+// do not turn it into a cumulative usage counter (unlike PR #118).
 fn dispensing(ctx, r) {
     let names = ["normal_water_last_dispensed", "hot_water_last_dispensed", "cold_water_last_dispensed", "clean_water_last_dispensed"];
     let slots = [0, 1, 2, 5];

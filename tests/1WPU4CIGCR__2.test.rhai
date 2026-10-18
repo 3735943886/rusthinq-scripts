@@ -244,3 +244,76 @@ fn test_last_hot_temperature_setting_tracks_live_selections_and_survives_cold() 
     expect_eq(d.property("hot_water_last_temperature"), "75");
     expect_eq(d.script_error(), ());
 }
+// BEGIN PR VECTORS
+// Regression vectors from rethink PR #118 (b815692e1dc6f6e028b6fe9278fbd55979a5806a).
+// Original test names are retained below. Expected TX bytes come from executing the TS driver.
+
+// a real state frame decodes to HA-friendly values
+fn test_pr_118_1() {
+    let d = device();
+    d.feed("aa2012eb020002010101ffff00ff010101ffff071c121eff01ff0300000177bb");
+    expect_props(d, #{"status": "normal", "tap_uv": "standby", "water_selection": "normal", "sterilize_state": "standby", "filter_flushing": "off", "water_amount": "120ml", "self_clean_next": "07-28 18:30", "app_version": "1", "data_refresh": "3"});
+    expect_eq(d.script_error(), ());
+}
+
+// captured byte changes still decode the right live values
+fn test_pr_118_2() {
+    let d = device();
+    d.feed("aa2012eb020003010101ffff00ff010101ffff071c121eff01ff0300000176bb");
+    expect_props(d, #{"status": "normal", "tap_uv": "standby", "water_selection": "cold", "sterilize_state": "standby", "filter_flushing": "off", "water_amount": "120ml", "self_clean_next": "07-28 18:30", "app_version": "1", "data_refresh": "3"});
+    expect_eq(d.script_error(), ());
+}
+
+// captured byte changes still decode the right live values
+fn test_pr_118_3() {
+    let d = device();
+    d.feed("aa2012eb020002010100ffff00ff010101ffff071c121eff01ff0300000174bb");
+    expect_props(d, #{"status": "normal", "tap_uv": "standby", "water_selection": "normal", "sterilize_state": "standby", "filter_flushing": "off", "self_clean_next": "07-28 18:30", "app_version": "1", "data_refresh": "3"});
+    expect_eq(d.script_error(), ());
+}
+
+// captured byte changes still decode the right live values
+fn test_pr_118_4() {
+    let d = device();
+    d.feed("aa2012eb020002010101ffff00ff010101ffff071c121eff01ff0303000170bb");
+    expect_props(d, #{"status": "normal", "tap_uv": "standby", "water_selection": "normal", "sterilize_state": "water_line_sterilizing", "filter_flushing": "off", "water_amount": "120ml", "self_clean_next": "07-28 18:30", "app_version": "1", "data_refresh": "3"});
+    expect_eq(d.script_error(), ());
+}
+
+// captured byte changes still decode the right live values
+fn test_pr_118_5() {
+    let d = device();
+    d.feed("aa2012eb02000201010103ff00ff010101ffff071c121eff01ff0300000173bb");
+    expect_props(d, #{"status": "normal", "tap_uv": "standby", "water_selection": "normal", "sterilize_state": "standby", "filter_flushing": "off", "water_amount": "120ml", "self_clean_next": "07-28 18:30", "app_version": "1", "data_refresh": "3"});
+    expect_eq(d.script_error(), ());
+}
+
+// PR #118's sum is not independently established: these are report snapshots.
+fn test_repeated_reports_do_not_invent_cumulative_usage() {
+ let d=device();
+ for frame in ["aa12121f00fc00000000000000000000bcbb","aa12121f0032000000000000000000004abb","aa12121f00fc00000000000000000000bcbb"] {d.feed(frame);}
+ expect_props(d,#{normal_water_last_dispensed:"252",hot_water_last_dispensed:"0",cold_water_last_dispensed:"0"});
+ expect_eq(d.property("water_usage_total"),());
+ d.start();let doc=runtime::descriptor(d);expect_eq(doc.props.water_usage_total,());
+ expect_eq(d.script_error(),());
+}
+
+// Independent user-labelled pours, 2026-10-10 KST; see docs/pr-conflicts.md.
+// Includes a real 910 mL normal-water report which PR #118 rejects (it only reads one byte).
+fn test_user_capture_keeps_two_byte_volumes_and_last_report_semantics() {
+ let d=device();
+ d.feed("aa12121f00fc00000000000000000000bcbb");expect_props(d,#{normal_water_last_dispensed:"252",hot_water_last_dispensed:"0",cold_water_last_dispensed:"0",clean_water_last_dispensed:"0"});
+ d.feed("aa12121f0000007e00000000000000003ebb");expect_props(d,#{normal_water_last_dispensed:"0",hot_water_last_dispensed:"126",cold_water_last_dispensed:"0",clean_water_last_dispensed:"0"});
+ d.feed("aa12121f000000000106000000000000a1bb");expect_props(d,#{normal_water_last_dispensed:"0",hot_water_last_dispensed:"0",cold_water_last_dispensed:"262",clean_water_last_dispensed:"0"});
+ d.feed("aa12121f00000077000000000000000031bb");expect_props(d,#{normal_water_last_dispensed:"0",hot_water_last_dispensed:"119",cold_water_last_dispensed:"0",clean_water_last_dispensed:"0"});
+ d.feed("aa12121f000000f90000000000000000b3bb");expect_props(d,#{normal_water_last_dispensed:"0",hot_water_last_dispensed:"249",cold_water_last_dispensed:"0",clean_water_last_dispensed:"0"});
+ d.feed("aa12121f000000000000000000000099d3bb");expect_props(d,#{normal_water_last_dispensed:"0",hot_water_last_dispensed:"0",cold_water_last_dispensed:"0",clean_water_last_dispensed:"153"});
+ d.feed("aa12121f038e000000000000000000002bbb");expect_props(d,#{normal_water_last_dispensed:"910",hot_water_last_dispensed:"0",cold_water_last_dispensed:"0",clean_water_last_dispensed:"0"});
+ d.feed("aa12121f00000000003f00000000000079bb");expect_props(d,#{normal_water_last_dispensed:"0",hot_water_last_dispensed:"0",cold_water_last_dispensed:"63",clean_water_last_dispensed:"0"});
+ d.feed("aa12121f0000000000fc000000000000bcbb");expect_props(d,#{normal_water_last_dispensed:"0",hot_water_last_dispensed:"0",cold_water_last_dispensed:"252",clean_water_last_dispensed:"0"});
+ d.feed("aa12121f00fc00000000000000000000bcbb");expect_props(d,#{normal_water_last_dispensed:"252",hot_water_last_dispensed:"0",cold_water_last_dispensed:"0",clean_water_last_dispensed:"0"});
+ d.feed("aa12121f00fc00000000000000000000bcbb");expect_props(d,#{normal_water_last_dispensed:"252",hot_water_last_dispensed:"0",cold_water_last_dispensed:"0",clean_water_last_dispensed:"0"});
+ d.feed("aa12121f00fc00000000000000000000bcbb");expect_props(d,#{normal_water_last_dispensed:"252",hot_water_last_dispensed:"0",cold_water_last_dispensed:"0",clean_water_last_dispensed:"0"});
+ d.feed("aa12121f00fc00000000000000000000bcbb");expect_props(d,#{normal_water_last_dispensed:"252",hot_water_last_dispensed:"0",cold_water_last_dispensed:"0",clean_water_last_dispensed:"0"});
+ expect_eq(d.property("water_usage_total"),());expect_eq(d.script_error(),());
+}

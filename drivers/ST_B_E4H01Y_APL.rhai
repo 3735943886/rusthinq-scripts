@@ -1,3 +1,4 @@
+// Also checked against rethink PR #115, 080a8b432d068d913f027db9c27d5e5d28b437ff.
 // LG Styler ST_B_E4H01Y_APL (S5BBP): port of upstream rethink's ST_B_E4H01Y_APL.ts (commit
 // 0e57069), whose layout was recovered by injecting single-byte-changed frames into LG's cloud and
 // reading its decode back, and whose writes reproduce frames LG's own converter sent.
@@ -253,8 +254,8 @@ fn set_property(ctx, prop, value) {
         "smart_care_finedust" => flag_setting(ctx, 0x04, prop, value),
         "smart_care_humidity" => flag_setting(ctx, 0x05, prop, value),
         "smart_care_nightcare" => flag_setting(ctx, 0x06, prop, value),
-        "buzzer" => { up_center(ctx, 0x03, [t::code(buzzers(), value)]); echo(ctx, prop, value); }
-        "end_melody" => { up_center(ctx, 0x01, [t::code(melodies(), value)]); echo(ctx, prop, value); }
+        "buzzer" => { let code=t::code(buzzers(),value);if code==() {c::reject(ctx,prop,"unknown option");return;}up_center(ctx,0x03,[code]);echo(ctx,prop,value); }
+        "end_melody" => { let code=t::code(melodies(),value);if code==() {c::reject(ctx,prop,"unknown option");return;}up_center(ctx,0x01,[code]);echo(ctx,prop,value); }
         "course_select" => {
             ctx.state_set("selected", t::code(courses(), value));
             il::publish_property(ctx, "course_select", value); // nothing goes to the appliance

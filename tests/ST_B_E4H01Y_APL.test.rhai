@@ -349,3 +349,994 @@ fn test_no_read_only_property_is_config() {
         if !(p.rw ?? false) && p.type != "trigger" { expect(p.category != "config", name); }
     }
 }
+// BEGIN PR VECTORS
+// Regression vectors from rethink PR #115 (080a8b432d068d913f027db9c27d5e5d28b437ff).
+// Original test names are retained below. Expected TX bytes come from executing the TS driver.
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_1() {
+    let d = device();
+    d.set("power", "true");
+    expect_props(d, #{"power": "true"});
+    expect_eq(hex_encode(d.sent()[0]), "aa09f0240101019fbb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_2() {
+    let d = device();
+    d.set("power", "false");
+    expect_props(d, #{"power": "false"});
+    expect_eq(hex_encode(d.sent()[0]), "aa09f0240101009cbb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_3() {
+    let d = device();
+    d.set("end_melody", "default_sound");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af0241301010088bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_4() {
+    let d = device();
+    d.set("end_melody", "vivaldi_winter");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af024130101018bbb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_5() {
+    let d = device();
+    d.set("end_melody", "bach_minuet");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af024130101028abb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_6() {
+    let d = device();
+    d.set("end_melody", "home_sweet_home");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010103b5bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_7() {
+    let d = device();
+    d.set("end_melody", "breeze");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010104b4bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_8() {
+    let d = device();
+    d.set("end_melody", "old_macdonald");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010105b7bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_9() {
+    let d = device();
+    d.set("end_melody", "verdi_brindisi");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010106b6bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_10() {
+    let d = device();
+    d.set("end_melody", "bubble");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010107b1bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_11() {
+    let d = device();
+    d.set("end_melody", "beethoven_symphony_no_5_5");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010108b0bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_12() {
+    let d = device();
+    d.set("end_melody", "arirang");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010109b3bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_13() {
+    let d = device();
+    d.set("end_melody", "pachelbel_canon");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af0241301010ab2bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_14() {
+    let d = device();
+    d.set("end_melody", "beethoven_choral");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af0241301010bbdbb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_15() {
+    let d = device();
+    d.set("buzzer", "mute");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af024130103008abb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_16() {
+    let d = device();
+    d.set("buzzer", "small");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010301b5bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_17() {
+    let d = device();
+    d.set("buzzer", "normal");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010302b4bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_18() {
+    let d = device();
+    d.set("buzzer", "large");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010303b7bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_19() {
+    let d = device();
+    d.set("buzzer", "very_large");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010304b6bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_20() {
+    let d = device();
+    d.set("smart_care_finedust", "true");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010401b4bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_21() {
+    let d = device();
+    d.set("smart_care_finedust", "false");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010400b5bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_22() {
+    let d = device();
+    d.set("smart_care_humidity", "true");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010501b7bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_23() {
+    let d = device();
+    d.set("smart_care_humidity", "false");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010500b4bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_24() {
+    let d = device();
+    d.set("smart_care_nightcare", "true");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010601b6bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_25() {
+    let d = device();
+    d.set("smart_care_nightcare", "false");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010600b7bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_26() {
+    let d = device();
+    d.set("keep_last_course", "true");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010901b3bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// each write reproduces the frame LG itself sent for that command
+fn test_pr_115_27() {
+    let d = device();
+    d.set("keep_last_course", "false");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010900b0bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// Remote control allowed writes the frame the appliance acknowledged
+fn test_pr_115_28() {
+    let d = device();
+    d.set("remote_maintain", "true");
+    expect_eq(hex_encode(d.sent()[0]), "aa09f0241001018cbb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// Remote control allowed writes the frame the appliance acknowledged
+fn test_pr_115_29() {
+    let d = device();
+    d.set("remote_maintain", "false");
+    expect_eq(hex_encode(d.sent()[0]), "aa09f0241001008dbb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// Start course reproduces the frame LG itself sent, for both captured courses
+fn test_pr_115_30() {
+    let d = device();
+    d.set("course_select", "styling_standard");
+    expect_props(d, #{"course_select": "styling_standard"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("start_course", "");
+    expect_props(d, #{"course_select": "styling_standard"});
+    expect_eq(hex_encode(d.sent()[0]), "aa34f02601010004000000000002645a00000005005a05b45a01b4001ab40000000000000000000000000000000000000000fabb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// Start course reproduces the frame LG itself sent, for both captured courses
+fn test_pr_115_31() {
+    let d = device();
+    d.set("course_select", "styling_quick");
+    expect_props(d, #{"course_select": "styling_quick"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("start_course", "");
+    expect_props(d, #{"course_select": "styling_quick"});
+    expect_eq(hex_encode(d.sent()[0]), "aa34f02603010004000000000082645a00000003005a00000001b4000eb4000000000000000000000000000000000000000045bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// Pause and Resume reproduce their captured frames
+fn test_pr_115_32() {
+    let d = device();
+    d.set("course_select", "styling_standard");
+    expect_props(d, #{"course_select": "styling_standard"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("pause_course", "");
+    expect_props(d, #{"course_select": "styling_standard"});
+    expect_eq(hex_encode(d.sent()[0]), "aa09f02404010099bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+    d.set("resume_course", "");
+    expect_props(d, #{"course_select": "styling_standard"});
+    expect_eq(hex_encode(d.sent()[1]), "aa33f026010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a1bb");
+    expect_eq(d.sent().len(), 2);
+    expect_eq(d.script_error(), ());
+}
+
+// a write shows up straight away instead of waiting for the appliance
+fn test_pr_115_33() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000100010001000001000000000000200000000000000000014e42000004030000080000000025969ebb");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "true", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("buzzer", "small");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "small", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "true", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010301b5bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+    d.set("smart_care_humidity", "true");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "small", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "true", "smart_care_nightcare": "true", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(hex_encode(d.sent()[1]), "aa0af02413010501b7bb");
+    expect_eq(d.sent().len(), 2);
+    expect_eq(d.script_error(), ());
+    d.set("night_care_start", "22:30");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "small", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "true", "smart_care_nightcare": "true", "night_care_start": "22:30", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(hex_encode(d.sent()[2]), "aa0bf024130207161e4cbb");
+    expect_eq(d.sent().len(), 3);
+    expect_eq(d.script_error(), ());
+    d.set("course_select", "styling_standard");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "small", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "true", "smart_care_nightcare": "true", "night_care_start": "22:30", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37", "course_select": "styling_standard"});
+    expect_eq(d.sent().len(), 3);
+    expect_eq(d.script_error(), ());
+    d.set("start_course", "");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "styling_standard", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "small", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "true", "smart_care_nightcare": "true", "night_care_start": "22:30", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37", "course_select": "styling_standard"});
+    expect_eq(hex_encode(d.sent()[3]), "aa34f02601010004000000000002645a00000005005a05b45a01b4001ab40000000000000000000000000000000000000000fabb");
+    expect_eq(d.sent().len(), 4);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000100010001000001000000000000200000000000000000014e42000004030000080000000025969ebb");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "true", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37", "course_select": "styling_standard"});
+    expect_eq(d.sent().len(), 4);
+    expect_eq(d.script_error(), ());
+}
+
+// a setting rejected while powered off is not optimistically published
+fn test_pr_115_34() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("buzzer", "small");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010301b5bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+    d.set("smart_care_humidity", "true");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(hex_encode(d.sent()[1]), "aa0af02413010501b7bb");
+    expect_eq(d.sent().len(), 2);
+    expect_eq(d.script_error(), ());
+    d.set("course_select", "styling_standard");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37", "course_select": "styling_standard"});
+    expect_eq(d.sent().len(), 2);
+    expect_eq(d.script_error(), ());
+    d.set("start_course", "");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37", "course_select": "styling_standard"});
+    expect_eq(hex_encode(d.sent()[2]), "aa34f02601010004000000000002645a00000005005a05b45a01b4001ab40000000000000000000000000000000000000000fabb");
+    expect_eq(d.sent().len(), 3);
+    expect_eq(d.script_error(), ());
+}
+
+// night-care times rejected while night care is disabled are not optimistically published
+fn test_pr_115_35() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000100010001000001000000000000200000000000000000014e42000004030000000000000025969ebb");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("night_care_start", "22:30");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(hex_encode(d.sent()[0]), "aa0bf024130207161e4cbb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+    d.set("night_care_end", "06:00");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(hex_encode(d.sent()[1]), "aa0bf0241302080600b9bb");
+    expect_eq(d.sent().len(), 2);
+    expect_eq(d.script_error(), ());
+}
+
+// no setting is optimistically published before the first authoritative state
+fn test_pr_115_36() {
+    let d = device();
+    d.set("buzzer", "small");
+    expect_eq(hex_encode(d.sent()[0]), "aa0af02413010301b5bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+    d.set("course_select", "styling_standard");
+    expect_props(d, #{"course_select": "styling_standard"});
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+    d.set("start_course", "");
+    expect_props(d, #{"course_select": "styling_standard"});
+    expect_eq(hex_encode(d.sent()[1]), "aa34f02601010004000000000002645a00000005005a05b45a01b4001ab40000000000000000000000000000000000000000fabb");
+    expect_eq(d.sent().len(), 2);
+    expect_eq(d.script_error(), ());
+}
+
+// a course rejected by a standing error is not optimistically published
+fn test_pr_115_37() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000100010001000101000000000000200000000000000000014e420000040300000000000000252b43bb");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "true", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("course_select", "styling_standard");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "true", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37", "course_select": "styling_standard"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("start_course", "");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "true", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37", "course_select": "styling_standard"});
+    expect_eq(hex_encode(d.sent()[0]), "aa34f02601010004000000000002645a00000005005a05b45a01b4001ab40000000000000000000000000000000000000000fabb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// Course select chooses without commanding the appliance
+fn test_pr_115_38() {
+    let d = device();
+    d.set("course_select", "sterilize_standard");
+    expect_props(d, #{"course_select": "sterilize_standard"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("start_course", "");
+    expect_props(d, #{"course_select": "sterilize_standard"});
+    expect_eq(hex_encode(d.sent()[0]), "aa34f0260b01000400000000000200002d0000060000080000030000237800000000000000000000000000000000000000008abb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// a course the appliance is running takes over the selection
+fn test_pr_115_39() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001010001000000000000200000000000000000014e42000004030000000000000025ffd9bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "styling_standard", "smart_course": "none", "course_select": "styling_standard", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "course_select": "styling_standard", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// an unknown course is refused rather than started
+fn test_pr_115_40() {
+    let d = device();
+    d.set("course_select", "invalidcourse");
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the night-care window writes hour and minute in one frame
+fn test_pr_115_41() {
+    let d = device();
+    d.set("night_care_start", "23:30");
+    expect_eq(hex_encode(d.sent()[0]), "aa0bf024130207171e4fbb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// the night-care window writes hour and minute in one frame
+fn test_pr_115_42() {
+    let d = device();
+    d.set("night_care_start", "00:00");
+    expect_eq(hex_encode(d.sent()[0]), "aa0bf0241302070000b0bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// the night-care window writes hour and minute in one frame
+fn test_pr_115_43() {
+    let d = device();
+    d.set("night_care_end", "06:00");
+    expect_eq(hex_encode(d.sent()[0]), "aa0bf0241302080600b9bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// the night-care window writes hour and minute in one frame
+fn test_pr_115_44() {
+    let d = device();
+    d.set("night_care_end", "00:00");
+    expect_eq(hex_encode(d.sent()[0]), "aa0bf0241302080000b3bb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// a time the appliance would refuse is not written
+fn test_pr_115_45() {
+    let d = device();
+    d.set("night_care_start", "23:45");
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// a time the appliance would refuse is not written
+fn test_pr_115_46() {
+    let d = device();
+    d.set("night_care_start", "24:00");
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// a time the appliance would refuse is not written
+fn test_pr_115_47() {
+    let d = device();
+    d.set("night_care_start", "9_30");
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// a time the appliance would refuse is not written
+fn test_pr_115_48() {
+    let d = device();
+    d.set("night_care_start", "abc");
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// a time the appliance would refuse is not written
+fn test_pr_115_49() {
+    let d = device();
+    d.set("night_care_start", "");
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// a time the appliance would refuse is not written
+fn test_pr_115_50() {
+    let d = device();
+    d.set("night_care_start", "07_1");
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// an unknown option is refused rather than guessed
+fn test_pr_115_51() {
+    let d = device();
+    d.set("buzzer", "invalidvolume");
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("end_melody", "jingle_bells_intro");
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("course", "styling_standard");
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the power switch reports OFF as soon as it is switched off
+fn test_pr_115_52() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000100010001000001000000000000200000000000000000014e42000004030000000000000025969ebb");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.set("power", "false");
+    expect_props(d, #{"status": "standby", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(hex_encode(d.sent()[0]), "aa09f0240101009cbb");
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000100010001000001000000000000200000000000000000014e42000004030000000000000025969ebb");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// every user-facing name and enum option is English
+fn test_pr_115_53() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// real captured frame decodes to what LG read from the same frame
+fn test_pr_115_54() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// a second real frame with a different sequence number decodes identically
+fn test_pr_115_55() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// a second real frame with a different sequence number decodes identically
+fn test_pr_115_56() {
+    let d = device();
+    d.feed("aaff310a003a005504000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000251351bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// each probed offset moves exactly the field LG said it moves
+fn test_pr_115_57() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000100010001000001000000000000200000000000000000014e42000004030000000000000025969ebb");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// each probed offset moves exactly the field LG said it moves
+fn test_pr_115_58() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000000010001010001000000000000200000000000000000014e42000004030000000000000025ffd9bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "styling_standard", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37", "course_select": "styling_standard"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// each probed offset moves exactly the field LG said it moves
+fn test_pr_115_59() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000101000000000000200000000000000000014e420000040300000000000000252b43bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "true", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// each probed offset moves exactly the field LG said it moves
+fn test_pr_115_60() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000002000000000000200000000000000000014e42000004030000000000000025f05fbb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "styling", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// each probed offset moves exactly the field LG said it moves
+fn test_pr_115_61() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e42000001030000000000000025b075bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "small", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// each probed offset moves exactly the field LG said it moves
+fn test_pr_115_62() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e4200000403010000000000002535d6bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "vivaldi_winter", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// each probed offset moves exactly the field LG said it moves
+fn test_pr_115_63() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000010000014e420000040300000000000000258234bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "panel_course", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// each probed offset moves exactly the field LG said it moves
+fn test_pr_115_64() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e4200000403000000000000000116e3bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "1"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// each probed offset moves exactly the field LG said it moves
+fn test_pr_115_65() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e42000004040000000000000025c3aebb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "true", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the running-state codes decode, not just the idle ones
+fn test_pr_115_66() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the running-state codes decode, not just the idle ones
+fn test_pr_115_67() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000300010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "pause", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the running-state codes decode, not just the idle ones
+fn test_pr_115_68() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000900010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_save_running", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the running-state codes decode, not just the idle ones
+fn test_pr_115_69() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800003200010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "steam_preparing", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the running-state codes decode, not just the idle ones
+fn test_pr_115_70() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800003400010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "refreshing", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the running-state codes decode, not just the idle ones
+fn test_pr_115_71() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800003700010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "drying", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the running-state codes decode, not just the idle ones
+fn test_pr_115_72() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800003900010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "sterilizing", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the running-state codes decode, not just the idle ones
+fn test_pr_115_73() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800003a00010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "course_complete", "power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// a code LG itself does not define is shown as a code, not as a wrong name
+fn test_pr_115_74() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800001400010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"power": "true", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the error codes decode, and Water refill is not off by one
+fn test_pr_115_75() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the error codes decode, and Water refill is not off by one
+fn test_pr_115_76() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000801000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "true", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the error codes decode, and Water refill is not off by one
+fn test_pr_115_77() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000b01000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "true", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the error codes decode, and Water refill is not off by one
+fn test_pr_115_78() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001001201000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "true", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the error codes decode, and Water refill is not off by one
+fn test_pr_115_79() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001001701000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the error codes decode, and Water refill is not off by one
+fn test_pr_115_80() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001001901000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "true", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the error codes decode, and Water refill is not off by one
+fn test_pr_115_81() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001001a01000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "true", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the error codes decode, and Water refill is not off by one
+fn test_pr_115_82() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001002201000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "true", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the error codes decode, and Water refill is not off by one
+fn test_pr_115_83() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000c01000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "true", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// byte 31 is a bitfield, not an enum
+fn test_pr_115_84() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb0028000000000100010000010000000000000f0000000000000000014e42000004030000000000000025df93bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "true", "night_dry": "true", "remote_start": "true", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// byte 49 is a bitfield carrying six independent flags
+fn test_pr_115_85() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300003f0000000025988abb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "true", "smart_care_finedust": "true", "smart_care_humidity": "true", "smart_care_nightcare": "true", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the night-care window reads back as two clock times
+fn test_pr_115_86() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e4200000403000000171e0600257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "23:30", "night_care_end": "06:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the 35-byte frame and the heartbeat carry no state
+fn test_pr_115_87() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a00230053ed000101030011100b0306100000008a00000000000000059317bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aa0731c302f2bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// hours and minutes are folded into one duration
+fn test_pr_115_88() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000001190200000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "85", "initial_time": "120", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// a two-record frame is decoded, and it is the LAST record that counts
+fn test_pr_115_89() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a0062005cd0000100ec005000000000010001000001000000000000200000000000000000014e4200000403000000000000002500000100010001000000000000000000200000000000000000014e42000004030000000000000025ee3ebb");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "power_off", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a0062005ce5000100ec0050000001011e011e0f0000000000000000280000000000000000014e4200000403000000000000002500000100230023010000000000000000280000000000000000014e42000004030000000000000025042abb");
+    expect_props(d, #{"status": "standby", "power": "true", "previous_status": "power_off", "error": "false", "course": "styling_standard", "smart_course": "none", "remaining_time": "35", "initial_time": "35", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "true", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37", "course_select": "styling_standard"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// the course-name list frame is not mistaken for state
+fn test_pr_115_90() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000000200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+    d.feed("aaff310a0070005ccc00010a86005e0d053230332d3101073230332d312d3101073230332d312d3201073230332d312d3301073230332d312d34010453542d34010453542d35010453542d36010453542d37010453542d38010453542d39010553542d3130000553542d313201ed79bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "0", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+// a set reservation reads as a delay in minutes
+fn test_pr_115_91() {
+    let d = device();
+    d.feed("aaff310a003a0053ea000100eb002800000000010001000001000000000705200000000000000000014e420000040300000000000000257205bb");
+    expect_props(d, #{"status": "power_off", "power": "false", "previous_status": "standby", "error": "false", "course": "none", "smart_course": "none", "remaining_time": "1", "initial_time": "1", "reserve_time": "425", "child_lock": "false", "night_dry": "false", "remote_start": "false", "remote_maintain": "false", "buzzer": "very_large", "end_melody": "default_sound", "keep_last_course": "false", "smart_care_finedust": "false", "smart_care_humidity": "false", "smart_care_nightcare": "false", "night_care_start": "00:00", "night_care_end": "00:00", "download_course": "fur_leather_care", "tcl_count": "37"});
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
