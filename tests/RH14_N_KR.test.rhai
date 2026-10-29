@@ -44,6 +44,17 @@ fn test_off_zeroes_the_times_and_the_process() {
     expect_props(d, #{ power: "false", status: "off", remaining_time: "0", process: "none" });
 }
 
+// Right after powering off, the dryer sent an E2 frame that read as a fresh cycle (running,
+// sensing, the course's full time) and stayed in Home Assistant until the next record.
+fn test_an_e2_frame_after_power_off_leaves_it_off() {
+    let d = device();
+    let p = cotton();
+    p[0] = 0;
+    d.feed(status(p));
+    d.feed(a::record(0x30, 0xe2, 0x03, cotton()));
+    expect_props(d, #{ power: "false", status: "off", remaining_time: "0", process: "none" });
+}
+
 fn test_the_flags_decode_from_their_bits() {
     let d = device();
     let p = cotton();

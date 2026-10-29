@@ -65,9 +65,9 @@ fn test_the_single_record_frames_are_read_too() {
     // 0xEB: the current state alone, sent right after reconnecting
     d.feed(a::record(0x20, 0xeb, 0x00, washing()));
     expect_props(d, #{ status: "washing" });
-    // 0xE2: the same record behind header byte 03, sent when a cycle begins
+    // 0xE2 behind header byte 03 is a heartbeat (rethink PR #180), not state
     d.feed(a::record(0x20, 0xe2, 0x03, idle()));
-    expect_props(d, #{ status: "off" });
+    expect_props(d, #{ status: "washing" });
 }
 
 fn test_a_record_with_the_wrong_payload_length_reports_nothing() {

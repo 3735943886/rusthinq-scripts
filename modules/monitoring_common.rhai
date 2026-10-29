@@ -5,7 +5,10 @@
 //
 //   0xEC  [dev][EC] [00][len][payload: previous state] [00][len][payload: current state]
 //   0xEB  [dev][EB] [00][len][payload: current state]      right after (re)connecting
-//   0xE2  [dev][E2] [03][len][payload: current state]      sent when a cycle begins
+//
+// 0xE2 frames ([dev][E2] [03][len][...]) are not state: upstream rethink (PR #180) calls them an
+// unrelated heartbeat, and a dryer sends one right after powering off that reads as a cycle in
+// progress. Every real state change also arrives as EB/EC, so E2 is ignored.
 //
 // and takes commands as
 //
@@ -34,18 +37,16 @@ fn record(data, dev, payload_len) {
 
     let record_len = payload_len + 2;
     let start = 0;
-    let header = 0x00;
     if body[1] == 0xec {
         if body.len() != 2 + 2 * record_len { return (); }
         start = 2 + record_len;
-    } else if body[1] == 0xeb || body[1] == 0xe2 {
+    } else if body[1] == 0xeb {
         if body.len() != 2 + record_len { return (); }
         start = 2;
-        if body[1] == 0xe2 { header = 0x03; }
     } else {
         return ();
     }
-    if body[start] != header || body[start + 1] != payload_len { return (); }
+    if body[start] != 0x00 || body[start + 1] != payload_len { return (); }
     #{ body: body, p: start + 2 }
 }
 

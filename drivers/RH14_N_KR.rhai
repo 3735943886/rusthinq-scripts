@@ -1,7 +1,7 @@
 // LG heat-pump dryer RH14_N_KR ("Hisen Refresh 27inch 14kg"), deviceType 202: device -> IL
 // driver. AABB frames start with 0x30 and carry a 25-byte monitoring record (see
 // monitoring_common); 0x72 heartbeats are not decoded. The dryer answers every command with a
-// four-byte 0x00 frame, repeats its record behind 0xE2 when a cycle starts, and reports two
+// four-byte 0x00 frame, sends 0xE2 frames that are not state (see monitoring_common), and reports two
 // board serial numbers in ASCII behind 0x31 (not decoded).
 //
 // The offsets came from the appliance's own cloud (a frame whose payload byte i held the value
