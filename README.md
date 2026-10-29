@@ -65,6 +65,7 @@ tests/                Device tests, protocol test helpers and runtime_test.rhai
 tools/rethink_frames.ts  Prints upstream rethink frames for ported tests
 tools/rethink_fixtures.mjs  Prints an upstream rethink test's fixtures
 RUSTHINQ_REF          rusthinq ref the drivers are tested against
+VERSION               commit and date, filled in by GitHub archives; do not edit
 ```
 
 The washer/dryer/styler family uses `monitoring_common`, refrigerators use
@@ -111,7 +112,9 @@ replaced. Use the Asia/Seoul date when choosing the tag.
 
 After the driver suite passes, the workflow publishes a GitHub Release whose
 notes name the tested rusthinq commit. Its source archive is the checkout as is:
-extract it and point the host at that directory. Root overrides are not in the
+extract it and point the host at that directory. In any GitHub archive, a release
+or a branch, `VERSION` holds the archived commit and date, which rusthinq shows for
+installs that are not Git checkouts. Root overrides are not in the
 archive, so extracting an update over it keeps them; stop rusthinq first.
 
 ## Drivers

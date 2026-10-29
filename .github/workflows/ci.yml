@@ -27,6 +27,12 @@ jobs:
           day="${RELEASE_TAG:0:10}"
           [[ "$(date -d "${day//./-}" +%Y.%m.%d)" == "$day" ]]
 
+      - name: Check the archive VERSION template
+        # GitHub archives fill VERSION in; a hand-written version would go stale on master.
+        run: |
+          [ "$(cat VERSION)" = '$Format:%H %cs$' ]
+          [ "$(git check-attr export-subst -- VERSION)" = 'VERSION: export-subst: set' ]
+
       - name: Read the rusthinq ref
         id: ref
         run: echo "ref=$(tr -d '[:space:]' < RUSTHINQ_REF)" >> "$GITHUB_OUTPUT"
