@@ -111,6 +111,8 @@ fn descriptor(ctx) {
 
 fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 
+fn start(ctx) { m::start(ctx); }
+
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
 fn on_data(ctx, data) {

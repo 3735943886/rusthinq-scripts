@@ -25,6 +25,12 @@ import "table_common" as t;
 import "il_common" as il;
 
 fn control_power_off() { 0x01 }
+
+// The read-only status query the LG app sends (rethink PR #180). The appliance answers with an
+// EB record, so a loaded or reloaded driver reports the state without waiting for a change; a
+// silent, powered-off appliance would otherwise leave every property empty. Drivers call it from
+// their `start` hook.
+fn start(ctx) { ctx.send_raw(aabb_wrap(hex_decode("f0ed1121010000001800"))); }
 fn control_pause() { 0x04 }
 
 // The offset of the current record's payload in the inner body, or `()` when `data` is not a

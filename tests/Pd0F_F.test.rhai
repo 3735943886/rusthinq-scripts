@@ -195,14 +195,16 @@ fn test_a_real_frame_from_the_appliance_reads_as_idle_small_load() {
 fn test_il_common_holds_start_back_until_remote_start_is_armed() {
     let d = device();
     d.start();
+    // start sends only the status query
+    expect_eq(hex_encode(d.sent()[0]), "aa0ef0ed1121010000001800b5bb");
     d.feed(status(idle())); // remote start is not armed at the panel
     d.set("start", "");
     d.set("power_off", "");
-    expect_eq(d.sent().len(), 0, "nothing is sent to an appliance that would refuse it");
+    expect_eq(d.sent().len(), 1, "nothing more is sent to an appliance that would refuse it");
     expect_eq(d.event("reject"), "{\"code\":\"requires_unmet\",\"prop\":\"power_off\",\"reason\":\"requires remote_start\"}");
     d.feed(status(washing())); // now armed
     d.set("start", "");
-    expect_eq(d.sent().len(), 1);
+    expect_eq(d.sent().len(), 2);
 }
 
 // Availability follows the online lifecycle, independently of state reports.

@@ -155,13 +155,15 @@ fn test_il_common_holds_start_back_until_remote_start_is_armed() {
     let disarmed = drying();
     disarmed[14] = disarmed[14] & 0xf7;
     d.start();
+    // start sends only the status query
+    expect_eq(hex_encode(d.sent()[0]), "aa0ef0ed1121010000001800b5bb");
     d.feed(status(disarmed));
     d.set("power_off", "");
-    expect_eq(d.sent().len(), 0);
+    expect_eq(d.sent().len(), 1);
     expect(d.event("reject").contains("requires remote_start"), "il_common names the requirement");
     d.feed(status(drying())); // armed
     d.set("power_off", "");
-    expect_eq(d.sent().len(), 1);
+    expect_eq(d.sent().len(), 2);
 }
 
 // Availability follows the online lifecycle, independently of state reports.

@@ -183,7 +183,7 @@ fn descriptor(ctx) {
  }
  json_stringify(#{il:0,kind:if is_dryer() {"dryer"} else {"washer"},class:"washing_machine",label:if is_dryer() {"Dryer"} else {"Washer"},vendor:"LG",model:ctx.model_id(),props:props})
 }
-fn start(ctx) {ctx.send_raw(aabb_wrap(hex_decode("f0ed1121010000001800")));}
+fn start(ctx) {legacy::start(ctx);}
 fn valid_checksum(data) {
  if data.len()<4 || data[0]!=0xaa || data[data.len()-1]!=0xbb {return false;}
  let sum=0; for i in 0..data.len()-2 {sum+=data[i];}
