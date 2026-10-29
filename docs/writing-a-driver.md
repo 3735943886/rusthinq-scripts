@@ -32,8 +32,6 @@ Use rusthinq's management API capture tool. It does not require
 export RUSTHINQ_API=http://127.0.0.1:8080/
 rusthinqctl devices
 rusthinqctl capture DEVICE_UUID capture.jsonl
-# Equivalent standalone command:
-# rusthinq-capture DEVICE_UUID capture.jsonl
 ```
 
 The JSONL output includes timestamped device rx/tx packets. Type notes into stdin
@@ -50,7 +48,7 @@ For a bounded background capture on a Linux host running systemd:
 sudo systemd-run --unit=rusthinq-capture-example \
   --property=User=YOUR_USER --property=RuntimeMaxSec=24h \
   --setenv=RUSTHINQ_API=http://127.0.0.1:8080/ \
-  /ABSOLUTE/PATH/rusthinq-capture DEVICE_UUID /ABSOLUTE/PATH/capture.jsonl
+  /ABSOLUTE/PATH/rusthinqctl capture DEVICE_UUID /ABSOLUTE/PATH/capture.jsonl
 systemctl status rusthinq-capture-example
 journalctl -u rusthinq-capture-example
 # End early:
