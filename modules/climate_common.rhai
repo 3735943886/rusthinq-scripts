@@ -5,7 +5,7 @@
 //
 // Common wire tags: 0x1f7 power, 0x1f9 mode, 0x1fa fan, 0x1fd room temperature and 0x1fe
 // setpoint (half degrees). The capability reply may carry the setpoint range (0x2e1 / 0x2e2,
-// half degrees). A write carries the tags the unit needs with it at their last known values;
+// half degrees; `range_tags()` for models with per-mode limits). A write carries the tags the unit needs with it at their last known values;
 // a mode write also powers the unit on when it carries 0x1f7, since the unit ignores a mode
 // write while off.
 //
@@ -23,6 +23,9 @@ fn fans() { #{ "2": "low", "4": "medium", "6": "high" } }
 fn fan_options() { t::options(fans()) }
 // The setpoint range (degrees) until a capability reply says otherwise, and its step.
 fn range() { [16, 30] }
+// The capability tags of the lowest and highest setpoint (half degrees); the range is the lowest
+// and highest non-zero value among them.
+fn range_tags() { [[0x2e1], [0x2e2]] }
 fn target_step() { 0.5 }
 // What each write carries along.
 fn power_attach() { [0x1f9, 0x1fa, 0x1fe] }
@@ -191,9 +194,11 @@ fn climate_on_data(ctx, data) {
 fn on_caps(ctx, tlvs) {
     let lo = ();
     let hi = ();
+    let tags = range_tags();
     for e in tlvs {
-        if e.t == 0x2e1 { lo = e.v; }
-        if e.t == 0x2e2 { hi = e.v; }
+        if e.v == 0 { continue; }
+        if tags[0].contains(e.t) && (lo == () || e.v < lo) { lo = e.v; }
+        if tags[1].contains(e.t) && (hi == () || e.v > hi) { hi = e.v; }
     }
     let changed = after_caps(ctx, tlvs);
     if lo != () && hi != () && lo < hi && (deg(lo) != range_min(ctx) || deg(hi) != range_max(ctx)) {

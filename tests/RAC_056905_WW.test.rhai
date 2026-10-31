@@ -2,7 +2,7 @@ import "runtime_test" as runtime;
 import "tlv_test" as t;
 
 // Tests of RAC_056905_WW (climate_common), ported from upstream rethink's test suite (commit
-// 0e57069; real captures from RAC_056905_WW units, the display ones from an S4NW12JA31A,
+// 2d8eaba; real captures from RAC_056905_WW units, the display ones from an S4NW12JA31A,
 // firmware 0x690441). Writes are compared byte for byte with upstream's captures; HA's climate
 // mode "off" is the IL power switch here. Sensor values are what upstream's lookup tables give.
 
@@ -380,4 +380,177 @@ fn test_t1_the_descriptor_has_no_tlv_features() {
     expect_eq(props.target.step, 1);
     expect(props.contains("jet") && props.contains("air_purify"), "jet, air purify");
     expect(!props.contains("action"), "no action");
+}
+
+// the power sensor keeps the bias correction for a unit without MOMENTARY_OUTDOOR (upstream
+// 2d8eaba; the captured caps advertise accumMode 0x2d5 = 3)
+fn test_the_power_sensor_keeps_the_bias_correction() {
+    let d = ready();
+    d.feed("0000040000008702040003ACD0DF0000"); // 0x2b3 = 223
+    expect_eq(d.property("power_draw"), "163");
+}
+
+// ---- the newer features (upstream RAC_056905_WW.H09S1D.test.ts, commit 2d8eaba) -------------
+// Live captures from an H09S1D.NS (firmware 0x55703) and a DC12RT.NSJ (firmware 0x690409), both
+// switched off; every write was accepted by the H09S1D and read back. Upstream's per-entity
+// availability and descriptions are Home Assistant presentation: here a mode-bound feature declares
+// `requires` on the mode and its write is refused while the unit is not running in it.
+
+fn h09s1d_caps_response() { "000004000000870201139FB001E180B05077B0A0017CD41012D3F0100400B85024B8903CB8D020B9103CBAD024BB103CB0C1B1101FB3200205B2B0030000B2C0BC08B34FABC0B4B0041020B4F0045011B5A08000B54EB6A04EB9B6F0055703B701B75020BC40BD30080000EA01BD7040480BFB0FDD046440649054FA016C81B5C0B61028B642B5C1B61020B642B5C2B61020B642B5C4B61028B642B5D02EB61020B642B5C6B6102CB6429A18" }
+fn h09s1d_query_response() { "00000400000087020419B27E407DC07E827F50347F90287EC17F00C840C8847BD0147C00C8C083408390FF83C0A880868086C0870087C18F8089407C82E8805940CD903688408A10FF8A408A80ADA00205ACC0AD4059C0A0406D4168816901D440F2700A50018200D540D580D5D03CD61020C900CAC0CB1092CB40CB89CBC0CC10CCCC40CC90908B40E801FA80BF40BFE00355BF80C0200355BE508FBE908E6240BEC0C340C0C0EE40C380CCC0CD00CD4090004B414BC14CC152C053404A4C" }
+fn dc12rt_caps_response() { "0000040000008702017C4EB001B05077B0A0017CB0C1B103B307B34FB4C7B582B6A04D87B6F0690409B701BC40BD46B5C0B61029B642B5C1B6102EB642B5C2B6102EB642B5C4B6102CB642B5C5B6102EB642B5C6B6102CB64294E8" }
+fn dc12rt_query_response() { "00000400000087020480697E407DC07E827F50317F9029C840C881C8C08340838183C0868086C0870087C1894088408A008A408A808C808CC0ACC0D540D580C900CAC0CB108BCB40CB8CCBC0CC10CCCC40CC90968B40BF6001C7BFC0BFA001C7C000BE5089BE90881B00BEC0C300C340C0C0C3800C05" }
+fn write_beep_off() { "0101040000006502010102E8012B05" }
+fn h09_write_display_on() { "010104000000650201010287C0F97C" }
+fn write_window_off() { "0101040000006502010105F2700A5000FEC8" }
+fn write_autodry_off() { "010104000000650201010283807D7C" }
+fn write_autodry_on() { "01010400000065020101038390FFB80D" }
+fn write_autodry_fan_medium() { "01010400000065020101027C843E07" }
+fn write_energy_60() { "010104000000650201010383503C4776" }
+fn write_lowheat_on() { "01010400000065020101028B413DB8" }
+fn write_aiair_on() { "01010400000065020101028F812830" }
+fn write_goodsleep_off() { "01010400000065020101024B403BCD" }
+fn h09_write_power_off() { "01010400000065020101027DC00576" }
+fn write_softair_on() { "0101040000006502010105D470010000C5B7" }
+
+fn h09() { ready_with(h09s1d_caps_response(), h09s1d_query_response()) }
+fn dc12() { ready_with(dc12rt_caps_response(), dc12rt_query_response()) }
+fn props(d) { runtime::descriptor(d).props }
+fn write(d, prop, value) { let n = d.sent().len(); d.set(prop, value); d.sent().extract(n).map(|s| hex_encode_upper(s)) }
+
+// exposes the features advertised by the unit
+fn test_h09s1d_exposes_its_features() {
+    let p = props(h09());
+    expect_eq([p.target.min, p.target.max], [16, 30]); // heat low limit 0x2e3
+    expect_eq([p.humidity.role, p.humidity.class], ["current_humidity", "humidity"]);
+    expect_eq(p.energy_limit.options, ["off", "40", "60", "80"]);
+    expect_eq(p.auto_dry_fan.options, ["low", "medium", "high"]);
+    // mode-bound features say which modes they need
+    expect_eq(p.ai_air.requires, #{ prop: "mode", "in": ["cool", "heat"] });
+    expect_eq(p.low_heating.requires, #{ prop: "mode", "in": ["heat"] });
+    expect_eq(p.soft_air.requires, #{ prop: "mode", "in": ["cool", "fan_only"] });
+    expect(!p.beep.contains("requires"), "beep always applies");
+    expect(p.contains("turn_on_timer") && p.contains("turn_off_timer"), "relative timers via TIMEBS_ONOFF");
+    // auto dry is the setting here, not the read-only status
+    expect_eq([p.auto_dry.rw, p.auto_dry.category], [true, "config"]);
+    // 0x20d is the energy limit here, not the energy-saving switch
+    expect(!p.contains("energy_save"), "no energy saving");
+}
+
+// publishes the reported values
+fn test_h09s1d_publishes_the_reported_values() {
+    // captured with 0x3a0 = 1 and 0x21f = 1, which the ThinQ app shows as beep off and display off;
+    // stored preferences show their real value although the AC is off
+    expect_props(h09(), #{ humidity: "54", power: "false", window_detection: "true", beep: "false",
+        good_sleep: "true", good_sleep_operation: "true", good_sleep_temperature: "true", auto_dry: "true",
+        auto_dry_fan: "low", display_light: "false" });
+}
+
+// settings write the values the unit accepts
+fn test_h09s1d_settings() {
+    let d = h09();
+    expect_eq(write(d, "beep", "false"), [write_beep_off()]);
+    expect_eq(write(d, "window_detection", "false"), [write_window_off()]); // upper bits kept
+    expect_eq(write(d, "auto_dry", "false"), [write_autodry_off()]);
+    expect_eq(write(d, "auto_dry", "true"), [write_autodry_on()]);
+    expect_eq(write(d, "auto_dry_fan", "medium"), [write_autodry_fan_medium()]);
+    // a stored preference: written while the AC is off as well
+    expect_eq(write(d, "good_sleep", "false"), [write_goodsleep_off()]);
+    expect_eq(write(d, "display_light", "true"), [h09_write_display_on()]);
+}
+
+// mode 46 (Air Purify started from off) reads back as fan_only
+fn test_mode_46_is_fan() {
+    let d = h09();
+    d.feed(t::notify([[0x1f7, 1], [0x1f9, 46], [0x20f, 1]]));
+    expect_props(d, #{ mode: "fan_only", action: "fan", air_purify: "true" });
+}
+
+// energy limit is held while off and sent once the unit runs
+fn test_the_energy_limit_is_held_while_off() {
+    let d = h09();
+    expect_eq(write(d, "energy_limit", "60"), []);
+    let n = d.sent().len();
+    d.feed(t::notify([[0x1f7, 1], [0x1f9, 0]]));
+    expect(d.sent().extract(n).map(|s| hex_encode_upper(s)).contains(write_energy_60()), "sent once cooling");
+}
+
+// low heating is only sent in heat mode, and not re-applied later
+fn test_low_heating() {
+    let d = h09();
+    d.feed(t::notify([[0x1f7, 1], [0x1f9, 0]]));
+    expect_eq(write(d, "low_heating", "true"), []);
+    expect(d.event("reject").contains("requires"), "refused in cool mode");
+    // the manual: changing temperature, fan or mode cancels it, so a request is not carried over
+    let n = d.sent().len();
+    d.feed(t::notify([[0x1f9, 4]]));
+    expect(!d.sent().extract(n).map(|s| hex_encode_upper(s)).contains(write_lowheat_on()), "not carried over");
+    expect_eq(write(d, "low_heating", "true"), [write_lowheat_on()]);
+}
+
+// AI Air is written only while running
+fn test_ai_air() {
+    let d = h09();
+    expect_eq(write(d, "ai_air", "true"), []);
+    d.feed(t::notify([[0x1f7, 1], [0x1f9, 4]]));
+    expect_eq(write(d, "ai_air", "true"), [write_aiair_on()]);
+    d.feed(t::notify([[0x23e, 1]]));
+    expect_eq(d.property("ai_air"), "true");
+}
+
+// the sleep timer is only written while the AC is on
+fn test_the_sleep_timer_needs_power() {
+    let d = h09();
+    expect_eq(write(d, "sleep_timer", "1"), []);
+    d.feed(t::notify([[0x1f7, 1], [0x1f9, 0]]));
+    expect_eq(write(d, "sleep_timer", "1").len(), 1);
+}
+
+// Soft Air is only written in Cooling or Fan
+fn test_soft_air() {
+    let d = h09();
+    expect_eq(write(d, "soft_air", "true"), []);
+    d.feed(t::notify([[0x1f7, 1], [0x1f9, 4]]));
+    expect_eq(write(d, "soft_air", "true"), []); // not in heating
+    d.feed(t::notify([[0x1f9, 0]]));
+    expect_eq(write(d, "soft_air", "true"), [write_softair_on()]);
+    d.feed(t::notify([[0x351, 0x10000]]));
+    expect_eq(d.property("soft_air"), "true");
+}
+
+// the power sensor reports the raw value for a unit with MOMENTARY_OUTDOOR, offered while it reads 0
+fn test_the_power_sensor_with_momentary_outdoor() {
+    let d = h09();
+    expect_eq(props(d).power_draw.class, "power");
+    d.feed(t::notify([[0x2b3, 223]]));
+    expect_eq(d.property("power_draw"), "223");
+}
+
+// the power sensor is not offered for a multi-split unit without accumMode
+fn test_no_power_sensor_without_accum_mode() {
+    expect(!props(dc12()).contains("power_draw"), "no power sensor");
+}
+
+// DC12RT: Jet, Energy saving and the Sleep timer keep their requirements
+fn test_dc12rt_requirements() {
+    let d = dc12();
+    expect_eq(props(d).sleep_timer.requires, "power");
+    expect_eq(write(d, "sleep_timer", "1"), []);
+    d.feed(t::notify([[0x1f7, 1], [0x1f9, 0]]));
+    expect_eq(write(d, "sleep_timer", "1").len(), 1);
+}
+
+// DC12RT keeps the older feature set
+fn test_dc12rt_keeps_the_older_features() {
+    let p = props(dc12());
+    expect_eq([p.target.min, p.target.max], [18, 30]);
+    expect_eq(p.energy_save.type, "binary");
+    expect_eq([p.auto_dry.type, p.auto_dry.contains("rw")], ["binary", false]);
+    expect_eq(p.sleep_timer.max, 15);
+    expect(p.contains("turn_on_timer"), "turn-on timer");
+    // the unit ignores 0x21f writes, and none of the newer features are advertised
+    for name in ["display_light", "humidity", "ai_air", "energy_limit", "window_detection", "low_heating",
+                 "beep", "good_sleep", "soft_air", "auto_dry_fan"] {
+        expect(!p.contains(name), name);
+    }
 }

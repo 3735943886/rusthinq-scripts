@@ -26,8 +26,8 @@ the same name (names containing `.` need rusthinq `bfb8e77` or later).
 
 ## Moving to `2d8eaba`
 
-Upstream `2d8eaba` (2026-10-27) is the next baseline. The table stays on
-`0e57069` until every row below is done.
+Upstream `2d8eaba` (2026-10-27) is the next baseline. Every row below is done; the table
+above moves to it once the upstream suite has been rerun at that commit.
 
 | upstream change | status |
 |---|---|
@@ -37,8 +37,8 @@ Upstream `2d8eaba` (2026-10-27) is the next baseline. The table stays on
 | `e018a28` VCDWL2QEUK reads off from the state byte alone | ported |
 | `7d3a18c` `T1789EFH_F` decode fixed and completed, with start, pause and power off | ported |
 | `2b43953`, `7300491`, `e727324` aliases `F_V7_Y___W.A__QEUK`, `F_V__Y___W.B__QEUK`, `D2211`, `RC90V9_AUS`, `2RES1VE61NFWA` | ported; `F_C__Y`, `D0211` and `2RES1VE600FWC` moved into modules for them |
-| `61b7b15` `D0211` course table | todo |
-| `3ca7a55`, `ec62abc`, `cc9615d` `RAC_056905_WW` H09S1DA features | todo |
+| `61b7b15` `D0211` course table | ported |
+| `3ca7a55`, `ec62abc`, `cc9615d` `RAC_056905_WW` H09S1DA features | ported; HA availability and descriptions left out, mode-bound writes refused instead (`requires`) |
 | new drivers `RV13D5JSD_D_US`, `G2V7_Y___W.B_2QEUK`, `2REBGLUB_2P__`, `2REF11EII__M2` | ported |
 | `70e1462`, `d52f645` message routing by provisioned topic, `appVersion` fallback | host (rusthinq), not here |
 
@@ -188,5 +188,5 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 |---|---|---|---|---|
 | `DHUM_056905_WW` | 16 | 12 | dehumidifier; re-check against the new baseline | ported |
 | `POT_056905_WW` | 7 | 11 | LP1022FVSM portable air conditioner (`climate_common`) | ported |
-| `RAC_056905_WW` | 8 + 12 | 22 | air conditioner (`rac_common`); ThinQ1 variant `RAC_056905_WW_T1` in the same file; alias `RAC_0B0001_WW`. Filter reset not offered: it needs today's date | ported |
+| `RAC_056905_WW` | 9 + 12 + 15 | 38 | air conditioner (`rac_common`); ThinQ1 variant `RAC_056905_WW_T1` in the same file; alias `RAC_0B0001_WW`; H09S1DA features and DC12RT checks from `2d8eaba`. Filter reset not offered: it needs today's date | ported |
 | `WIN_056905_WW` | 0 | 0 | LW1823HRSM window air conditioner (`climate_common`); no upstream tests, so constructed ones; dry left out, as upstream reads no code for it | ported |
