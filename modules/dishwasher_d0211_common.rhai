@@ -11,7 +11,12 @@ import "dishwasher_common" as w;
 import "table_common" as t;
 import "il_common" as il;
 
-fn courses() { #{ "0": "off", "1": "auto", "2": "intensive", "5": "eco" } }
+// Auto, Intensive and Eco are measured; the others are the courses the model's ThinQ modelJson
+// lists (upstream 61b7b15), not yet seen in a capture.
+fn courses() {
+    #{ "0": "off", "1": "auto", "2": "intensive", "3": "delicate", "4": "turbo", "5": "eco", "6": "rinse",
+       "7": "refresh", "8": "express", "9": "machine_clean", "11": "download_cycle" }
+}
 
 fn options() {
     #{ delay_start: 0x01, energy_saver: 0x02, extra_dry: 0x04, high_temp: 0x08, dual_zone: 0x10,
