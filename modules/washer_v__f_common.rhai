@@ -3,3 +3,10 @@
 import "washer_common";
 
 fn features() { ["drying_mode"] }
+
+// 14 and 15 are WASH_REFRESHING and REFRESHING.
+fn states() {
+    let s = base_states();
+    s["15"] = "refreshing";
+    s
+}

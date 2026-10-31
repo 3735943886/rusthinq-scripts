@@ -78,3 +78,22 @@ fn test_the_descriptor_lists_the_model_features() {
     expect(!props.contains("drying_mode"), "no drying_mode");
     expect(!props.contains("eco_hybrid"), "no eco_hybrid");
 }
+
+// a single-record 0xEB frame decodes as the EC frame's current record (upstream commit 59fc2d7)
+fn test_a_single_record_frame() {
+    let ec = hex_decode(sample_cotton_std());
+    let d = device();
+    d.feed(hex_encode(aabb_wrap(hex_decode("20EB") + ec.extract(4 + 39, 39))));
+    expect_props(d, #{ power: "true", status: "standby", course: "cotton", temp: "40", spin: "1600", soil: "normal" });
+}
+
+// a code outside the model's state table leaves the status unpublished
+fn test_an_unknown_state_is_not_published() {
+    let ec = hex_decode(sample_cotton_std());
+    let r = ec.extract(4 + 39, 39);
+    r[2] = 19;
+    let d = device();
+    d.feed(hex_encode(aabb_wrap(hex_decode("20EB") + r)));
+    expect_props(d, #{ power: "true", course: "cotton" });
+    expect_eq(d.property("status"), ());
+}

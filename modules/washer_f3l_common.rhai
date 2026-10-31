@@ -27,18 +27,11 @@ fn soils() { #{ "0": "none", "1": "light", "2": "light_normal", "3": "normal", "
 fn spins() { #{ "0": "none", "1": "no_spin", "2": "low", "3": "medium", "4": "high", "5": "extra_high" } }
 fn temps() { #{ "0": "none", "1": "tap_cold", "2": "cold", "4": "warm", "6": "hot", "7": "extra_hot" } }
 
-// An unmapped phase reads as "running", as upstream's.
-fn status_options(statuses) {
-    let o = t::options(statuses);
-    if !o.contains("running") { o.push("running"); }
-    o
-}
-
 fn props(statuses, courses) {
     #{
         available: #{ type: "binary", role: "available" },
         power: #{ type: "binary", class: "running", label: "Powered on" },
-        status: #{ type: "select", options: status_options(statuses) },
+        status: #{ type: "select", options: t::options(statuses) },
         course: #{ type: "select", options: t::options(courses) },
         remaining_time: #{ type: "number", class: "duration", unit: "min" },
         reserve_time: #{ type: "number", class: "duration", unit: "min", label: "Delay wash time left" },
@@ -65,7 +58,7 @@ fn publish(ctx, r, statuses, courses, idle) {
     let off = r[1] == 0;
     il::publish_property(ctx, "available", "true");
     il::publish_property(ctx, "power", if off { "false" } else { "true" });
-    il::publish_property(ctx, "status", t::name(statuses, r[1]) ?? "running");
+    c::pub_name(ctx, "status", t::name(statuses, r[1]));
     c::pub_name(ctx, "course", t::name(courses, r[6]));
     il::publish_property(ctx, "remaining_time", if idle { "0" } else { (r[2] * 60 + r[3]).to_string() });
     il::publish_property(ctx, "reserve_time", if off { "0" } else { (r[13] * 60 + r[14]).to_string() });

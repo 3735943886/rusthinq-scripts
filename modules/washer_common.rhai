@@ -1,16 +1,16 @@
 // The LG EU front-load washers of the "B" generation (F_V8_Y___W.B_2QEUK and relatives). Port
-// of upstream rethink's washer_common.ts and its drivers (commit 0e57069). A driver inherits
-// all of this with `import "washer_common";` and overrides `features()` (and `acked()`) where
-// its model differs; F_V8_Y___W.B_2QEUK is the default.
+// of upstream rethink's washer_common.ts and its drivers (commit 2d8eaba). A driver inherits
+// all of this with `import "washer_common";` and overrides `features()`, `acked()` and
+// `states()` where its model differs; F_V8_Y___W.B_2QEUK is the default.
 //
-// Status is a 0x20 0xEC frame of two 37-byte records (previous, current), 80 bytes in all; only
-// the current record counts. Some models put 0x26 in the record header for the same layout, so
-// only the class and the total length are checked, as upstream does. Current record offsets:
-//   43 state      44/45 remaining, 46/47 initial time (h, min)   48 course   49 error
-//   50 soil       51 spin       52 temperature    53 rinses (2+ = extra rinse)
-//   54 drying mode   55 delay end (h)   57 options (0x01 TurboWash, 0x08 Eco Hybrid,
-//   0x40 pre-wash, 0x80 steam)   58 locks (0x02 remote start, 0x40 door, 0x80 child lock)
-//   64 cycle counter   71/72 cycle energy (Wh)   73 detergent, 74 softener dose
+// Status is a 0x20 EB frame of one 39-byte record or EC of two (previous, current); only the
+// current record counts. Some models put 0x26 in the record header for the same layout. Record
+// offsets:
+//    2 state       3/4 remaining, 5/6 initial time (h, min)   7 course   8 error
+//    9 soil       10 spin       11 temperature    12 rinses (2+ = extra rinse)
+//   13 drying mode   14 delay end (h)   16 options (0x01 TurboWash, 0x08 Eco Hybrid,
+//   0x40 pre-wash, 0x80 steam)   17 locks (0x02 remote start, 0x40 door, 0x80 child lock)
+//   23 cycle counter   30/31 cycle energy (Wh)   32 detergent, 33 softener dose
 // Commands: F0 2A 01 00 power on, F0 24 01 01 00 power off, F0 24 04 01 00 pause,
 // F0 24 05 01 00 start.
 import "aabb_common" as c;
@@ -23,7 +23,7 @@ fn features() { ["soil", "reserve_time", "extra_rinse", "options", "child_lock"]
 // Whether the appliance repeats unacked frames and so needs the cloud's acks.
 fn acked() { false }
 
-// Code 10 is unassigned, as are 13 and 17 in states(): a gap reads back as unknown.
+// Code 10 is unassigned: a gap reads back as unknown.
 fn errors() {
     #{ "0": "OK", "1": "Door lock error (DE2)", "2": "Door open error (DE1)",
        "3": "Water supply error (IE)", "4": "Water drain error (OE)", "5": "Out of balance error (UE)",
@@ -36,12 +36,17 @@ fn errors() {
        "24": "Unknown error (ED3)", "25": "Unknown error (ED4)", "26": "Unknown error (ED5)" }
 }
 
-fn states() {
-    #{ "0": "off", "1": "ready", "2": "paused", "3": "delayed", "4": "measuring", "5": "pre_wash",
-       "6": "washing", "7": "rinsing", "8": "spinning", "9": "drying", "10": "end", "11": "cooling",
-       "12": "rinse_hold", "14": "refreshing", "15": "steam_softening", "16": "demo", "18": "error",
-       "19": "auto_door_open_pause" }
+// The state codes of F_V8_Y___W.B_2QEUK, from the model JSON and the LG app's labels. Upstream
+// gives each model its own table, as the codes differ in places; the drivers whose model differs
+// override `states()` and start from this one. A code outside the table leaves the status
+// unpublished.
+fn base_states() {
+    #{ "0": "off", "1": "standby", "2": "paused", "3": "delayed", "4": "detecting", "6": "washing",
+       "7": "rinsing", "8": "spinning", "9": "drying", "10": "end", "11": "cool_down",
+       "12": "rinse_hold", "14": "refreshing", "15": "steam_softening", "16": "demo", "18": "error" }
 }
+
+fn states() { base_states() }
 
 // Wool and Rinse + Spin each answer under two codes. Some models' course tables differ.
 fn courses() {
@@ -147,35 +152,37 @@ fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 fn on_data(ctx, data) {
     if acked() { c::ack(ctx, data); }
     let b = c::inner(data, 0x20);
-    if b == () || b.len() != 80 { return; }
+    let o = c::common_status_offset(b, 39);
+    if o == () { return; }
+    let s = b.extract(o, 39);
     let f = features();
     il::publish_property(ctx, "available", "true");
-    il::publish_property(ctx, "power", if b[43] > 0 { "true" } else { "false" });
-    c::pub_name(ctx, "status", t::name(states(), b[43]));
-    il::publish_property(ctx, "error", if b[49] != 0 { "true" } else { "false" });
-    il::publish_property(ctx, "error_message", t::name(errors(), b[49]) ?? "Unknown error (" + b[49] + ")");
-    c::pub_name(ctx, "course", t::name(courses(), b[48]));
-    c::pub_name(ctx, "spin", t::name(spins(), b[51]));
-    c::pub_name(ctx, "temp", t::name(temps(), b[52]));
-    il::publish_property(ctx, "cycles", b[64].to_string());
-    il::publish_property(ctx, "remote_start", c::bit(b[58], 0x02));
-    il::publish_property(ctx, "door_lock", c::bit(b[58], 0x40));
-    il::publish_property(ctx, "energy", (b[71] * 256 + b[72]).to_string());
-    il::publish_property(ctx, "initial_time", (b[46] * 60 + b[47]).to_string());
-    il::publish_property(ctx, "remaining_time", (b[44] * 60 + b[45]).to_string());
+    il::publish_property(ctx, "power", if s[2] > 0 { "true" } else { "false" });
+    c::pub_name(ctx, "status", t::name(states(), s[2]));
+    il::publish_property(ctx, "error", if s[8] != 0 { "true" } else { "false" });
+    il::publish_property(ctx, "error_message", t::name(errors(), s[8]) ?? "Unknown error (" + s[8] + ")");
+    c::pub_name(ctx, "course", t::name(courses(), s[7]));
+    c::pub_name(ctx, "spin", t::name(spins(), s[10]));
+    c::pub_name(ctx, "temp", t::name(temps(), s[11]));
+    il::publish_property(ctx, "cycles", s[23].to_string());
+    il::publish_property(ctx, "remote_start", c::bit(s[17], 0x02));
+    il::publish_property(ctx, "door_lock", c::bit(s[17], 0x40));
+    il::publish_property(ctx, "energy", (s[30] * 256 + s[31]).to_string());
+    il::publish_property(ctx, "initial_time", (s[5] * 60 + s[6]).to_string());
+    il::publish_property(ctx, "remaining_time", (s[3] * 60 + s[4]).to_string());
 
-    if f.contains("soil") { c::pub_name(ctx, "soil", t::name(soil_levels(), b[50])); }
-    if f.contains("reserve_time") { il::publish_property(ctx, "reserve_time", b[55].to_string()); }
+    if f.contains("soil") { c::pub_name(ctx, "soil", t::name(soil_levels(), s[9])); }
+    if f.contains("reserve_time") { il::publish_property(ctx, "reserve_time", s[14].to_string()); }
     // 0 or 1 is the normal rinse count; 2 and up is one or more extra rinses (Rinse+)
-    if f.contains("extra_rinse") { il::publish_property(ctx, "extra_rinse", if b[53] >= 2 { "true" } else { "false" }); }
-    if f.contains("options") { for o in options().keys() { il::publish_property(ctx, o, c::bit(b[57], options()[o])); } }
-    if f.contains("eco_hybrid") { il::publish_property(ctx, "eco_hybrid", c::bit(b[57], 0x08)); }
-    if f.contains("child_lock") { il::publish_property(ctx, "child_lock", c::bit(b[58], 0x80)); }
+    if f.contains("extra_rinse") { il::publish_property(ctx, "extra_rinse", if s[12] >= 2 { "true" } else { "false" }); }
+    if f.contains("options") { for o in options().keys() { il::publish_property(ctx, o, c::bit(s[16], options()[o])); } }
+    if f.contains("eco_hybrid") { il::publish_property(ctx, "eco_hybrid", c::bit(s[16], 0x08)); }
+    if f.contains("child_lock") { il::publish_property(ctx, "child_lock", c::bit(s[17], 0x80)); }
     if f.contains("doses") {
-        c::pub_name(ctx, "detergent", t::name(doses(), b[73]));
-        c::pub_name(ctx, "softener", t::name(doses(), b[74]));
+        c::pub_name(ctx, "detergent", t::name(doses(), s[32]));
+        c::pub_name(ctx, "softener", t::name(doses(), s[33]));
     }
-    if f.contains("drying_mode") { c::pub_name(ctx, "drying_mode", t::name(drying_modes(), b[54])); }
+    if f.contains("drying_mode") { c::pub_name(ctx, "drying_mode", t::name(drying_modes(), s[13])); }
 }
 
 fn set_property(ctx, prop, value) {

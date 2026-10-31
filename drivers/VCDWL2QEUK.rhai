@@ -1,15 +1,16 @@
 // LG front-load washer VCDWL2QEUK (F4X7511TWS): device -> IL driver, read only. Port of upstream
-// rethink's driver (commit 0e57069), whose offsets were reverse-engineered against the LG app.
-// Class 0x20 frames, told apart by body[3]:
-//   0x92 status: 142 bytes, two 63-byte records (previous, current); the current one is at 78:
+// rethink's driver (commit 2d8eaba), whose offsets were reverse-engineered against the LG app.
+// Status is the 0x20 envelope (c::enveloped_status) of 64-byte EB/EC records; past the record's
+// leading byte:
 //     0 soil (0 outside the wash phase)   1 temperature - 1   3 spin - 1   4 course
-//     13 remaining, 15 initial time (min)   16/17 cycle energy (Wh)   20 step (0 with soil 0 =
-//     off)   26 rinse   27 washes since Drum Clean   29/30 detergent / softener dispenser on
+//     13 remaining, 15 initial time (min)   16/17 cycle energy (Wh)   20 state (0 = off)
+//     26 rinse   27 washes since Drum Clean   29/30 detergent / softener dispenser on
 //     (0x02)   31/32 their doses (ml)   33 0x20 TurboWash, 0x40 pre-wash   34 0x10 steam
 //     36 0x10 remote start, 0x20 child lock
+// Other class 0x20 frames, told apart by body[3] (the low byte of their length):
 //   0x88 config: sent at cycle start; taken only as a sign of power.
 //   0x41 door snapshot: 18 is 0x01 open, 0x02 closed (0x05 before the first door event).
-// The step codes depend on the course; an unknown one reads as "running". Errors are not located.
+// An unknown state code leaves the status unpublished. Errors are not located.
 import "aabb_common" as c;
 import "table_common" as t;
 import "washer_common" as w;
@@ -24,9 +25,19 @@ fn courses() {
        "55": "rinse_spin" }
 }
 
+// From the model JSON and the LG app, several codes to one state as upstream reads them: 27, 28
+// and 29 are FROZEN_PREVENT_*, 35 AUTO_DT_OPEN_PAUSE, 37 and 40 clothing recognition and pollution
+// detecting, 38 and 39 detergent and softener input, 42 END_REMOTE_MAINTAIN_ON, 47 and 57 Fresh
+// Keeper and wrinkle care (which the LG app shows as completed), 48 EZDISPENSE_CLEANING and 49
+// END_WAITING. 34 (audible diagnosis) and 36 (confirm start) are left out.
 fn states() {
-    #{ "0": "off", "1": "detecting", "3": "detecting", "37": "detecting", "2": "paused", "11": "washing",
-       "38": "washing", "12": "rinsing", "39": "rinsing", "14": "spinning", "16": "end", "41": "drum_clean" }
+    #{ "0": "off", "1": "standby", "27": "standby", "2": "paused", "28": "paused", "35": "paused",
+       "3": "detecting", "37": "detecting", "40": "detecting", "5": "filling", "6": "detergent_amount",
+       "7": "delayed", "8": "soaking", "9": "pre_wash", "11": "washing", "29": "washing",
+       "38": "washing", "12": "rinsing", "39": "rinsing", "13": "rinse_hold", "14": "spinning",
+       "15": "drying", "16": "end", "42": "end", "21": "refreshing", "47": "refreshing",
+       "57": "refreshing", "23": "error", "41": "drum_clean", "43": "steam", "48": "cleaning",
+       "49": "waiting" }
 }
 
 fn soil_levels() { #{ "1": "light", "3": "medium", "5": "heavy" } }
@@ -66,6 +77,8 @@ fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
 fn on_data(ctx, data) {
+    let s = c::enveloped_status(data, 0x20, 64);
+    if s != () { status(ctx, s.extract(1, 63)); return; }
     let b = c::inner(data, 0x20);
     if b == () || b.len() < 6 { return; }
     switch b[3] {
@@ -78,21 +91,18 @@ fn on_data(ctx, data) {
             if b[18] == 0x01 { il::publish_property(ctx, "door", "true"); }
             if b[18] == 0x02 { il::publish_property(ctx, "door", "false"); }
         }
-        0x92 => { if b.len() == 142 { status(ctx, b.extract(78, 63)); } }
     }
 }
 
 fn status(ctx, r) {
     il::publish_property(ctx, "available", "true");
-    // rinse, spin and end phases also lead with soil 0, but carry a step
-    if r[0] == 0 && r[20] == 0 {
+    c::pub_name(ctx, "status", t::name(states(), r[20]));
+    if r[20] == 0 {
         il::publish_property(ctx, "power", "false");
-        il::publish_property(ctx, "status", "off");
         il::publish_property(ctx, "remaining_time", "0");
         il::publish_property(ctx, "initial_time", "0");
     } else {
         il::publish_property(ctx, "power", "true");
-        il::publish_property(ctx, "status", if r[20] == 0 { () } else { t::name(states(), r[20]) } ?? "running");
         c::pub_name(ctx, "soil", t::name(soil_levels(), r[0]));
         c::pub_name(ctx, "rinse", t::name(w::rinses(), r[26]));
         c::pub_name(ctx, "temp", t::name(w::temps(), r[1] + 1));

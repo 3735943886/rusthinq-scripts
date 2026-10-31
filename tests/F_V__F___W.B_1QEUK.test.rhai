@@ -45,21 +45,21 @@ fn test_the_descriptor_lists_the_model_features() {
 fn test_initial() {
     let d = device();
     d.feed(sample_initial());
-    expect_props(d, #{ power: "true", status: "ready", error: "false", error_message: "OK", remaining_time: "0", initial_time: "0", drying_mode: "off", cycles: "54", energy: "0", remote_start: "false", door_lock: "false" });
+    expect_props(d, #{ power: "true", status: "standby", error: "false", error_message: "OK", remaining_time: "0", initial_time: "0", drying_mode: "off", cycles: "54", energy: "0", remote_start: "false", door_lock: "false" });
 }
 
 // initial (wash + dry auto) state push decodes status, course, drying mode, temp and spin
 fn test_initial_wash_dry_auto() {
     let d = device();
     d.feed(sample_initial_wash_1200_40c_dry_auto());
-    expect_props(d, #{ power: "true", status: "ready", course: "wash_dry", error: "false", error_message: "OK", remaining_time: "296", initial_time: "296", spin: "1200", temp: "40", drying_mode: "auto", cycles: "16", energy: "0", remote_start: "false", door_lock: "false" });
+    expect_props(d, #{ power: "true", status: "standby", course: "wash_dry", error: "false", error_message: "OK", remaining_time: "296", initial_time: "296", spin: "1200", temp: "40", drying_mode: "auto", cycles: "16", energy: "0", remote_start: "false", door_lock: "false" });
 }
 
 // initial (wash + dry 1H) state push decodes status, course, drying mode, temp and spin
 fn test_initial_cotton_dry_1h() {
     let d = device();
     d.feed(sample_initial_cotton_1000_40c_turbo_wash_dry_1h());
-    expect_props(d, #{ power: "true", status: "ready", course: "cotton", error: "false", error_message: "OK", remaining_time: "186", initial_time: "186", spin: "1000", temp: "40", drying_mode: "60_min", cycles: "16", energy: "0", remote_start: "false", door_lock: "false" });
+    expect_props(d, #{ power: "true", status: "standby", course: "cotton", error: "false", error_message: "OK", remaining_time: "186", initial_time: "186", spin: "1000", temp: "40", drying_mode: "60_min", cycles: "16", energy: "0", remote_start: "false", door_lock: "false" });
 }
 
 // running state with door locked + remote_start active

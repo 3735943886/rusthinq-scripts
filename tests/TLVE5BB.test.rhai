@@ -19,7 +19,7 @@ fn off_snapshot() { "aaff200a004400a0fa000100eb0032000508000e0900000906000000000
 fn test_a_running_update_decodes_the_current_record() {
     let d = device();
     d.feed(running_87_to_86());
-    expect_props(d, #{ power: "true", status: "running", remaining_time: "86", initial_time: "106",
+    expect_props(d, #{ power: "true", status: "washing", remaining_time: "86", initial_time: "106",
                        energy: "23", soil: "heavy", temp: "cold", spin: "medium", rinses_remaining: "3",
                        tub_clean_count: "45", buzzer: "very_loud", lid_lock: "true" });
 }

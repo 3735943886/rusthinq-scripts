@@ -38,7 +38,7 @@ fn test_the_descriptor_lists_the_model_features() {
 fn test_idle() {
     let d = device();
     d.feed(sample_idle());
-    expect_props(d, #{ power: "true", status: "ready", error: "false", detergent: "medium", softener: "medium" });
+    expect_props(d, #{ power: "true", status: "standby", error: "false", detergent: "medium", softener: "medium" });
 }
 
 // Cotton 1400 RPM 40°C decodes with no options and dosing off
@@ -127,4 +127,14 @@ fn test_acks_other_frames_but_not_status() {
     d.feed(sample_running());
     expect_eq(d.clips().len(), 2);
     expect_eq(d.property("status"), "washing");
+}
+
+// 19 (AUTO_DT_OPEN_PAUSE) reads as paused on this model (upstream commit 6881ea2)
+fn test_auto_door_open_pause_is_paused() {
+    let ec = hex_decode(sample_running());
+    let r = ec.extract(4 + 39, 39);
+    r[2] = 19;
+    let d = device();
+    d.feed(hex_encode(aabb_wrap(hex_decode("20EB") + r)));
+    expect_eq(d.property("status"), "paused");
 }

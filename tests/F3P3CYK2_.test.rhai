@@ -96,7 +96,7 @@ fn test_pause_resume_spin_end_and_power_off() {
     // the End record is published as is
     d.feed(end_()); expect_props(d, #{ status: "end", power: "true", remaining_time: "1", initial_time: "0", run_completed: "true" });
     d.feed(off_after_end()); expect_props(d, #{ status: "off", power: "false", run_completed: "false" });
-    d.feed(dial_normal()); expect_props(d, #{ status: "initial", run_completed: "false" });
+    d.feed(dial_normal()); expect_props(d, #{ status: "standby", run_completed: "false" });
 }
 
 // 0xE2 post-cycle replay is ignored

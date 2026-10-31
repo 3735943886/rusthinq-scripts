@@ -34,21 +34,21 @@ fn dispense_type_2() { "AAFF200A0039040081000100EB002700000103260326010000000000
 fn test_initial() {
     let d = device();
     d.feed(sample_initial());
-    expect_props(d, #{ power: "true", status: "ready", error: "false", error_message: "OK", course: "none", spin: "none", temp: "none", rinse: "none", remaining_time: "0", initial_time: "0", cycles: "31", energy: "0", reserve_time: "0", remote_start: "false", door_lock: "false", child_lock: "false", detergent: "medium", softener: "medium", turbo_wash: "false", pre_wash: "false", steam: "false", downloaded_program: "rinse_spin" });
+    expect_props(d, #{ power: "true", status: "standby", error: "false", error_message: "OK", course: "none", spin: "none", temp: "none", rinse: "none", remaining_time: "0", initial_time: "0", cycles: "31", energy: "0", reserve_time: "0", remote_start: "false", door_lock: "false", child_lock: "false", detergent: "medium", softener: "medium", turbo_wash: "false", pre_wash: "false", steam: "false", downloaded_program: "rinse_spin" });
 }
 
 // selecting a downloaded program: course shows its base, smart course its catalog name
 fn test_downloaded_duvet() {
     let d = device();
     d.feed(sample_downloaded_duvet_selected());
-    expect_props(d, #{ status: "ready", course: "duvet", smart_course: "blanket", downloaded_program: "blanket", spin: "400", initial_time: "88", detergent: "medium", softener: "medium" });
+    expect_props(d, #{ status: "standby", course: "duvet", smart_course: "blanket", downloaded_program: "blanket", spin: "400", initial_time: "88", detergent: "medium", softener: "medium" });
 }
 
 // status follows the washer through a cycle
 fn test_status_follows_a_cycle() {
     let d = device();
     d.feed(sample_measuring());
-    expect_props(d, #{ status: "measuring" });
+    expect_props(d, #{ status: "detecting" });
     d.feed(sample_running_door_locked());
     expect_props(d, #{ status: "washing" });
     d.feed(sample_rinsing());
@@ -87,7 +87,7 @@ fn test_power_off() {
 fn test_measuring() {
     let d = device();
     d.feed(sample_measuring());
-    expect_props(d, #{ status: "measuring", course: "tub_clean", spin: "no_spin", temp: "60", initial_time: "72", remaining_time: "72", cycles: "32", remote_start: "true", door_lock: "true", detergent: "off", softener: "off" });
+    expect_props(d, #{ status: "detecting", course: "tub_clean", spin: "no_spin", temp: "60", initial_time: "72", remaining_time: "72", cycles: "32", remote_start: "true", door_lock: "true", detergent: "off", softener: "off" });
 }
 
 // running state: Eco 40-60, door locked, remote_start active

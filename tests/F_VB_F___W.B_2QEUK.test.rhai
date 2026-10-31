@@ -50,7 +50,7 @@ fn test_the_descriptor_lists_the_model_features() {
 fn test_initial() {
     let d = device();
     d.feed(sample_initial());
-    expect_props(d, #{ power: "true", status: "ready", error: "false", error_message: "OK", drying_mode: "off", reserve_time: "0", extra_rinse: "false", turbo_wash: "false", eco_hybrid: "false", pre_wash: "false", steam: "false", cycles: "10", energy: "0", initial_time: "0", remaining_time: "0", remote_start: "false", door_lock: "false", child_lock: "false" });
+    expect_props(d, #{ power: "true", status: "standby", error: "false", error_message: "OK", drying_mode: "off", reserve_time: "0", extra_rinse: "false", turbo_wash: "false", eco_hybrid: "false", pre_wash: "false", steam: "false", cycles: "10", energy: "0", initial_time: "0", remaining_time: "0", remote_start: "false", door_lock: "false", child_lock: "false" });
 }
 
 // child lock engaged frame decodes child_lock=ON, polarity is non-inverted
