@@ -70,7 +70,7 @@ fn test_end() {
 fn test_steam_on() {
     let d = device();
     d.feed(sample_steam_on_ec());
-    expect_props(d, #{ steam: "true", status: "ready", temp: "60", spin: "1400", remaining_time: "220", wrinkle_care: "false" });
+    expect_props(d, #{ steam: "true", status: "standby", temp: "60", spin: "1400", remaining_time: "220", wrinkle_care: "false" });
 }
 
 // steam toggles correctly across ON→OFF sequence
@@ -118,7 +118,7 @@ fn test_child_lock_toggles() {
 fn test_remote_start_on() {
     let d = device();
     d.feed(sample_remote_start_on_ec());
-    expect_props(d, #{ remote_start: "true", status: "ready", course: "cotton", spin: "1000", temp: "40", remaining_time: "81", initial_time: "81", steam: "false", wrinkle_care: "false", active: "false" });
+    expect_props(d, #{ remote_start: "true", status: "standby", course: "cotton", spin: "1000", temp: "40", remaining_time: "81", initial_time: "81", steam: "false", wrinkle_care: "false", active: "false" });
 }
 
 // remote_start toggles correctly across ON→OFF sequence
@@ -253,4 +253,15 @@ fn test_unknown_and_read_only_writes_are_rejected() {
     d.set("status", "off");
     expect_eq(d.sent().len(), n);
     expect(d.event("reject") != (), "rejects are published");
+}
+
+// 0xD8 and 0xE2 are acked; bare 0xEB/0xEC status is not (upstream commit 8465439)
+fn test_acks_other_frames_but_not_status() {
+    let d = device();
+    d.feed(sample_door_unlocked());
+    d.feed(sample_e2_ignored());
+    d.feed(sample_washing_eb());
+    d.feed(sample_washing_ec());
+    expect_eq(d.clips().map(|c| c.data),
+              [hex_encode_upper(aabb_wrap([0xf0, 0x00, 0xd8, 0x04])), hex_encode_upper(aabb_wrap([0xf0, 0x00, 0xe2, 0x04]))]);
 }

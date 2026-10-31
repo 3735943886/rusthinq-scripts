@@ -1,5 +1,5 @@
-// LG dishwasher D0211 (DB365TXS / DBC435TSL): device -> IL driver. Port of upstream rethink's
-// driver (commit 0e57069). Read only. 26-byte records; dishwasher_common decodes the shared
+// LG dishwasher D0211 (DB365TXS / DBC435TSL) and its alias D2211 (XD3A25MB). Port of upstream
+// rethink's D0211.ts (commit 0e57069). Read only. 26-byte records; dishwasher_common decodes the shared
 // fields, plus
 //   11 flags: 0x01 child lock, 0x04 rinse aid refill, 0x08 salt refill
 //   12 options: 0x01 delay start, 0x02 energy saver, 0x10 dual zone, 0x40 half load, 0x80 steam

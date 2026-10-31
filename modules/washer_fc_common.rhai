@@ -1,5 +1,6 @@
-// LG front-load washer F_C__Y___W.A__QEUK (F4WV709P1, A generation): device -> IL driver. Port
-// of upstream rethink's driver (commit 0e57069), its offsets confirmed there on live captures.
+// The LG A-generation front-load washers: F_C__Y___W.A__QEUK (F4WV709P1) and its alias
+// F_V7_Y___W.A__QEUK (WV5-1275W). Port of upstream rethink's F_C__Y___W.A__QEUK.ts (commit
+// 2d8eaba), its offsets confirmed there on live captures.
 // Status is a class 0x20 EB/EC frame of 30-byte records:
 //    2 state   3/4 remaining, 5/6 initial time (h, min)   7 0x02 remote start   8 error
 //   10 spin   11 temperature   12 course   14/15 delay remaining (h, min)   16 0x80 steam
@@ -7,11 +8,19 @@
 // No record bit follows the door lock. A 3-byte 0x20 0xD8 frame does (non-zero = locked), but
 // only while Off or Ready: during a cycle it can read unlocked spuriously, so there the lock
 // follows the state (Off unlocked, any running state locked). 0xE2 end-of-cycle alerts carry
-// another layout and are ignored. Commands as washer_common.
+// another layout and are ignored. Commands as washer_common. The washer repeats unacked frames
+// and then re-deploys, so it gets the cloud's acks.
 import "aabb_common" as c;
 import "table_common" as t;
 import "washer_common" as w;
 import "il_common" as il;
+
+// 14 and 15 are WASH_REFRESHING and REFRESHING.
+fn states() {
+    let s = w::base_states();
+    s["15"] = "refreshing";
+    s
+}
 
 fn descriptor(ctx) {
     json_stringify(#{ il: 0, kind: "washer", class: "washing_machine", label: "Washer", vendor: "LG",
@@ -20,7 +29,7 @@ fn descriptor(ctx) {
         power: #{ type: "binary", rw: true, class: "running", label: "Powered on" },
         start: #{ type: "trigger", requires: "remote_start" },
         pause: #{ type: "trigger" },
-        status: #{ type: "select", options: t::options(w::states()) },
+        status: #{ type: "select", options: t::options(states()) },
         error: #{ type: "binary", class: "problem", category: "diagnostic" },
         error_message: #{ type: "text", category: "diagnostic" },
         course: #{ type: "select", options: t::options(w::courses()) },
@@ -46,6 +55,7 @@ fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
 fn on_data(ctx, data) {
+    c::ack(ctx, data);
     let b = c::inner(data, 0x20);
     if b == () { return; }
     if b[1] == 0xd8 && b.len() == 3 {
@@ -59,7 +69,7 @@ fn on_data(ctx, data) {
     ctx.state_set("state", s[2]);
     il::publish_property(ctx, "available", "true");
     il::publish_property(ctx, "power", if s[2] > 0 { "true" } else { "false" });
-    c::pub_name(ctx, "status", t::name(w::states(), s[2]));
+    c::pub_name(ctx, "status", t::name(states(), s[2]));
     il::publish_property(ctx, "error", if s[8] != 0 { "true" } else { "false" });
     il::publish_property(ctx, "error_message", t::name(w::errors(), s[8]) ?? "Unknown error (" + s[8] + ")");
     c::pub_name(ctx, "course", t::name(w::courses(), s[12]));

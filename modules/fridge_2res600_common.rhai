@@ -1,5 +1,5 @@
-// LG refrigerator 2RES1VE600FWC (GSB470BASZ): device -> IL driver. Port of upstream rethink's
-// driver (commit 0e57069). 12-byte status records; fridge_common decodes the door and unit.
+// LG refrigerator 2RES1VE600FWC (GSB470BASZ) and its alias 2RES1VE61NFWA (GSX961MCCZ). Port of
+// upstream rethink's 2RES1VE600FWC.ts (commit 0e57069). 12-byte status records; fridge_common decodes the door and unit.
 // The setpoints have their own encoding and ranges here (wire values):
 //   fridge   °C 8 - wire (1..7); °F 47 - wire (33..46)
 //   freezer  °C -13 - wire (-24..-14); °F wire 1..15 index freezer_f(), the uneven steps the
