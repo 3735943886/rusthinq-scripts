@@ -129,6 +129,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `2REFT1DIC4P_U` | refrigerator | AABB | captured |
 | `2REFTBDII4P_U` | refrigerator | AABB | captured |
 | `2RES1VE600FWC` | refrigerator | AABB | captured |
+| `2RES1VE61NFWA` | refrigerator (alias of `2RES1VE600FWC`) | AABB | captured |
 | `2RES1VE61NFA2` | refrigerator | AABB | captured |
 | `1WPU4CIGCR__2` | water purifier | AABB | captured |
 | `1WPD6CMIDR__3` | water/ice purifier (WD722RH) | AABB | captured |
@@ -143,18 +144,20 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `WIN_056905_WW` | window air conditioner | TLV | constructed |
 | `D140110` | dishwasher (read-only) | AABB | captured |
 | `D0211` | dishwasher (read-only) | AABB | captured |
+| `D2211` | dishwasher (read-only; alias of `D0211`) | AABB | captured |
 | `D30` | dishwasher (read-only) | AABB | captured |
 | `H11` | dishwasher | AABB | captured |
 | `N17` | dishwasher | AABB | captured |
 | `DHUM_056905_WW` | dehumidifier | TLV | captured |
 | `DHUM_231006_WW` | dehumidifier | TLV | captured |
 | `F_V8_Y___W.B_2QEUK` | washer | AABB | captured |
-| `F_V7_Y___W.B_2QEUK`, `F_V7_Y___W.B__QEUK`, `F_V__Y___W.B_2QEUK` | washer (alias of `F_V8_Y___W.B_2QEUK`) | AABB | captured |
+| `F_V7_Y___W.B_2QEUK`, `F_V7_Y___W.B__QEUK`, `F_V__Y___W.B_2QEUK`, `F_V__Y___W.B__QEUK` | washer (alias of `F_V8_Y___W.B_2QEUK`) | AABB | captured |
 | `F_VB_Y___W.B_2QEUK` | washer | AABB | captured |
 | `F_VB_F___W.B_2QEUK` | washer-dryer | AABB | constructed |
 | `F_V__F___W.B_1QEUK`, `F_VA_F___W.B__QEUK` | washer-dryer | AABB | constructed |
 | `F_C__Y___W.A__QEUK` | washer | AABB | captured |
-| `VCDWL2QEUK` | washer (read-only) | AABB | captured |
+| `F_V7_Y___W.A__QEUK` | washer (alias of `F_C__Y___W.A__QEUK`) | AABB | captured |
+| `VCDWL2QEUK` | washer (read-only) | AABB envelope | captured |
 | `Y_V8_Y___W.B32QEUK` | washer | AABB envelope | captured |
 | `Y_VB_Y___W.B32QEUK` | washer with ezDispense | AABB envelope | captured |
 | `Y_V8_F___W.B_2QEUK` | washer-dryer | AABB envelope | captured |
@@ -172,7 +175,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `WMVEL2137` | microwave/hood | AABB | captured |
 | `WMVEM1825` | microwave | AABB | captured |
 | `Pd0F_F` | mini washer | AABB monitoring | constructed |
-| `T1789EFH_F` | top-load washer (read-only) | AABB | captured |
+| `T1789EFH_F` | top-load washer | AABB | captured |
 | `TLVE5BB` | top-load washer (read-only) | AABB envelope | captured |
 | `F3L2CYU__` | washer (read-only) | AABB | captured |
 | `F3L7CYK5W_US_WIFI` | washer (read-only) | AABB | captured |
@@ -184,6 +187,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `BDH_D30007_US` | heat pump dryer (read-only) | AABB envelope | captured |
 | `RC90U2_WW` | heat pump dryer (read-only) | AABB | captured |
 | `RC90V9_WW` | heat pump dryer (read-only; alias of `RC90U2_WW`) | AABB | captured |
+| `RC90V9_AUS` | heat pump dryer (read-only; alias of `RC90U2_WW`) | AABB | captured |
 | `WTL_FXU_BDV_NA_01` | WashTower (washer and dryer) | AABB | captured |
 | `FAKPK21021` | Korean WashTower washer | AABB envelope | captured |
 | `BDH_D39301_KR` | Korean WashTower dryer | AABB envelope | captured |

@@ -24,6 +24,24 @@ for drivers that are already ported.
 Upstream matches the reported `modelId` exactly. The driver file here must have
 the same name (names containing `.` need rusthinq `bfb8e77` or later).
 
+## Moving to `2d8eaba`
+
+Upstream `2d8eaba` (2026-10-27) is the next baseline. The table stays on
+`0e57069` until every row below is done.
+
+| upstream change | status |
+|---|---|
+| `8465439` `F_C__Y___W.A__QEUK` takes the cloud's acks | ported |
+| `6881ea2` per-model washer state tables, no `running` fallback | ported; IL names follow upstream's labels (`standby`, `detecting`, `filling`, `end`, ...) |
+| `59fc2d7` washers read EB as well as EC records; VCDWL2QEUK is the 0x20 envelope | ported |
+| `e018a28` VCDWL2QEUK reads off from the state byte alone | ported |
+| `7d3a18c` `T1789EFH_F` decode fixed and completed, with start, pause and power off | ported |
+| `2b43953`, `7300491`, `e727324` aliases `F_V7_Y___W.A__QEUK`, `F_V__Y___W.B__QEUK`, `D2211`, `RC90V9_AUS`, `2RES1VE61NFWA` | ported; `F_C__Y`, `D0211` and `2RES1VE600FWC` moved into modules for them |
+| `61b7b15` `D0211` course table | todo |
+| `3ca7a55`, `ec62abc`, `cc9615d` `RAC_056905_WW` H09S1DA features | todo |
+| new drivers `RV13D5JSD_D_US`, `G2V7_Y___W.B_2QEUK`, `2REBGLUB_2P__`, `2REF11EII__M2` | todo |
+| `70e1462`, `d52f645` message routing by provisioned topic, `appVersion` fallback | host (rusthinq), not here |
+
 ## How to port one driver
 
 1. Read the upstream driver, its shared module and its test file. The TS driver
@@ -135,7 +153,7 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 
 | model | tests | fixtures | notes | status |
 |---|---|---|---|---|
-| `T1789EFH_F` | 21 | 22 | WT7300CW top-load washer, Ack | ported |
+| `T1789EFH_F` | 44 | 34 | WT7300CW top-load washer, Ack; re-ported from `7d3a18c` | ported |
 | `TLVE5BB` | 6 | 7 | WT21BWV6 top-load washer, Env | ported |
 | `F3L2CYU__` | 8 | 32 | front-load washer (`washer_f3l_common`) | ported |
 | `F3L7CYK5W_US_WIFI` | 18 | 29 | same layout as `F3L2CYU__`, own course table and bits (`washer_f3l_common`) | ported |
