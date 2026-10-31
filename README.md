@@ -123,9 +123,11 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 |---|---|---|---|
 | `2RSFL2DBN3K_Z` | refrigerator | AABB | live |
 | `2REB1GLVB1__2` | refrigerator | AABB | captured |
+| `2REBGLUB_2P__` | bottom-freezer refrigerator (GBBSJ2CCEP) | AABB | captured |
 | `2REF11EBIVPC4` | refrigerator | AABB | constructed |
 | `2REF11EIDA__4` | refrigerator | AABB | captured |
 | `2REF11EIDG__4` | refrigerator | AABB | captured |
+| `2REF11EII__M2` | refrigerator (LMXS28626) | AABB | captured |
 | `2REFT1DIC4P_U` | refrigerator | AABB | captured |
 | `2REFTBDII4P_U` | refrigerator | AABB | captured |
 | `2RES1VE600FWC` | refrigerator | AABB | captured |
@@ -158,6 +160,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `F_C__Y___W.A__QEUK` | washer | AABB | captured |
 | `F_V7_Y___W.A__QEUK` | washer (alias of `F_C__Y___W.A__QEUK`) | AABB | captured |
 | `VCDWL2QEUK` | washer (read-only) | AABB envelope | captured |
+| `G2V7_Y___W.B_2QEUK` | slim washer (F2NX50S9TKC) | AABB envelope | captured |
 | `Y_V8_Y___W.B32QEUK` | washer | AABB envelope | captured |
 | `Y_VB_Y___W.B32QEUK` | washer with ezDispense | AABB envelope | captured |
 | `Y_V8_F___W.B_2QEUK` | washer-dryer | AABB envelope | captured |
@@ -184,6 +187,7 @@ archive, so extracting an update over it keeps them; stop rusthinq first.
 | `RV13B6BSD_D_US_WIFI` | dryer (read-only) | AABB | captured |
 | `RV13B6ES_D_US_WIFI` | dryer (read-only) | AABB | captured |
 | `RV13U6AM8W_D_US_WIFI` | dryer (read-only) | AABB | captured |
+| `RV13D5JSD_D_US` | dryer (DLEX4200B; power off only) | AABB | captured |
 | `BDH_D30007_US` | heat pump dryer (read-only) | AABB envelope | captured |
 | `RC90U2_WW` | heat pump dryer (read-only) | AABB | captured |
 | `RC90V9_WW` | heat pump dryer (read-only; alias of `RC90U2_WW`) | AABB | captured |
