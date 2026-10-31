@@ -45,7 +45,7 @@ fn test_off() {
 fn test_ready_cotton_1200_40c() {
     let d = device_t1();
     d.feed(sample_ready_cotton_1200_40c());
-    expect_props(d, #{ power: "true", status: "ready", course: "cotton", spin: "1200", temp: "40",
+    expect_props(d, #{ power: "true", status: "standby", course: "cotton", spin: "1200", temp: "40",
                        initial_time: "184", remaining_time: "184", error: "false", drying_mode: "off" });
 }
 

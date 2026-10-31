@@ -5,3 +5,10 @@ import "washer_common";
 fn features() { ["soil", "reserve_time", "extra_rinse", "options", "doses"] }
 
 fn acked() { true }
+
+// 19 is AUTO_DT_OPEN_PAUSE, which the LG app shows as paused.
+fn states() {
+    let s = base_states();
+    s["19"] = "paused";
+    s
+}

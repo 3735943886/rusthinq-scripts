@@ -33,7 +33,7 @@ fn test_the_descriptor_offers_the_states() {
 fn test_initial() {
     let d = device();
     d.feed(sample_initial());
-    expect_props(d, #{ power: "true", status: "ready", error: "false", error_message: "OK", remaining_time: "218", initial_time: "218", cycles: "17", energy: "0", remote_start: "false", door_lock: "false", child_lock: "false", reserve_time: "0", turbo_wash: "false" });
+    expect_props(d, #{ power: "true", status: "standby", error: "false", error_message: "OK", remaining_time: "218", initial_time: "218", cycles: "17", energy: "0", remote_start: "false", door_lock: "false", child_lock: "false", reserve_time: "0", turbo_wash: "false" });
 }
 
 // running state with door locked + remote_start active
@@ -129,7 +129,7 @@ fn test_ack_frames_match_the_cloud() {
 fn test_pair_power_on() {
     let d = device();
     d.feed(pair_power_on());
-    expect_props(d, #{ power: "true", status: "ready", cycles: "14" });
+    expect_props(d, #{ power: "true", status: "standby", cycles: "14" });
 }
 
 // 0x00ec state pairs: a course selected on the panel reaches HA

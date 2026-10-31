@@ -1,25 +1,45 @@
 // The LG split air conditioners RAC_056905_WW and RAC_0B0001_WW (a European variant, deviceType
 // 401, RTK_RTL8720cm, which upstream maps to the same handler): a whole driver over climate_common,
-// as upstream rethink's RAC_056905_WW.ts and RAC_056905_WW_T1.ts (commit 0e57069). Each model's
+// as upstream rethink's RAC_056905_WW.ts and RAC_056905_WW_T1.ts (commit 2d8eaba). Each model's
 // driver is `import "rac_common";`.
 //
-// Modes cool 0, dry 1, fan 2, heat 4, auto 6; fan very low 2, low 3, medium 4, high 5, very high 6,
-// auto 8; setpoint 18 to 30 in half degrees until the capabilities say otherwise. A mode write
-// carries fan and setpoint but not power.
+// Modes cool 0, dry 1, fan 2, heat 4, auto 6, and 46, which units with AC_RAC_AIRCLEAN_ONLY report
+// after Air Purify is started from off and which runs as fan mode with air purify on; fan very low
+// 2, low 3, medium 4, high 5, very high 6, auto 8; setpoint 18 to 30 in half degrees until the
+// capabilities' per-mode limits (0x2e1 - 0x2ec) say otherwise. A mode write carries fan and
+// setpoint but not power.
 //
 // The capability reply decides the optional features, as upstream does: 0x2cc bit 0x1 air
 // purify (0x20f), 0x2 energy saving (0x20d, cool only), 0x4 auto dry (0x20e, 0x225 remaining);
 // 0x2cd bits 0x1 / 0x2 jet in cool / heat (0x323 = 1 / 2), 0x4 vertical and 0x8 horizontal
-// swing steps (0x321 / 0x322); 0x2d3 bit 0x1 sleep timer (0x21a), 0x4 on and off timers (0x21c /
-// 0x21b), all in minutes; 0x2d6 bit 0x2 the display light (0x21f), only on hardware upstream
-// verified, by the EEPROM checksum 0x2da. The diagnostic sensors appear when the first state
-// carries them: error 0x221, nominal capacity 0x32e (kBTU/h), EEV opening 0x330, pipe liquid /
-// gas 0x2f9 / 0x2fa, outdoor heat exchanger 0x7a or 0x32c and outdoor air 0x332 (looked up in
-// the tables below, index 255 - raw), fan 0x331 (x10 rpm) and power draw 0x2b3 (upstream
-// estimates watts as raw - 60, at least 5).
+// swing steps (0x321 / 0x322); 0x2d3 bit 0x1 sleep timer (0x21a, written only while on), 0x4
+// or 0x10 on and off timers (0x21c / 0x21b), all in minutes; 0x2d6 bit 0x2 or 0x8000 the display
+// light (0x21f), only on hardware upstream verified, by the EEPROM checksum 0x2da, which also
+// says which value is on. The diagnostic sensors appear when the first state carries them:
+// error 0x221, nominal capacity 0x32e (kBTU/h), EEV opening 0x330, pipe liquid / gas 0x2f9 /
+// 0x2fa, outdoor heat exchanger 0x7a or 0x32c and outdoor air 0x332 (looked up in the tables
+// below, index 255 - raw), fan 0x331 (x10 rpm). The power draw 0x2b3 is offered when accumMode
+// 0x2d5 has a momentary bit (0x2 in/outdoor, 0x4 outdoor): with 0x4 it is watts as read, else
+// upstream estimates watts as raw - 60, at least 5.
 //
-// Energy saving and jet are rewritten when the mode changes, air purify at each power up, each in
-// its own frame, since the unit forgets them; they are read only while they apply.
+// The features of newer indoor units (upstream verified them on an H09S1DA, firmware 0x55703),
+// each gated on the capability bit LG's model JSON names for it:
+//   0x2dd 0x20 humidity 0x336   0x2ca 0x30000 AI Air 0x23e (cool, heat)   0x2cc 0x200 low heating
+//   0x22d (heat)   0x34f 0x400 energy limit 0x20d (0 off or 80 / 60 / 40 %; cool; instead of energy
+//   saving)   0x34f 0x100000 window detection, bit 0 of 0x3c9   0x351 bit 0x10000 Soft Air (cool,
+//   fan)   0x374 0x4 beep 0x3a0 (0 on, 1 muted)   0x2f0 0x8 GoodSleep 0x12d and its operation and
+//   temperature adjustments 0x12f / 0x133 (stored preferences, set any time)   0x350 0x10 makes auto
+//   dry 0x20e a setting (255 on) with its fan 0x1f2 (low 2, medium 4, high 6; offered as 0x192's
+//   bits say).
+// Those bound to a mode take effect only while the unit runs in it: a read outside it is ignored,
+// a write refused, except the energy limit, which is held and sent once the unit is cooling.
+// Upstream's per-entity availability and descriptions are Home Assistant presentation, left out.
+// The optional properties carry no `src` tag annotation: the host caps a script map at 256
+// entries, nested ones included, and a unit with every feature would exceed it.
+//
+// Energy saving, the energy limit and jet are rewritten when the mode changes, air purify at each
+// power up, each in its own frame, since the unit forgets them; they are read only while they
+// apply.
 //
 // The filter is read with the private command 0x02 (`00 FF 04 00 00 00 65 FD 02 00 01 02 crc`),
 // whose reply carries hours used, rated life and the date it was last reset, little-endian; units
@@ -33,10 +53,11 @@ import "il_common" as il;
 
 // ---- model ------------------------------------------------------------------------
 
-fn modes() { #{ "0": "cool", "1": "dry", "2": "fan_only", "4": "heat", "6": "auto" } }
+fn modes() { #{ "0": "cool", "1": "dry", "2": "fan_only", "4": "heat", "6": "auto", "46": "fan_only" } }
 fn fans() { #{ "2": "very_low", "3": "low", "4": "medium", "5": "high", "6": "very_high", "8": "auto" } }
 fn fan_options() { ["auto", "very_low", "low", "medium", "high", "very_high"] }
 fn range() { [18, 30] }
+fn range_tags() { [[0x2e1, 0x2e3, 0x2eb], [0x2e2, 0x2e4, 0x2ec]] }
 fn mode_attach() { [0x1fa, 0x1fe] }
 fn tracks_action() { true }
 fn masks_reports() { true }
@@ -46,33 +67,85 @@ fn swing_options() { ["1", "2", "3", "4", "5", "6", "on", "off"] }
 fn swings_h() { #{ "1": "1", "2": "2", "3": "3", "4": "4", "5": "5", "13": "1-3", "35": "3-5", "100": "on", "0": "off" } }
 fn swing_h_options() { ["1", "2", "3", "4", "5", "1-3", "3-5", "on", "off"] }
 
-// Hardware revisions upstream verified to report and accept 0x21f with 0 = off, 1 = on.
-fn display_checksums() { [0x4e88, 0x551d, 0x4c19, 0x4f58, 0x4e95] }
+// Hardware revisions upstream verified to report and accept 0x21f: EEPROM checksum -> the value
+// that means on (the other one is off).
+fn display_checksums() { #{ "20104": 1, "21789": 1, "19481": 1, "20312": 1, "20117": 1, "20153": 0 } }
+
+fn energy_limits() { #{ "0": "off", "80": "80", "60": "60", "40": "40" } }
+fn auto_dry_fans() { #{ "2": "low", "4": "medium", "6": "high" } }
+
+// The newer features with a simple switch: tag, the value written for on and for off (a read of the
+// off value is off, anything else on), and the modes they apply in (() for any state).
+fn switches() {
+    #{
+        ai_air: #{ tag: 0x23e, on: 1, off: 0, modes: [0, 4] },
+        low_heating: #{ tag: 0x22d, on: 1, off: 0, modes: [4] },
+        beep: #{ tag: 0x3a0, on: 0, off: 1 },
+        good_sleep: #{ tag: 0x12d, on: 1, off: 0 },
+        good_sleep_operation: #{ tag: 0x12f, on: 1, off: 0 },
+        good_sleep_temperature: #{ tag: 0x133, on: 1, off: 0 }
+    }
+}
 
 // ---- features ---------------------------------------------------------------------
 
 fn after_caps(ctx, tlvs) {
     let v = #{};
     for e in tlvs { v["t" + e.t] = e.v; }
-    let cc = v["t716"] ?? 0;   // 0x2cc
-    let cd = v["t717"] ?? 0;   // 0x2cd
-    let d3 = v["t723"] ?? 0;   // 0x2d3
-    let d6 = v["t726"] ?? 0;   // 0x2d6
-    let f1 = v["t753"] ?? 0;   // 0x2f1
+    let cap = |tag, mask| ((v["t" + tag] ?? 0) & mask) != 0;
     let features = [];
-    if (cc & 0x1) != 0 { features.push("air_purify"); }
-    if (cc & 0x2) != 0 { features.push("energy_save"); }
-    if (cc & 0x4) != 0 { features.push("auto_dry"); }
-    if (cd & 0x1) != 0 { features.push("jet_cool"); }
-    if (cd & 0x2) != 0 { features.push("jet_heat"); }
-    if (cd & 0x4) != 0 { features.push("swing_vertical"); }
-    if (cd & 0x8) != 0 { features.push("swing_horizontal"); }
-    if (d3 & 0x1) != 0 { features.push("sleep_timer"); }
-    if (d3 & 0x4) != 0 { features.push("turn_timers"); }
-    if (d6 & 0x2) != 0 && display_checksums().contains(v["t730"] ?? 0) { features.push("display_light"); }
-    if (f1 & 0x1) != 0 || (f1 & 0x200) != 0 { features.push("mfilter"); }
+    if cap.call(0x2cc, 0x1) { features.push("air_purify"); }
+    if cap.call(0x2cc, 0x4) { features.push("auto_dry"); }
+    if cap.call(0x2cc, 0x4) && cap.call(0x350, 0x10) { features.push("auto_dry_setting"); }
+    if cap.call(0x2cd, 0x1) { features.push("jet_cool"); }
+    if cap.call(0x2cd, 0x2) { features.push("jet_heat"); }
+    if cap.call(0x2cd, 0x4) { features.push("swing_vertical"); }
+    if cap.call(0x2cd, 0x8) { features.push("swing_horizontal"); }
+    if cap.call(0x2d3, 0x1) { features.push("sleep_timer"); }
+    if cap.call(0x2d3, 0x14) { features.push("turn_timers"); }
+    let checksum = (v["t730"] ?? 0).to_string();   // 0x2da
+    if cap.call(0x2d6, 0x8002) && display_checksums().contains(checksum) {
+        features.push("display_light");
+        ctx.state_set("display_on", display_checksums()[checksum]);
+    }
+    if cap.call(0x2f1, 0x201) { features.push("mfilter"); }
+    if cap.call(0x2d5, 0x6) { features.push("power_draw"); }
+    if cap.call(0x2d5, 0x4) { features.push("power_draw_outdoor"); }
+    if cap.call(0x34f, 0x400) { features.push("energy_limit"); }
+    else if cap.call(0x2cc, 0x2) { features.push("energy_save"); }
+    if cap.call(0x2ca, 0x30000) { features.push("ai_air"); }
+    if cap.call(0x2cc, 0x200) { features.push("low_heating"); }
+    // these also need the tag itself, which first_values checks
+    if cap.call(0x2dd, 0x20) { features.push("humidity?"); }
+    if cap.call(0x34f, 0x100000) { features.push("window_detection?"); }
+    if cap.call(0x374, 0x4) { features.push("beep?"); }
+    if cap.call(0x2f0, 0x8) { features.push("good_sleep?"); }
+    features.push("soft_air?");
     ctx.state_set("features", features);
+    ctx.state_set("caps_tags", tlvs.map(|e| e.t));
+    ctx.state_set("auto_dry_fan_mask", v["t402"] ?? 0);   // 0x192
     false
+}
+
+// A feature that needs a tag as well as its capability bit is listed as "name?" until the first
+// state shows whether the unit carries the tag (in its capabilities or its values).
+fn confirm_features(ctx) {
+    let caps = ctx.state_get("caps_tags") ?? [];
+    let carries = |tag| caps.contains(tag) || ctx.state_has("t" + tag);
+    let needs = #{ "humidity?": [0x336], "window_detection?": [0x3c9], "beep?": [0x3a0],
+                   "good_sleep?": [0x12d], "soft_air?": [0x351] };
+    let out = [];
+    for f in ctx.state_get("features") ?? [] {
+        if !f.ends_with("?") { out.push(f); continue; }
+        let name = f.sub_string(0, f.len() - 1);
+        if carries.call(needs[f][0]) { out.push(name); }
+        if name == "good_sleep" && carries.call(0x12d) {
+            for extra in [["good_sleep_operation", 0x12f], ["good_sleep_temperature", 0x133]] {
+                if carries.call(extra[1]) { out.push(extra[0]); }
+            }
+        }
+    }
+    ctx.state_set("features", out);
 }
 
 fn has(ctx, f) { let l = ctx.state_get("features"); l != () && l.contains(f) }
@@ -83,7 +156,7 @@ fn jet(ctx) { has(ctx, "jet_cool") || has(ctx, "jet_heat") }
 fn sensors() {
     [["error", [0x221]], ["capacity", [0x32e]], ["eev", [0x330]], ["pipe_liquid_temp", [0x2f9]],
      ["pipe_gas_temp", [0x2fa]], ["outdoor_coil_temp", [0x7a, 0x32c]], ["outdoor_temp", [0x332]],
-     ["fan_rpm", [0x331]], ["power_draw", [0x2b3]]]
+     ["fan_rpm", [0x331]]]
 }
 
 fn sensor_value(name, raw) {
@@ -92,7 +165,6 @@ fn sensor_value(name, raw) {
         "pipe_liquid_temp" | "pipe_gas_temp" | "outdoor_coil_temp" => lookup(pipe_temps(), raw),
         "outdoor_temp" => lookup(air_temps(), raw),
         "fan_rpm" => (raw * 10).to_string(),
-        "power_draw" => (if raw - 60 > 5 { raw - 60 } else { 5 }).to_string(),
         _ => raw.to_string()
     }
 }
@@ -109,10 +181,7 @@ fn pick_sensors(ctx) {
     for s in sensors() {
         for tag in s[1] {
             if picked.contains(s[0]) || !ctx.state_has("t" + tag) { continue; }
-            let raw = c::get(ctx, tag);
-            // the power draw is offered only when the unit reports a non-zero reading
-            if s[0] == "power_draw" && raw == 0 { continue; }
-            if sensor_value(s[0], raw) != () { picked[s[0]] = tag; }
+            if sensor_value(s[0], c::get(ctx, tag)) != () { picked[s[0]] = tag; }
         }
     }
     ctx.state_set("sensors", picked);
@@ -129,7 +198,7 @@ fn sensor_of(ctx, tag) {
 
 fn sensor_props() {
     #{
-        error: #{ type: "number", category: "diagnostic", src: #{ tlv_tag: "0x221" } },
+        error: #{ type: "number", category: "diagnostic" },
         capacity: #{ type: "number", class: "power", category: "diagnostic", unit: "kW", label: "Nominal capacity" },
         eev: #{ type: "number", series: "gauge", category: "diagnostic", label: "EEV opening" },
         pipe_liquid_temp: #{ type: "number", class: "temperature", series: "gauge", category: "diagnostic", unit: "°C" },
@@ -138,8 +207,7 @@ fn sensor_props() {
                               label: "Outdoor heat exchanger temperature" },
         outdoor_temp: #{ type: "number", class: "temperature", series: "gauge", category: "diagnostic", unit: "°C",
                          label: "Outdoor air temperature" },
-        fan_rpm: #{ type: "number", series: "gauge", category: "diagnostic", unit: "rpm" },
-        power_draw: #{ type: "number", class: "power", series: "gauge", unit: "W", src: #{ tlv_tag: "0x2b3" } }
+        fan_rpm: #{ type: "number", series: "gauge", category: "diagnostic", unit: "rpm" }
     }
 }
 
@@ -147,36 +215,68 @@ fn extra_props(ctx) {
     if !complete(ctx) { return #{}; }
     let props = #{};
     if has(ctx, "swing_vertical") {
-        props.swing_vertical = #{ type: "select", rw: true, src: #{ tlv_tag: "0x321" }, options: swing_options() };
+        props.swing_vertical = #{ type: "select", rw: true, options: swing_options() };
     }
     if has(ctx, "swing_horizontal") {
-        props.swing_horizontal = #{ type: "select", rw: true, src: #{ tlv_tag: "0x322" }, options: swing_h_options() };
+        props.swing_horizontal = #{ type: "select", rw: true, options: swing_h_options() };
     }
     if has(ctx, "air_purify") {
-        props.air_purify = #{ type: "binary", rw: true, category: "config", src: #{ tlv_tag: "0x20f" } };
+        props.air_purify = #{ type: "binary", rw: true, category: "config" };
     }
     if jet(ctx) {
-        props.jet = #{ type: "binary", rw: true, category: "config", src: #{ tlv_tag: "0x323" } };
+        props.jet = #{ type: "binary", rw: true, category: "config" };
     }
     if has(ctx, "sleep_timer") {
-        props.sleep_timer = #{ type: "number", class: "duration", rw: true, src: #{ tlv_tag: "0x21a" },
-                               min: 0, max: 15, step: 0.25, unit: "h" };
+        props.sleep_timer = #{ type: "number", class: "duration", rw: true,
+                               min: 0, max: 15, step: 0.25, unit: "h", requires: "power" };
     }
     if has(ctx, "turn_timers") {
-        props.turn_on_timer = #{ type: "number", class: "duration", rw: true, src: #{ tlv_tag: "0x21c" },
+        props.turn_on_timer = #{ type: "number", class: "duration", rw: true,
                                  min: 0, max: 24, step: 0.25, unit: "h" };
-        props.turn_off_timer = #{ type: "number", class: "duration", rw: true, src: #{ tlv_tag: "0x21b" },
+        props.turn_off_timer = #{ type: "number", class: "duration", rw: true,
                                   min: 0, max: 24, step: 0.25, unit: "h" };
     }
     if has(ctx, "energy_save") {
-        props.energy_save = #{ type: "binary", rw: true, category: "config", src: #{ tlv_tag: "0x20d" } };
+        props.energy_save = #{ type: "binary", rw: true, category: "config" };
     }
-    if has(ctx, "auto_dry") {
-        props.auto_dry = #{ type: "binary", category: "diagnostic", src: #{ tlv_tag: "0x20e" } };
-        props.auto_dry_remaining = #{ type: "number", category: "diagnostic", unit: "%", src: #{ tlv_tag: "0x225" } };
+    if has(ctx, "auto_dry_setting") {
+        props.auto_dry = #{ type: "binary", rw: true, category: "config" };
+        props.auto_dry_remaining = #{ type: "number", category: "diagnostic", unit: "%" };
+        let mask = ctx.state_get("auto_dry_fan_mask") ?? 0;
+        if mask != 0 {
+            let options = [];
+            for k in [2, 4, 6] { if (mask & (1 << k)) != 0 { options.push(auto_dry_fans()[k.to_string()]); } }
+            props.auto_dry_fan = #{ type: "select", rw: true, category: "config", options: options };
+        }
+    } else if has(ctx, "auto_dry") {
+        props.auto_dry = #{ type: "binary", category: "diagnostic" };
+        props.auto_dry_remaining = #{ type: "number", category: "diagnostic", unit: "%" };
     }
     if has(ctx, "display_light") {
-        props.display_light = #{ type: "binary", rw: true, category: "config", src: #{ tlv_tag: "0x21f" } };
+        props.display_light = #{ type: "binary", rw: true, category: "config" };
+    }
+    if has(ctx, "power_draw") {
+        props.power_draw = #{ type: "number", class: "power", series: "gauge", unit: "W" };
+    }
+    if has(ctx, "humidity") {
+        props.humidity = #{ type: "number", class: "humidity", series: "gauge", role: "current_humidity", unit: "%" };
+    }
+    if has(ctx, "energy_limit") {
+        props.energy_limit = #{ type: "select", rw: true, category: "config", unit: "%", label: "Active energy control", options: t::options(energy_limits()) };
+    }
+    if has(ctx, "soft_air") {
+        props.soft_air = #{ type: "binary", rw: true, category: "config", label: "Soft Air",
+                            requires: #{ prop: "mode", "in": ["cool", "fan_only"] } };
+    }
+    if has(ctx, "window_detection") {
+        props.window_detection = #{ type: "binary", rw: true, category: "config" };
+    }
+    let sw = switches();
+    for name in sw.keys() {
+        if !has(ctx, name) { continue; }
+        let def = #{ type: "binary", rw: true, category: "config" };
+        if sw[name].modes != () { def.requires = #{ prop: "mode", "in": sw[name].modes.map(|m| modes()[m.to_string()]) }; }
+        props[name] = def;
     }
     let picked = ctx.state_get("sensors") ?? #{};
     let defs = sensor_props();
@@ -192,6 +292,12 @@ fn extra_props(ctx) {
 // ---- reads ------------------------------------------------------------------------
 
 fn powered(ctx) { c::get(ctx, 0x1f7) != 0 }
+
+// The mode on the wire, 46 (purify only) counting as fan.
+fn wire_mode(ctx) { let m = c::get(ctx, 0x1f9); if m == 46 { 2 } else { m } }
+
+// Powered on and, unless `modes` is (), in one of them.
+fn running_in(ctx, modes) { powered(ctx) && (modes == () || modes.contains(wire_mode(ctx))) }
 
 // Publish `name` unless it is `()` (a code the table does not know stays unpublished).
 fn pub_name(ctx, prop, name) { if name != () { il::publish_property(ctx, prop, name); } }
@@ -220,6 +326,13 @@ fn apply_extra(ctx, tag, v) {
                 ctx.state_set("energy_want", v != 0);
                 il::publish_property(ctx, "energy_save", c::flag(v));
             }
+            if has(ctx, "energy_limit") && running_in(ctx, [0]) {
+                let name = t::name(energy_limits(), v);
+                if name != () {
+                    ctx.state_set("energy_limit_want", v);
+                    il::publish_property(ctx, "energy_limit", name);
+                }
+            }
         }
         0x323 => {
             if jet(ctx) && jet_applies(ctx) {
@@ -231,11 +344,40 @@ fn apply_extra(ctx, tag, v) {
         }
         0x20e => { if has(ctx, "auto_dry") { il::publish_property(ctx, "auto_dry", c::flag(v)); } }
         0x225 => { if has(ctx, "auto_dry") { il::publish_property(ctx, "auto_dry_remaining", v.to_string()); } }
+        0x1f2 => { if has(ctx, "auto_dry_setting") { pub_name(ctx, "auto_dry_fan", t::name(auto_dry_fans(), v)); } }
+        0x2b3 => {
+            if has(ctx, "power_draw") {
+                let w = if has(ctx, "power_draw_outdoor") { v } else if v - 60 > 5 { v - 60 } else { 5 };
+                il::publish_property(ctx, "power_draw", w.to_string());
+            }
+        }
+        0x336 => { if has(ctx, "humidity") { il::publish_property(ctx, "humidity", v.to_string()); } }
+        0x351 => {
+            if has(ctx, "soft_air") && running_in(ctx, [0, 2]) {
+                il::publish_property(ctx, "soft_air", c::flag(v & 0x10000));
+            }
+        }
+        0x3c9 => { if has(ctx, "window_detection") { il::publish_property(ctx, "window_detection", c::flag(v & 1)); } }
         0x21a => { if has(ctx, "sleep_timer") { il::publish_property(ctx, "sleep_timer", hours(v)); } }
         0x21c => { if has(ctx, "turn_timers") { il::publish_property(ctx, "turn_on_timer", hours(v)); } }
         0x21b => { if has(ctx, "turn_timers") { il::publish_property(ctx, "turn_off_timer", hours(v)); } }
-        0x21f => { if has(ctx, "display_light") { il::publish_property(ctx, "display_light", c::flag(v)); } }
+        0x21f => {
+            if has(ctx, "display_light") {
+                let on = ctx.state_get("display_on") ?? 1;
+                il::publish_property(ctx, "display_light", if v == 1 - on { "false" } else { "true" });
+            }
+        }
         _ => {
+            let sw = switches();
+            for name in sw.keys() {
+                let def = sw[name];
+                if def.tag == tag && has(ctx, name) {
+                    if def.modes == () || running_in(ctx, def.modes) {
+                        il::publish_property(ctx, name, if v == def.off { "false" } else { "true" });
+                    }
+                    return;
+                }
+            }
             let name = sensor_of(ctx, tag);
             if name != () {
                 let value = sensor_value(name, v);
@@ -256,6 +398,8 @@ fn after_values(ctx, tlvs, before) {
     if energy != () && powered(ctx) && c::get(ctx, 0x1f9) == 0 {
         c::write(ctx, 0x20d, if energy { 1 } else { 0 }, []);
     }
+    let limit = ctx.state_get("energy_limit_want");
+    if limit != () && running_in(ctx, [0]) { c::write(ctx, 0x20d, limit, []); }
     let purify = ctx.state_get("air_purify_want");
     if before == "off" && purify != () && powered(ctx) {
         c::write(ctx, 0x20f, if purify { 1 } else { 0 }, []);
@@ -292,11 +436,41 @@ fn set_extra(ctx, prop, value) {
             il::publish_property(ctx, "air_purify", if on { "true" } else { "false" });
             if powered(ctx) { c::write(ctx, 0x20f, if on { 1 } else { 0 }, []); }
         }
-        "sleep_timer" => { c::write(ctx, 0x21a, (c::to_number(value) * 60).round().to_int(), []); }
+        "sleep_timer" => {
+            if !powered(ctx) { c::reject(ctx, prop, "requires power"); return true; }
+            c::write(ctx, 0x21a, (c::to_number(value) * 60).round().to_int(), []);
+        }
         "turn_on_timer" => { c::write(ctx, 0x21c, (c::to_number(value) * 60).round().to_int(), []); }
         "turn_off_timer" => { c::write(ctx, 0x21b, (c::to_number(value) * 60).round().to_int(), []); }
-        "display_light" => { c::write(ctx, 0x21f, if c::to_bool(value) { 1 } else { 0 }, []); }
-        _ => { return false; }
+        "display_light" => {
+            let on = ctx.state_get("display_on") ?? 1;
+            c::write(ctx, 0x21f, if c::to_bool(value) { on } else { 1 - on }, []);
+        }
+        "auto_dry" => { c::write(ctx, 0x20e, if c::to_bool(value) { 255 } else { 0 }, []); }
+        "auto_dry_fan" => { c::write(ctx, 0x1f2, t::code(auto_dry_fans(), value), []); }
+        "energy_limit" => {
+            let code = t::code(energy_limits(), value);
+            ctx.state_set("energy_limit_want", code);
+            il::publish_property(ctx, "energy_limit", value);
+            if running_in(ctx, [0]) { c::write(ctx, 0x20d, code, []); }
+        }
+        "soft_air" => {
+            if !running_in(ctx, [0, 2]) { c::reject(ctx, prop, "requires cooling or fan"); return true; }
+            let bits = (c::get(ctx, 0x351) & (-1 ^ 0x10000)) | if c::to_bool(value) { 0x10000 } else { 0 };
+            c::write(ctx, 0x351, bits, []);
+        }
+        "window_detection" => {
+            c::write(ctx, 0x3c9, (c::get(ctx, 0x3c9) & (-1 ^ 1)) | if c::to_bool(value) { 1 } else { 0 }, []);
+        }
+        _ => {
+            let def = switches()[prop];
+            if def == () { return false; }
+            if def.modes != () && !running_in(ctx, def.modes) {
+                c::reject(ctx, prop, "requires the unit running in " + def.modes.map(|m| modes()[m.to_string()]));
+                return true;
+            }
+            c::write(ctx, def.tag, if c::to_bool(value) { def.on } else { def.off }, []);
+        }
     }
     true
 }
@@ -349,6 +523,7 @@ fn own_frame(ctx, data) {
 }
 
 fn first_values(ctx) {
+    confirm_features(ctx);
     pick_sensors(ctx);
     if has(ctx, "mfilter") {
         finish(ctx);

@@ -42,13 +42,13 @@ fn fed(frames) { let d = device(); for f in frames { d.feed(f); } d }
 
 // 0xEB single-record frames decode with the same offsets as 0xEC, seen right after reconnect
 fn test_a_single_record_frame_after_reconnect() {
-    expect_props(fed([eb_reconnect_idle()]), #{ power: "true", status: "selecting", course: "none", door: "true" });
+    expect_props(fed([eb_reconnect_idle()]), #{ power: "true", status: "standby", course: "none", door: "true" });
 }
 
 // idle, Selecting on Normal: course/soil/spin/temp settle to their defaults
 fn test_selecting_normal_settles_to_its_defaults() {
     // TurboWash is forced on for Normal; this capture was taken with the door open
-    expect_props(fed([normal_idle()]), #{ power: "true", status: "selecting", course: "normal",
+    expect_props(fed([normal_idle()]), #{ power: "true", status: "standby", course: "normal",
         remaining_time: "46", soil: "normal", spin: "high", temp: "warm", turbo_wash: "true",
         door: "true", door_lock: "false" });
 }
@@ -84,7 +84,7 @@ fn test_a_speed_wash_run() {
     d.feed(rinsing()); expect_props(d, #{ status: "rinsing", remaining_time: "12" });
     d.feed(spinning()); expect_props(d, #{ status: "spinning", remaining_time: "9" });
     // the Complete frame's course byte is 0xFE, the no-selection sentinel
-    d.feed(complete()); expect_props(d, #{ status: "complete", course: "none" });
+    d.feed(complete()); expect_props(d, #{ status: "end", course: "none" });
 }
 
 // pause unlocks the door, opening/closing the door is independent of the lock, and resume relocks
@@ -102,13 +102,13 @@ fn test_the_door_and_its_lock_are_independent() {
 fn test_delay_wash() {
     let d = device();
     d.feed(delay_1h_armed_still_selecting());
-    expect_props(d, #{ status: "selecting", delay_wash: "true", reserve_time: "60" });
+    expect_props(d, #{ status: "standby", delay_wash: "true", reserve_time: "60" });
     d.feed(turbo_on_still_selecting()); expect_eq(d.property("turbo_wash"), "true");
     // the door locks as soon as the delay is armed
-    d.feed(delay_pending_locks_door()); expect_props(d, #{ status: "delay_wash", door_lock: "true" });
+    d.feed(delay_pending_locks_door()); expect_props(d, #{ status: "delayed", door_lock: "true" });
     d.feed(delay_door_closes()); expect_eq(d.property("door"), "false");
     d.feed(app_pause()); expect_eq(d.property("status"), "paused");
-    d.feed(app_resume_3h()); expect_props(d, #{ status: "delay_wash", reserve_time: "180" });
+    d.feed(app_resume_3h()); expect_props(d, #{ status: "delayed", reserve_time: "180" });
     d.feed(reserve_ticks()); expect_eq(d.property("reserve_time"), "179"); // 3:00 -> 2:59
     d.feed(app_poweroff());
     expect_props(d, #{ power: "false", status: "off", remaining_time: "0", reserve_time: "0", course: "none" });
@@ -118,7 +118,7 @@ fn test_delay_wash() {
 fn test_other_frames_are_ignored() {
     let d = fed([normal_idle()]);
     for junk in ["aa0720d81795bb", "aa09207200000010bb", "001122"] { d.feed(junk); }
-    expect_eq(d.property("status"), "selecting");
+    expect_eq(d.property("status"), "standby");
 }
 
 fn test_every_property_is_read_only() {
@@ -127,5 +127,5 @@ fn test_every_property_is_read_only() {
     d.set("power", "false");
     expect_eq(d.sent().len(), 0);
     expect(d.event("reject") != (), "reject");
-    expect(runtime::descriptor(d).props.status.options.contains("running"), "unmapped phases read as running");
+    expect(!runtime::descriptor(d).props.status.options.contains("running"), "an unmapped phase is left unpublished");
 }

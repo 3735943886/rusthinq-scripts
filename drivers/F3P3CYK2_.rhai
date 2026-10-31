@@ -20,13 +20,13 @@ fn errors() {
        "47": "Ed5" }
 }
 
+// The model JSON's state indices: 27, 28 and 29 are FROZEN_PREVENT_INITIAL, _PAUSE and _RUNNING,
+// 23 is ERROR_AUTO_OFF. 34 to 36 are left out, as the LG app does not label them.
 fn states() {
-    #{ "0": "off", "1": "initial", "2": "paused", "3": "detecting", "5": "add_drain",
-       "6": "detergent_amount", "7": "reserved", "9": "pre_wash", "11": "running", "12": "rinsing",
-       "13": "rinse_hold", "14": "spinning", "15": "drying", "16": "end", "21": "refreshing",
-       "23": "error_auto_off", "27": "frozen_prevent_initial", "28": "frozen_prevent_pause",
-       "29": "frozen_prevent_running", "34": "audible_diagnosis", "35": "auto_door_open_pause",
-       "36": "confirm_start_for_control" }
+    #{ "0": "off", "1": "standby", "27": "standby", "2": "paused", "28": "paused", "3": "detecting",
+       "5": "filling", "6": "detergent_amount", "7": "delayed", "9": "pre_wash", "11": "washing",
+       "29": "washing", "12": "rinsing", "13": "rinse_hold", "14": "spinning", "15": "drying",
+       "16": "end", "21": "refreshing", "23": "error" }
 }
 
 fn courses() {
@@ -41,16 +41,13 @@ fn rinses() { #{ "14": "normal", "15": "plus", "16": "plus_2", "17": "plus_3" } 
 fn spins() { #{ "12": "no_spin", "13": "low", "14": "medium", "15": "high", "16": "extra_high" } }
 fn buzzers() { #{ "0": "off", "1": "1", "2": "2", "3": "3", "4": "4" } }
 
-// An unmapped state reads as "running", as upstream's.
-fn state_options() { let o = t::options(states()); if !o.contains("running") { o.push("running"); } o }
-
 fn descriptor(ctx) {
     json_stringify(#{ il: 0, kind: "washer", class: "washing_machine", label: "Washer", vendor: "LG",
                       model: ctx.model_id(), props: #{
         available: #{ type: "binary", role: "available" },
         power: #{ type: "binary", class: "running", label: "Powered on" },
         power_off: #{ type: "trigger", requires: "power" },
-        status: #{ type: "select", options: state_options() },
+        status: #{ type: "select", options: t::options(states()) },
         run_completed: #{ type: "binary" },
         error: #{ type: "binary", class: "problem", category: "diagnostic" },
         error_message: #{ type: "text", category: "diagnostic" },
@@ -93,7 +90,7 @@ fn on_data(ctx, data) {
     il::publish_property(ctx, "error", if code != 0 { "true" } else { "false" });
     il::publish_property(ctx, "error_message",
         if code == 0 { "-" } else { t::name(errors(), code) ?? "Unknown error (0x" + hex2(code) + ")" });
-    il::publish_property(ctx, "status", t::name(states(), r[22]) ?? "running");
+    c::pub_name(ctx, "status", t::name(states(), r[22]));
     c::pub_name(ctx, "course", t::name(courses(), r[6]));
     il::publish_property(ctx, "remaining_time", if off { "0" } else { u16be(r, 14) });
     il::publish_property(ctx, "initial_time", if off { "0" } else { u16be(r, 16) });

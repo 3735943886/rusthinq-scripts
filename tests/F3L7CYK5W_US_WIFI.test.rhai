@@ -52,13 +52,13 @@ fn test_the_course_table_is_this_models_own() {
 
 // while selecting, remaining and initial time agree
 fn test_while_selecting_the_times_agree() {
-    expect_props(fed([selecting()]), #{ power: "true", status: "initial", course: "normal", soil: "normal",
+    expect_props(fed([selecting()]), #{ power: "true", status: "standby", course: "normal", soil: "normal",
         spin: "high", temp: "warm", remaining_time: "63", initial_time: "63" });
 }
 
 // Sensing is a real distinct phase on this model
 fn test_sensing_is_a_phase() {
-    expect_props(fed([selecting(), sensing()]), #{ status: "sensing", remaining_time: "63" });
+    expect_props(fed([selecting(), sensing()]), #{ status: "detecting", remaining_time: "63" });
 }
 
 // rec[11] packs rinse count and extra-rinse count in separate nibbles
@@ -107,7 +107,7 @@ fn test_the_initial_time_pins_at_the_start() {
 // Add Garments unlocks the door mid-cycle and Pause follows it
 fn test_add_garments_unlocks_the_door() {
     expect_props(fed([rinse_spin_on(), rinsing()]), #{ status: "rinsing", door_lock: "true", load_level: "7" });
-    expect_props(fed([rinse_spin_on(), rinsing(), add_garments()]), #{ status: "add_garments", door_lock: "false" });
+    expect_props(fed([rinse_spin_on(), rinsing(), add_garments()]), #{ status: "filling", door_lock: "false" });
     expect_props(fed([rinse_spin_on(), rinsing(), add_garments(), paused()]), #{ status: "paused", door_lock: "false" });
 }
 
@@ -122,13 +122,13 @@ fn test_settings_drop_out_as_they_stop_applying() {
 fn test_completing_a_cycle() {
     expect_eq(fed([washing_start(), spinning()]).property("tub_clean_count"), "43");
     // still powered on; no stale minute of remaining time
-    expect_props(fed([washing_start(), spinning(), cycle_complete()]), #{ status: "complete", power: "true",
+    expect_props(fed([washing_start(), spinning(), cycle_complete()]), #{ status: "end", power: "true",
         tub_clean_count: "44", door_lock: "false", remaining_time: "0", initial_time: "0" });
 }
 
 // the Rinse+Spin run also lands on Complete
 fn test_a_rinse_spin_run_completes() {
-    expect_props(fed([rinsing(), run_complete()]), #{ status: "complete", course: "none", tub_clean_count: "46" });
+    expect_props(fed([rinsing(), run_complete()]), #{ status: "end", course: "none", tub_clean_count: "46" });
 }
 
 // powering off clears the selection
@@ -140,7 +140,7 @@ fn test_power_off_clears_the_selection() {
 // 0xE2 post-cycle replay frames are ignored, not treated as status
 fn test_post_cycle_replays_are_ignored() {
     expect_props(fed([washing_start(), spinning(), cycle_complete(), e2_stale_replay()]),
-                 #{ status: "complete", tub_clean_count: "44", remaining_time: "0" });
+                 #{ status: "end", tub_clean_count: "44", remaining_time: "0" });
 }
 
 // start() requests a status snapshot, so a reconnect does not leave HA blank

@@ -5,3 +5,12 @@ import "washer_common";
 fn features() {
     ["drying_mode", "reserve_time", "extra_rinse", "options", "eco_hybrid", "child_lock", "doses"]
 }
+
+// 19 is AUTO_DT_OPEN_PAUSE, which the LG app shows as paused; 15 is REFRESHING (14 is
+// WASH_REFRESHING).
+fn states() {
+    let s = base_states();
+    s["15"] = "refreshing";
+    s["19"] = "paused";
+    s
+}

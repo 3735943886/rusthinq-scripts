@@ -7,9 +7,14 @@ import "washer_f3l_common" as w;
 import "aabb_common" as c;
 import "il_common" as il;
 
+// From the model JSON and the LG app: 83, 84 and 85 are FROZEN_PREVENT_INITIAL, _RUNNING and
+// _PAUSE, 7 is ERROR_AUTO_OFF. 65 (audible diagnosis) and 81 (tub clean count alarm) are left
+// out, as the LG app does not label them.
 fn statuses() {
-    #{ "0": "off", "5": "selecting", "6": "paused", "10": "delay_wash", "20": "sensing",
-       "23": "washing", "30": "rinsing", "40": "spinning", "60": "complete" }
+    #{ "0": "off", "5": "standby", "83": "standby", "6": "paused", "85": "paused", "10": "delayed",
+       "20": "detecting", "7": "error", "21": "filling", "22": "detergent_amount", "23": "washing",
+       "84": "washing", "24": "pre_wash", "30": "rinsing", "31": "rinse_hold", "40": "spinning",
+       "50": "drying", "60": "end", "61": "refreshing", "79": "smart_diagnosis" }
 }
 
 fn courses() {

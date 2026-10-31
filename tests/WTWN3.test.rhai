@@ -45,7 +45,7 @@ fn test_washing_from_a_real_capture() {
 fn test_tub_clean_start_from_a_live_frame() {
     let d = device_t1();
     d.feed(sample_measuring_tub_clean_locked());
-    expect_props(d, #{ power: "true", status: "measuring", course: "tub_clean", soil: "normal",
+    expect_props(d, #{ power: "true", status: "detecting", course: "tub_clean", soil: "normal",
                        spin: "no_spin", temp: "60", rinse: "normal", remaining_time: "74",
                        initial_time: "74", door_lock: "true", child_lock: "false",
                        tub_clean_count: "41" });
@@ -80,7 +80,7 @@ fn test_idle() {
 fn test_option_bits_delay_start_and_locks() {
     let d = device_t1();
     d.feed(sample_ready_cotton_options());
-    expect_props(d, #{ status: "ready", course: "cotton", spin: "1200", temp: "40",
+    expect_props(d, #{ status: "standby", course: "cotton", spin: "1200", temp: "40",
                        remaining_time: "130", reserve_time: "180", turbo_wash: "true",
                        pre_wash: "true", steam: "true", crease_care: "false", medic_rinse: "false",
                        remote_start: "true", child_lock: "true", door_lock: "false" });

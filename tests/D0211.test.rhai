@@ -150,3 +150,14 @@ fn test_start_sends_the_status_query() {
     d.start();
     expect_eq(hex_encode_upper(d.sent()[0]), "AA0EF0ED1121010000001800B5BB");
 }
+
+// the courses the model JSON adds decode by their codes (upstream 61b7b15; synthetic: a captured
+// running frame with only the current record's course byte changed to Express)
+fn test_a_model_json_course() {
+    let b = hex_decode(running_intensive_no_options());
+    let inner = b.extract(2, b.len() - 4);
+    inner[35] = 0x08;
+    let d = device();
+    d.feed(hex_encode(aabb_wrap(inner)));
+    expect_props(d, #{ status: "running", course: "express" });
+}

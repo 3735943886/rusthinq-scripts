@@ -25,7 +25,7 @@ fn test_the_descriptor_lists_drying_mode_energy_and_cycles() {
 fn test_armed_ready() {
     let d = device();
     d.feed(sample_armed_ready());
-    expect_props(d, #{ power: "true", status: "ready", course: "wash_dry", spin: "1400", temp: "30", drying_mode: "auto", remote_start: "true", door_lock: "false", initial_time: "250", remaining_time: "250", energy: "0" });
+    expect_props(d, #{ power: "true", status: "standby", course: "wash_dry", spin: "1400", temp: "30", drying_mode: "auto", remote_start: "true", door_lock: "false", initial_time: "250", remaining_time: "250", energy: "0" });
 }
 
 // rinse phase decodes remaining time and the running energy counter

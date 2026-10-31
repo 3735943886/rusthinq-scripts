@@ -24,6 +24,24 @@ for drivers that are already ported.
 Upstream matches the reported `modelId` exactly. The driver file here must have
 the same name (names containing `.` need rusthinq `bfb8e77` or later).
 
+## Moving to `2d8eaba`
+
+Upstream `2d8eaba` (2026-10-27) is the next baseline. Every row below is done; the table
+above moves to it once the upstream suite has been rerun at that commit.
+
+| upstream change | status |
+|---|---|
+| `8465439` `F_C__Y___W.A__QEUK` takes the cloud's acks | ported |
+| `6881ea2` per-model washer state tables, no `running` fallback | ported; IL names follow upstream's labels (`standby`, `detecting`, `filling`, `end`, ...) |
+| `59fc2d7` washers read EB as well as EC records; VCDWL2QEUK is the 0x20 envelope | ported |
+| `e018a28` VCDWL2QEUK reads off from the state byte alone | ported |
+| `7d3a18c` `T1789EFH_F` decode fixed and completed, with start, pause and power off | ported |
+| `2b43953`, `7300491`, `e727324` aliases `F_V7_Y___W.A__QEUK`, `F_V__Y___W.B__QEUK`, `D2211`, `RC90V9_AUS`, `2RES1VE61NFWA` | ported; `F_C__Y`, `D0211` and `2RES1VE600FWC` moved into modules for them |
+| `61b7b15` `D0211` course table | ported |
+| `3ca7a55`, `ec62abc`, `cc9615d` `RAC_056905_WW` H09S1DA features | ported; HA availability and descriptions left out, mode-bound writes refused instead (`requires`) |
+| new drivers `RV13D5JSD_D_US`, `G2V7_Y___W.B_2QEUK`, `2REBGLUB_2P__`, `2REF11EII__M2` | ported |
+| `70e1462`, `d52f645` message routing by provisioned topic, `appVersion` fallback | host (rusthinq), not here |
+
 ## How to port one driver
 
 1. Read the upstream driver, its shared module and its test file. The TS driver
@@ -98,6 +116,8 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | `2REF11EIDG__4` | 6 | 16 | LRFXC2606S, Ack | ported |
 | `2REFT1DIC4P_U` | 18 | 27 | | ported |
 | `2REFTBDII4P_U` | 13 | 10 | 68-byte record | ported |
+| `2REBGLUB_2P__` | 10 | 14 | GBBSJ2CCEP, Ack; energy, door usage and firmware frames (`2d8eaba`) | ported |
+| `2REF11EII__M2` | 25 | 25 | LMXS28626; 9-byte record, own setpoint tables, per-compartment doors (`2d8eaba`) | ported |
 | `2RES1VE600FWC` | 16 | 9 | different temperature encoding | ported |
 | `2RES1VE61NFA2` | 12 | 4 | | ported |
 
@@ -123,6 +143,7 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | `Y_V8_F___W.B_2QEUK` | 6 | 5 | W4WR70E61 washer-dryer | ported |
 | `Y_V8_Y___W.B32QEUK` | 31 | 14 | FSR7A04PG, Ack, Env | ported |
 | `Y_VB_Y___W.B32QEUK` | 25 | 19 | F14R76BSTA; extends `Y_V8_Y___W.B32QEUK` | ported |
+| `G2V7_Y___W.B_2QEUK` | 16 | 24 | F2NX50S9TKC, Ack, Env; VCDWL2QEUK's record one byte on (`2d8eaba`) | ported |
 
 ### ThinQ1 washers (`washer_t1_common`, JSON)
 
@@ -135,7 +156,7 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 
 | model | tests | fixtures | notes | status |
 |---|---|---|---|---|
-| `T1789EFH_F` | 21 | 22 | WT7300CW top-load washer, Ack | ported |
+| `T1789EFH_F` | 44 | 34 | WT7300CW top-load washer, Ack; re-ported from `7d3a18c` | ported |
 | `TLVE5BB` | 6 | 7 | WT21BWV6 top-load washer, Env | ported |
 | `F3L2CYU__` | 8 | 32 | front-load washer (`washer_f3l_common`) | ported |
 | `F3L7CYK5W_US_WIFI` | 18 | 29 | same layout as `F3L2CYU__`, own course table and bits (`washer_f3l_common`) | ported |
@@ -145,6 +166,7 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 | `RV13U6AM8W_D_US_WIFI` | 28 | 23 | DLE7300WE dryer, Ack (`dryer_rv13_common`) | ported |
 | `RV13B6BSD_D_US_WIFI` | 11 | 22 | electric dryer (`dryer_rv13_common`) | ported |
 | `RV13B6ES_D_US_WIFI` | 15 | 20 | electric dryer, layout of `RV13B6BSD_D_US_WIFI` (`dryer_rv13_common`) | ported |
+| `RV13D5JSD_D_US` | 13 | 26 | DLEX4200B electric dryer, Ack; power off (`dryer_rv13_common`, `2d8eaba`) | ported |
 | `BDH_D30007_US` | 18 | 29 | DLHC5502V heat-pump dryer, Long | ported |
 | `RC90U2_WW` | 12 | 19 | RC9DN9029 heat-pump dryer (EU; `dryer_rc90_common`); alias `RC90V9_WW` | ported |
 | `ST_B_E4H01Y_APL` | 33 | 49 | Styler S5BBP; undefined codes absent | ported |
@@ -166,5 +188,5 @@ auto-ack enabled; Env = envelope status; Long = long framing.
 |---|---|---|---|---|
 | `DHUM_056905_WW` | 16 | 12 | dehumidifier; re-check against the new baseline | ported |
 | `POT_056905_WW` | 7 | 11 | LP1022FVSM portable air conditioner (`climate_common`) | ported |
-| `RAC_056905_WW` | 8 + 12 | 22 | air conditioner (`rac_common`); ThinQ1 variant `RAC_056905_WW_T1` in the same file; alias `RAC_0B0001_WW`. Filter reset not offered: it needs today's date | ported |
+| `RAC_056905_WW` | 9 + 12 + 15 | 38 | air conditioner (`rac_common`); ThinQ1 variant `RAC_056905_WW_T1` in the same file; alias `RAC_0B0001_WW`; H09S1DA features and DC12RT checks from `2d8eaba`. Filter reset not offered: it needs today's date | ported |
 | `WIN_056905_WW` | 0 | 0 | LW1823HRSM window air conditioner (`climate_common`); no upstream tests, so constructed ones; dry left out, as upstream reads no code for it | ported |

@@ -1,5 +1,5 @@
 // The LG ThinQ1 front-load washers (WTDN3, WTWN3). Port of upstream rethink's WTDN3.ts and
-// WTWN3.ts (commit 0e57069). A driver inherits all of this with `import "washer_t1_common";`
+// WTWN3.ts (commit 2d8eaba). A driver inherits all of this with `import "washer_t1_common";`
 // and overrides `features()` (and `courses()`) where its model differs; WTDN3 is the default.
 //
 // ThinQ1 status arrives as the base64 `Data` of each push the appliance sends after Mon/Start,
@@ -19,6 +19,14 @@ import "il_common" as il;
 // What the model reports beyond the common fields. Override in the model's driver.
 fn features() { ["drying_mode"] }
 
+// 5 is pre-wash and 19 (AUTO_DT_OPEN_PAUSE) paused on these models.
+fn states() {
+    let s = w::base_states();
+    s["5"] = "pre_wash";
+    s["19"] = "paused";
+    s
+}
+
 // Base and downloaded courses share one label space on these models.
 fn courses() { w::courses() }
 
@@ -31,7 +39,7 @@ fn descriptor(ctx) {
         power: #{ type: "binary", rw: true, class: "running", label: "Powered on" },
         start: #{ type: "trigger" },
         pause: #{ type: "trigger" },
-        status: #{ type: "select", options: t::options(w::states()) },
+        status: #{ type: "select", options: t::options(states()) },
         error: #{ type: "binary", class: "problem", category: "diagnostic" },
         error_message: #{ type: "text", category: "diagnostic" },
         course: #{ type: "select", options: t::options(courses()) },
@@ -72,7 +80,7 @@ fn on_data(ctx, b) {
     let f = features();
     il::publish_property(ctx, "available", "true");
     il::publish_property(ctx, "power", if b[0] > 0 { "true" } else { "false" });
-    c::pub_name(ctx, "status", t::name(w::states(), b[0]));
+    c::pub_name(ctx, "status", t::name(states(), b[0]));
     il::publish_property(ctx, "error", if b[6] != 0 { "true" } else { "false" });
     il::publish_property(ctx, "error_message", t::name(w::errors(), b[6]) ?? "Unknown error (" + b[6] + ")");
     c::pub_name(ctx, "course", t::name(courses(), b[20]) ?? t::name(courses(), b[5]));

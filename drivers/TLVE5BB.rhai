@@ -11,12 +11,14 @@ import "il_common" as il;
 
 fn record_len() { 50 }
 
+// The model JSON's state indices, named as upstream names them across its washers: 27, 28 and
+// 29 are FROZEN_PREVENT_INITIAL, _PAUSE and _RUNNING, 23 is ERROR_AUTO_OFF. Upstream leaves 34
+// and up as LG names them, unverified.
 fn states() {
-    #{ "0": "off", "1": "initial", "2": "paused", "3": "detecting", "5": "add_drain",
-       "6": "detergent_amount", "7": "reserved", "8": "soak", "9": "pre_wash", "11": "running",
-       "12": "rinsing", "13": "rinse_hold", "14": "spinning", "15": "drying", "16": "end",
-       "21": "refreshing", "23": "error_auto_off", "27": "frozen_prevent_initial",
-       "28": "frozen_prevent_pause", "29": "frozen_prevent_running", "34": "audible_diagnosis",
+    #{ "0": "off", "1": "standby", "27": "standby", "2": "paused", "28": "paused", "3": "detecting",
+       "5": "filling", "6": "detergent_amount", "7": "delayed", "8": "soaking", "9": "pre_wash",
+       "11": "washing", "29": "washing", "12": "rinsing", "13": "rinse_hold", "14": "spinning",
+       "15": "drying", "16": "end", "21": "refreshing", "23": "error", "34": "audible_diagnosis",
        "35": "auto_door_open_pause", "36": "confirm_start_for_control", "37": "clothing_recognition",
        "38": "detergent_input", "39": "softener_input", "40": "pollution_detecting",
        "41": "tub_cleaning", "42": "end_remote_maintain_on", "43": "steam", "47": "laundry_care",

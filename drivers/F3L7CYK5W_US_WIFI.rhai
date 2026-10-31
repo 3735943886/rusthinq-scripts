@@ -10,9 +10,15 @@ import "washer_f3l_common" as w;
 import "aabb_common" as c;
 import "il_common" as il;
 
+// From the model JSON and the LG app: 83, 84 and 85 are FROZEN_PREVENT_INITIAL, _RUNNING and
+// _PAUSE. 21 is ADD_DRAIN, which the cloud showed for a pause with the door unlocked; upstream
+// names it filling, as on the other models. 81 (tub clean count alarm) and 101 (audible diagnosis)
+// are left out.
 fn statuses() {
-    #{ "0": "off", "5": "initial", "6": "paused", "10": "delay_wash", "20": "sensing",
-       "21": "add_garments", "23": "washing", "30": "rinsing", "40": "spinning", "60": "complete" }
+    #{ "0": "off", "5": "standby", "83": "standby", "6": "paused", "85": "paused", "10": "delayed",
+       "20": "detecting", "21": "filling", "22": "detergent_amount", "23": "washing",
+       "84": "washing", "24": "pre_wash", "30": "rinsing", "31": "rinse_hold", "40": "spinning",
+       "50": "drying", "60": "end", "61": "refreshing", "79": "smart_diagnosis" }
 }
 
 fn courses() {

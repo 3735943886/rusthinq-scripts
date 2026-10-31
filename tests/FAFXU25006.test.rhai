@@ -50,7 +50,7 @@ fn prop_of(frames, p) { fed(frames).property(p) }
 
 // a selected course decodes with all of its options
 fn test_a_selected_course() {
-    expect_props(fed([normal_idle()]), #{ power: "true", status: "initial", course: "normal", soil: "normal",
+    expect_props(fed([normal_idle()]), #{ power: "true", status: "standby", course: "normal", soil: "normal",
         temp: "warm", spin: "high", rinse: "normal", turbo_wash: "true", pre_wash: "false", steam: "false",
         door_lock: "false" });
 }
@@ -101,8 +101,8 @@ fn test_turbo_wash() {
 
 // starting the cycle moves the state and then locks the door
 fn test_starting_then_locking() {
-    expect_props(fed([normal_idle(), starts_running()]), #{ status: "running", door_lock: "false" });
-    expect_props(fed([normal_idle(), starts_running(), door_locks()]), #{ door_lock: "true", status: "running" });
+    expect_props(fed([normal_idle(), starts_running()]), #{ status: "washing", door_lock: "false" });
+    expect_props(fed([normal_idle(), starts_running(), door_locks()]), #{ door_lock: "true", status: "washing" });
 }
 
 // the countdown falls while the cycle length stays put, and energy accumulates
@@ -139,22 +139,22 @@ fn test_the_end_of_a_cycle() {
 // a Delay Wash publishes its countdown and its own flag
 fn test_a_delay_wash() {
     expect_props(fed([delay_wash()]), #{ delay_wash: "true", reserve_time: "60", remaining_time: "29",
-        initial_time: "29", status: "initial" });
+        initial_time: "29", status: "standby" });
     expect_props(fed([normal_idle()]), #{ delay_wash: "false", reserve_time: "0" });
 }
 
 // the delay counts down only once it starts, in state Reserved
 fn test_the_delay_counts_down_once_started() {
-    expect_eq(prop_of([delay_wash()], "status"), "initial");
-    expect_props(fed([delay_wash(), delay_starts()]), #{ status: "reserved", delay_wash: "true", reserve_time: "60",
+    expect_eq(prop_of([delay_wash()], "status"), "standby");
+    expect_props(fed([delay_wash(), delay_starts()]), #{ status: "delayed", delay_wash: "true", reserve_time: "60",
         drum_light: "false", remaining_time: "53", initial_time: "53" });
-    expect_props(fed([delay_starts(), delay_counts_down()]), #{ status: "reserved", reserve_time: "30",
+    expect_props(fed([delay_starts(), delay_counts_down()]), #{ status: "delayed", reserve_time: "30",
         remaining_time: "53", door_lock: "true" });
 }
 
 // the delay firing clears its own flag and starts the wash
 fn test_the_delay_firing() {
-    expect_props(fed([delay_counts_down(), delay_fires()]), #{ status: "running", delay_wash: "false",
+    expect_props(fed([delay_counts_down(), delay_fires()]), #{ status: "washing", delay_wash: "false",
         reserve_time: "0", remaining_time: "53", initial_time: "53", door_lock: "true" });
 }
 
@@ -182,7 +182,7 @@ fn test_the_door_frame() {
     expect_eq(prop_of([door_opens()], "door"), "true");
     expect_eq(prop_of([door_shuts()], "door"), "false");
     let with_status = fed([normal_idle(), door_opens()]);
-    expect_props(with_status, #{ door: "true", status: "initial", course: "normal" });
+    expect_props(with_status, #{ door: "true", status: "standby", course: "normal" });
     // a status record does not clear the door
     expect_eq(prop_of([door_opens(), normal_idle()], "door"), "true");
 }
