@@ -199,7 +199,12 @@ fn on_data(ctx,data) {
   // 0x72 is a rare event, not a heartbeat: only its C8/C9 form is remote start (off/on).
   // The user's capture also has 72 00 00 00 at cycle end, which says nothing about it.
   if b[1]==0x72 && b.len()==5 {if b[3]==0xc8 || b[3]==0xc9 {il::publish_property(ctx,"remote_start",c::bit(b[3],1));}return;}
-  if b[1]==0xd8 && b.len()==3 {il::publish_property(ctx,"power",c::bit(b[2],255));return;}
+  // 0xD8 is not power (PR #180 read it as such from one power-on capture). On the user's washer
+  // it turns 1 about 15 s into a cycle while the record still says initial/sensing, drops to 0
+  // just before the auto power-off, then turns 1 again seconds after the record reads state 0
+  // (HA history, 2026-10-31 and 2026-11-01). The EU washers read the same frame as the door
+  // lock. Power comes from the record's state alone.
+  if b[1]==0xd8 && b.len()==3 {return;}
   if (b[1]==0xcd && b.len()==405) || (b[1]==0xbd && [406,476].contains(b.len())) {
    // The user's app-checked 1941 Wh capture disproves the PR's low-byte read.
    let off=if b[1]==0xcd {35} else {36};
