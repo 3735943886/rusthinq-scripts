@@ -185,6 +185,21 @@ fn test_reconnect_restores_availability_without_a_state_frame() {
     expect_eq(d.property("available"), "true");
     expect_eq(d.script_error(), ());
 }
+// HA history, 2026-11-01 14:56:55-14:57:01 KST: the record reads state 0 (off), then D8 01
+// arrives while the washer stays off. Power used to flip back to on until the next record.
+fn test_d8_after_the_auto_power_off_leaves_power_off() {
+    let d = device();
+    d.feed(status(heavy_duty_wash()));
+    expect_eq(d.property("power"), "true");
+    d.feed("aa0720d800fcbb");
+    expect_eq(d.property("power"), "true");
+    d.feed(idle());
+    expect_props(d, #{power: "false", status: "off"});
+    d.feed("aa0720d801ffbb");
+    expect_props(d, #{power: "false", status: "off"});
+    expect_eq(d.script_error(), ());
+}
+
 // BEGIN PR VECTORS
 // Regression vectors from rethink PR #180 (5c0acfd8ec17f2aee451572a64d686f49d06f2fb).
 // Original test names are retained below. Expected TX bytes come from executing the TS driver.
@@ -363,15 +378,16 @@ fn test_pr_180_10() {
     expect_eq(d.script_error(), ());
 }
 
-// physical power-on changes the captured D8 heartbeat from 0 to 1
+// PR #180 test "physical power-on changes the captured D8 heartbeat from 0 to 1", reversed:
+// D8 is not power. Its captured frames now publish nothing (see F24VDD.rhai).
 fn test_pr_180_11() {
     let d = device();
     d.feed("aa0720d800fcbb");
-    expect_props(d, #{"power": "false"});
+    expect_eq(d.property("power"), ());
     expect_eq(d.sent().len(), 0);
     expect_eq(d.script_error(), ());
     d.feed("aa0720d801ffbb");
-    expect_props(d, #{"power": "true"});
+    expect_eq(d.property("power"), ());
     expect_eq(d.sent().len(), 0);
     expect_eq(d.script_error(), ());
 }
