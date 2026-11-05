@@ -328,6 +328,11 @@ with the production runner and generates the same tests for every driver:
   typed/read-only writes rejected without packet or command output, and
   declared availability across disconnect/reinitialization.
 
+The checker then runs the model tests themselves with a temporary `il_common` that fails on
+any `select` value outside the current descriptor's `options` (il.md V-3). It sees only values
+those tests produce, so a code table needs a test that feeds an unknown code; see
+[Tests](#7-tests-testsmodeltestrhai).
+
 Raw drivers receive the common lifecycle checks without an IL requirement.
 The short inputs are smoke tests, not exhaustive malformed-frame fuzzing.
 These checks do not prove protocol field meanings, all emitted values, timer
