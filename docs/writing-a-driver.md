@@ -9,7 +9,7 @@ written to be read by an AI agent driving the work as much as by a person.
 ## 0. What you need before writing anything
 
 - **Real evidence**: frames actually captured from the appliance (rethink's test suite,
-  a live capture over `raw_prefix`, an existing TS driver's own doc comments citing a capture).
+  a live capture with `rusthinqctl`, an existing TS driver's own doc comments citing a capture).
   Never invent a field's meaning; an offset nothing has confirmed stays unpublished (see
   every existing driver's "not exercised in a capture, so not read here" comments).
 - **The old TS driver, if one exists** (`rethink/cloud/devices/<Model>.ts` in the sibling
@@ -282,7 +282,7 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
    including case and underscores.
 2. `tests/<Model>.test.rhai`.
 3. Run the host runner as shown in [README.md](../README.md#checking-a-change).
-4. Add one row to the driver table in [README.md](../README.md#drivers) stating
+4. Add one row to the table in [drivers.md](drivers.md#drivers) stating
    exactly what was and was not verified against a real appliance — copy the phrasing style
    of an existing row, do not oversell "tested".
 5. **Never point this driver's model at a device another consumer (rusthinq-adapter, a raw-bus
@@ -292,7 +292,7 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
 ## Drivers that do not use the IL
 
 Everything above assumes the IL because every driver in this repository uses it, and
-the tests assert descriptors. rusthinq 0.2 itself does not care: a driver in your own `rhai_dir` can skip `il_common` and publish in whatever shape
+the tests assert descriptors. rusthinq 0.2 itself does not care: a driver in your own `[drivers] directory` can skip `il_common` and publish in whatever shape
 its consumer wants, for example:
 
 - **Home Assistant MQTT discovery**: publish each entity's config to
@@ -300,7 +300,7 @@ its consumer wants, for example:
   `ctx.publish_raw(topic, json, true)` from `publish_config` (retained, so it survives
   Home Assistant restarting), and state with `ctx.publish_raw`.
 - **Anything else**: `ctx.publish_raw(topic, payload, retain)` publishes to any exact topic,
-  outside `rusthinq_prefix`.
+  outside `[drivers] topic_prefix`.
 
 Without `il_common`, your driver must validate commands itself:
 `on_set_property` receives every `set` as sent and must check type, range and options itself,
@@ -313,7 +313,7 @@ driver is yours to keep; it does not belong in this repository.
 - [ ] The driver runner — new tests pass, nothing else broke, no driver check fails
 - [ ] every published property/value/reject traces to a real capture or the old TS driver's
       confirmed behavior — nothing invented
-- [ ] README table row added
+- [ ] `docs/drivers.md` table row added
 - [ ] if the driver needs a host function or behavior newer than `RUSTHINQ_REF`, `RUSTHINQ_REF`
       is moved forward in the same change
 
@@ -343,4 +343,4 @@ convergence, arbitrary-prefix behavior, or physical command correctness. Keep
 capture-based model tests and explicit control-interlock tests.
 
 The host's `[drivers] topic_prefix` controls all topics. There is no separate
-IL prefix module; see [migration and retained cleanup](mqtt-topics.md).
+IL prefix module; see the host's [upgrade notes](https://github.com/3735943886/rusthinq/blob/master/docs/0.2-tools-migration.md#release-notes-upgrading).
