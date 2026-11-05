@@ -58,7 +58,7 @@ above moves to it once the upstream suite has been rerun at that commit.
    upstream test's fixtures.
 4. Cite the upstream commit and test in the driver header. An upstream value
    whose meaning upstream itself does not establish stays unpublished.
-5. Add the README driver row with status `captured` only when the upstream
+5. Add the [drivers.md](drivers.md) row with status `captured` only when the upstream
    fixtures are real captures; otherwise `constructed`.
 6. Set the tracker row below to `ported`.
 

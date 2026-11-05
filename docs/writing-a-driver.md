@@ -9,7 +9,7 @@ written to be read by an AI agent driving the work as much as by a person.
 ## 0. What you need before writing anything
 
 - **Real evidence**: frames actually captured from the appliance (rethink's test suite,
-  a live capture over `raw_prefix`, an existing TS driver's own doc comments citing a capture).
+  a live capture with `rusthinqctl`, an existing TS driver's own doc comments citing a capture).
   Never invent a field's meaning; an offset nothing has confirmed stays unpublished (see
   every existing driver's "not exercised in a capture, so not read here" comments).
 - **The old TS driver, if one exists** (`rethink/cloud/devices/<Model>.ts` in the sibling
@@ -20,60 +20,9 @@ written to be read by an AI agent driving the work as much as by a person.
   descriptor/values/commands/rejects you publish must fit it. How you get there in Rhai is free.
   The IL is this repository's convention; rusthinq 0.2 does not require it — see
   [Drivers that do not use the IL](#drivers-that-do-not-use-the-il).
-- **Can you capture live?** Record a complete cycle and annotate each panel/app action.
-
-### Capturing appliance traffic
-
-Use rusthinq's management API capture tool. It does not require
-`raw_prefix`. Set the API URL to your daemon's configured management address;
-`http://127.0.0.1:8080/` is the tool default, not necessarily your installation's port.
-
-```bash
-export RUSTHINQ_API=http://127.0.0.1:8080/
-rusthinqctl devices
-rusthinqctl capture DEVICE_UUID capture.jsonl
-```
-
-The JSONL output includes timestamped device rx/tx packets. Type notes into stdin
-(e.g. `cold water, 250 mL` or `auto course, safe rinse on`) while operating the
-appliance. Stop an interactive capture with Ctrl+C. Keep the original file and
-record the app's corresponding values, units and time intervals separately.
-`--cloud` also captures LG notifications when supported and configured; it is
-not necessary for local wire capture. See the host's
-[capture documentation](https://github.com/3735943886/rusthinq/blob/master/docs/0.2-dashboard.md#lg-notification-observation-and-correlated-captures).
-
-For a bounded background capture on a Linux host running systemd:
-
-```bash
-sudo systemd-run --unit=rusthinq-capture-example \
-  --property=User=YOUR_USER --property=RuntimeMaxSec=24h \
-  --setenv=RUSTHINQ_API=http://127.0.0.1:8080/ \
-  /ABSOLUTE/PATH/rusthinqctl capture DEVICE_UUID /ABSOLUTE/PATH/capture.jsonl
-systemctl status rusthinq-capture-example
-journalctl -u rusthinq-capture-example
-# End early:
-sudo systemctl stop rusthinq-capture-example
-```
-
-Use a writable output directory and the actual executable path. Background
-captures cannot accept interactive stdin annotations; keep a separate action log.
-This transient unit does not automatically return after a reboot. For indefinite
-capture, omit `RuntimeMaxSec`; for capture across reboots, install a regular
-systemd service with `Restart=always` and enable it. When finished, stop/disable
-that service, remove its unit file, and run `systemctl daemon-reload`. Preserve
-capture files separately from service cleanup.
-
-Check the capture before drawing conclusions: connection alone does not prove
-that any device frames were received. Inspect rx counts, timestamps and loss
-markers. Capture start, operation, completion and idle; energy may appear in
-separate diagnostic frames or periodic deltas. Compare app values before assigning
-units or copying another model's offsets. Distinguish full-wire, unwrapped-body
-and payload offsets explicitly. Capture observation does not send appliance
-commands; replay/injection is a separate action.
-
-Local investigation notes belong in the ignored `docs/audits/` directory. Keep
-full captures outside the tracked repository; add only relevant, reviewed frame
-fixtures to driver tests.
+- **Can you capture live?** Record a complete cycle and annotate each panel/app action;
+  [capture-and-test.md](capture-and-test.md) walks through capturing, controlling and
+  observing with `rusthinqctl`.
 
 ## 1. Identify the frame family
 
@@ -96,6 +45,11 @@ record offset (2 for EB, `2 + record_length` for EC), or `()` for other commands
 or non-exact lengths. Keep model-specific command restrictions in the driver
 (D140110 accepts only EC). Variable-length records and the monitoring family's
 length-prefixed payloads need their own parsing.
+
+Publish only the current record of an EC frame. Its previous record is history: publishing
+it first flips retained values back to the old state, and leaves them there if the current
+record is then rejected. For an enveloped frame use `enveloped_status`, which checks the
+record length, rather than your own offset: records start at `body[13]`.
 
 A module cannot call back into its importer, so the device script keeps every hook
 (`start`, `on_data`, `on_set_property`, ...) and delegates plain parsing/framing to the module
@@ -138,6 +92,13 @@ fn descriptor(ctx) {
 - A value the device stops reporting (a sentinel such as "not weighed yet") is **absent**, not a
   placeholder (il.md V-1): `il::publish_absent(ctx, prop)`. A code that is a real state, such as
   "no course selected", can be a `none` option instead.
+- A value that stops being meaningful in a device state follows the same rule: when the
+  appliance powers off, clear a running course or remaining time with `il::publish_absent`, as
+  a retained value otherwise stays current. Keep values through a pause, when the cycle is still
+  in progress.
+- A `select` publishes only values in its `options` (il.md V-3). A code the table does not
+  know is absent, or the last confirmed reading stands; `Unknown (9)` is not a value of the
+  property. Add a code to the table once a capture shows what it means.
 - **Code tables**: state each enum once as a map from the wire code, as text, to its
   option name, and read it both ways through `table_common` (`import "table_common" as t;`):
 
@@ -147,8 +108,8 @@ fn descriptor(ctx) {
   // descriptor: options: t::options(courses())  (distinct names, in code order)
   ```
 
-  An unknown code reads as `()`; `t::name(errors(), v) ?? "Unknown error (" + v + ")"` gives a
-  fallback. Several codes may share a name; `t::code` returns the lowest, so a model that
+  An unknown code reads as `()`. For a `text` property only, such as an error message,
+  `t::name(errors(), v) ?? "Unknown error (" + v + ")"` gives a fallback. Several codes may share a name; `t::code` returns the lowest, so a model that
   writes another code keeps a separate write table (see `DHUM_056905_WW`).
 
 ## 3. The hooks
@@ -170,6 +131,23 @@ Write `describe` when that is not enough: to name the bytes behind each value (`
 never sees), or to annotate a frame that needs state from earlier frames. It gets no
 `ctx` and must not send or publish. Test it with `d.describe(hex, to_device)`, which
 returns what the hook returned.
+
+### What survives a reconnect
+
+`ctx` state and timers belong to one session. A device reconnect or daemon restart clears
+both, and `start` then runs on an empty context, so a driver cannot keep data across them.
+A reload (`watch = true`) keeps state and pending timers, but `start` runs again.
+([Host documentation](https://github.com/3735943886/rusthinq/blob/master/docs/0.2-operations.md).)
+
+- Retained MQTT values do outlive the session, so `start` must not publish a default over
+  them. A zero published on connect erases the last real reading.
+- A total the appliance reports stays correct. A total the driver adds up itself covers only
+  the current session, and a report retransmitted across the reconnect counts again, as the
+  dedupe key is gone too. Say what such a value covers in its label and the driver header, or
+  leave it out.
+- `ctx.set_timer` replaces a pending timer of the same name, so a long rollover timer armed
+  unconditionally in `start` moves on every reload. Arm it only if state shows it is not
+  already running.
 
 Everything else (timers, `on_timer`, TLV handshake retries) is what the shared module or
 `0.2-runtime.md`'s hook documentation cover; most single-status AABB devices need none of it.
@@ -218,7 +196,9 @@ out to look like (verify against a captured accepted write before choosing):
    capture). See `drivers/2RSFL2DBN3K_Z.rhai`'s `write_field`.
 
 In every shape: **nothing is published from a write.** The appliance's own next status frame
-is what moves the property; a rejected write just leaves it where it was.
+is what moves the property; a rejected write just leaves it where it was. A setting no status
+field reports back therefore cannot be confirmed. Leave it write-only rather than publishing the
+requested value, which would stay retained after a lost write.
 
 ## 6. Rhai gotchas specific to this engine
 
@@ -269,6 +249,11 @@ it on the closest existing test file for the same frame family. Minimum coverage
 - **A bad write is rejected and nothing is sent**: `let n = d.sent().len(); d.set(prop,
   bad_value); expect_eq(d.sent().len(), n); expect(d.event("reject") != (), "...");` — call `d.start()` first so the descriptor is available to `il::validate`; use the same
   pattern for out-of-range, bad-step, wrong-type and unknown-property commands.
+- **Every code table has an unknown code**: feed a frame with a code the table lacks, then check
+  the property is absent or unchanged. The contract check can only see values a test produces.
+- **State changes clear what they should**: power off, then check running values are absent.
+- **Reconnect**: `d.drop_device(); d.start();`, then check `start` did not publish a default
+  over a value the driver had reported.
 - **Any quirk cited in a comment gets its own test** (a wire value with two meanings, a
   field that only appears while another is true, a frame length variant).
 
@@ -282,7 +267,7 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
    including case and underscores.
 2. `tests/<Model>.test.rhai`.
 3. Run the host runner as shown in [README.md](../README.md#checking-a-change).
-4. Add one row to the driver table in [README.md](../README.md#drivers) stating
+4. Add one row to the table in [drivers.md](drivers.md#drivers) stating
    exactly what was and was not verified against a real appliance — copy the phrasing style
    of an existing row, do not oversell "tested".
 5. **Never point this driver's model at a device another consumer (rusthinq-adapter, a raw-bus
@@ -292,7 +277,7 @@ frame-building and inspection helpers; read them before writing raw hex by hand.
 ## Drivers that do not use the IL
 
 Everything above assumes the IL because every driver in this repository uses it, and
-the tests assert descriptors. rusthinq 0.2 itself does not care: a driver in your own `rhai_dir` can skip `il_common` and publish in whatever shape
+the tests assert descriptors. rusthinq 0.2 itself does not care: a driver in your own `[drivers] directory` can skip `il_common` and publish in whatever shape
 its consumer wants, for example:
 
 - **Home Assistant MQTT discovery**: publish each entity's config to
@@ -300,7 +285,7 @@ its consumer wants, for example:
   `ctx.publish_raw(topic, json, true)` from `publish_config` (retained, so it survives
   Home Assistant restarting), and state with `ctx.publish_raw`.
 - **Anything else**: `ctx.publish_raw(topic, payload, retain)` publishes to any exact topic,
-  outside `rusthinq_prefix`.
+  outside `[drivers] topic_prefix`.
 
 Without `il_common`, your driver must validate commands itself:
 `on_set_property` receives every `set` as sent and must check type, range and options itself,
@@ -313,7 +298,14 @@ driver is yours to keep; it does not belong in this repository.
 - [ ] The driver runner — new tests pass, nothing else broke, no driver check fails
 - [ ] every published property/value/reject traces to a real capture or the old TS driver's
       confirmed behavior — nothing invented
-- [ ] README table row added
+- [ ] the driver header and the `docs/drivers.md` status say which values come from captures and
+      which from constructed frames only
+- [ ] no `select` value outside `options`; unknown codes are absent or leave the last reading
+- [ ] power off clears running values; a pause does not
+- [ ] nothing is published from a write, and a driver-summed total states that it covers one session
+- [ ] running totals declare `series: "counter"`, and shared logic lives in a module rather than
+      being copied between drivers
+- [ ] `docs/drivers.md` table row added
 - [ ] if the driver needs a host function or behavior newer than `RUSTHINQ_REF`, `RUSTHINQ_REF`
       is moved forward in the same change
 
@@ -336,6 +328,11 @@ with the production runner and generates the same tests for every driver:
   typed/read-only writes rejected without packet or command output, and
   declared availability across disconnect/reinitialization.
 
+The checker then runs the model tests themselves with a temporary `il_common` that fails on
+any `select` value outside the current descriptor's `options` (il.md V-3). It sees only values
+those tests produce, so a code table needs a test that feeds an unknown code; see
+[Tests](#7-tests-testsmodeltestrhai).
+
 Raw drivers receive the common lifecycle checks without an IL requirement.
 The short inputs are smoke tests, not exhaustive malformed-frame fuzzing.
 These checks do not prove protocol field meanings, all emitted values, timer
@@ -343,4 +340,4 @@ convergence, arbitrary-prefix behavior, or physical command correctness. Keep
 capture-based model tests and explicit control-interlock tests.
 
 The host's `[drivers] topic_prefix` controls all topics. There is no separate
-IL prefix module; see [migration and retained cleanup](mqtt-topics.md).
+IL prefix module; see the host's [upgrade notes](https://github.com/3735943886/rusthinq/blob/master/docs/0.2-tools-migration.md#release-notes-upgrading).
