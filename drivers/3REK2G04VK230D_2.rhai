@@ -29,6 +29,7 @@ import "aabb_common" as c;
 import "fridge_common" as f;
 import "table_common" as t;
 import "il_common" as il;
+import "energy_common" as e;
 
 fn left_modes() { #{ "0": "맛지킴 김치 (중)", "1": "맛지킴 김치 (강)", "2": "맛지킴 김치 (약)", "3": "냉장 (중)", "4": "냉장 (강)", "5": "냉장 (약)", "6": "냉동", "7": "유산균 김치+", "8": "유산균 김치+ (1단계)", "9": "유산균 김치+ (2단계)", "10": "유산균 김치+ (3단계)", "11": "익힘", "12": "맛지킴 김치 (중) 익힘 완료", "21": "맛지킴 김치 (약)", "22": "맛지킴 김치 (강)", "45": "멀티모드 45", "46": "멀티모드 46", "47": "멀티모드 47", "48": "멀티모드 48", "59": "멀티모드 59", "60": "멀티모드 60", "61": "멀티모드 61", "101": "클라우드 보관" } }
 fn middle_modes() { #{ "0": "맛지킴 김치 (중)", "1": "맛지킴 김치 (강)", "2": "맛지킴 김치 (약)", "3": "야채·과일 (중)", "4": "야채·과일 (강)", "5": "야채·과일 (약)", "6": "구입 김치", "7": "유산균 김치+", "8": "유산균 김치+ (1단계)", "9": "유산균 김치+ (2단계)", "10": "유산균 김치+ (3단계)", "11": "익힘", "12": "맛지킴 김치 (중) 익힘 완료", "13": "꺼짐", "21": "맛지킴 김치 (약)", "22": "맛지킴 김치 (강)", "31": "멀티모드 31", "32": "멀티모드 32", "33": "멀티모드 33", "34": "멀티모드 34", "35": "멀티모드 35", "37": "멀티모드 37", "38": "멀티모드 38", "39": "멀티모드 39", "40": "멀티모드 40", "42": "멀티모드 42", "43": "멀티모드 43", "44": "멀티모드 44", "49": "멀티모드 49", "55": "멀티모드 55", "56": "멀티모드 56", "58": "멀티모드 58", "59": "멀티모드 59", "60": "멀티모드 60", "61": "멀티모드 61", "101": "클라우드 보관", "102": "클라우드 익힘", "103": "클라우드 익힘 (1단계)", "104": "클라우드 익힘 (2단계)", "105": "클라우드 익힘 (3단계)" } }
@@ -43,6 +44,7 @@ fn descriptor(ctx) {
         bottom_compartment: #{ type: "select", rw: true, options: t::options(bottom_modes()), label: "Bottom compartment mode" },
         one_touch_filter: #{ type: "binary", rw: true, label: "One-touch deodorize" },
         door: #{ type: "binary", class: "door", label: "Any door open" },
+        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy total" },
         energy_hour: #{ type: "number", class: "energy", unit: "Wh", label: "Energy this hour" },
         energy_day: #{ type: "number", class: "energy", unit: "Wh", label: "Energy today" },
         energy_month: #{ type: "number", class: "energy", unit: "Wh", label: "Energy this month" }
@@ -55,7 +57,7 @@ fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 
 fn start(ctx) {
     f::query(ctx); // f0 ed 12 11 01 00 00 01 04 00, the frame this unit's traffic shows
-    energy_publish(ctx);
+    e::start_publish(ctx); // republish buckets only when state survived (see energy_common)
     ctx.set_timer("energy_hour_roll", 3600000);
     ctx.set_timer("energy_day_roll", 86400000);
     ctx.set_timer("energy_month_roll", 2592000000);
@@ -64,42 +66,14 @@ fn start(ctx) {
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
 fn on_timer(ctx, name) {
-    switch name {
-        "energy_hour_roll" => { ctx.state_set("energy_hour_wh", 0); ctx.set_timer("energy_hour_roll", 3600000); }
-        "energy_day_roll" => { ctx.state_set("energy_day_wh", 0); ctx.set_timer("energy_day_roll", 86400000); }
-        "energy_month_roll" => { ctx.state_set("energy_month_wh", 0); ctx.set_timer("energy_month_roll", 2592000000); }
-        _ => { return; }
-    }
-    energy_publish(ctx);
-}
-
-fn bucket(ctx, key) {
-    let v = ctx.state_get(key);
-    if v == () { 0 } else { v }
-}
-
-fn energy_publish(ctx) {
-    il::publish_property(ctx, "energy_hour", bucket(ctx, "energy_hour_wh").to_string());
-    il::publish_property(ctx, "energy_day", bucket(ctx, "energy_day_wh").to_string());
-    il::publish_property(ctx, "energy_month", bucket(ctx, "energy_month_wh").to_string());
-}
-
-// One 0x3E report body ([0x11, 0x3e, 0, delta, total_hi, total_lo, tick]).
-fn energy_report(ctx, body) {
-    let key = body[3].to_string() + ":" + (body[4] * 256 + body[5]).to_string() + ":" + body[6].to_string();
-    if ctx.state_get("energy_last_report") == key { return; }
-    ctx.state_set("energy_last_report", key);
-    ctx.state_set("energy_hour_wh", bucket(ctx, "energy_hour_wh") + body[3]);
-    ctx.state_set("energy_day_wh", bucket(ctx, "energy_day_wh") + body[3]);
-    ctx.state_set("energy_month_wh", bucket(ctx, "energy_month_wh") + body[3]);
-    energy_publish(ctx);
+    e::roll(ctx, name);
 }
 
 fn on_data(ctx, data) {
     let inner = c::inner(data, 0x11);
     if inner == () { return; }
     if inner[1] == 0x3e {
-        if inner.len() == 7 { energy_report(ctx, inner); }
+        if inner.len() == 7 { e::report(ctx, inner[3], inner[4] * 256 + inner[5], inner[6]); }
         return;
     }
     let o = c::common_status_offset(inner, 39);
@@ -120,8 +94,10 @@ fn record(ctx, r) {
 }
 
 fn mode(ctx, prop, table, raw) {
+    // Selects may only publish listed options (il V-3): an undecoded code
+    // clears the value instead of publishing a fallback string.
     let name = t::name(table, raw);
-    if name == () { name = "알 수 없음 (" + raw.to_string() + ")"; }
+    if name == () { il::publish_absent(ctx, prop); return; }
     il::publish_property(ctx, prop, name);
 }
 

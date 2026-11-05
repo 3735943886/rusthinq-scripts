@@ -11,11 +11,16 @@ import "aabb_test" as a;
 fn eb() { "aa6010eb0205040107ffff00010001ffffffffffff01ffffffffffffffffe70101ff02ffffffffffffffffff01ff0000ffffffffffffffffffffffffffffffffffffff0078ffffffffffffffffffffffff000000ffffffffffffffffffff6ebb" }
 fn ec() { "aaba10ec0205040107ffff00010001ffffffffffff01ffffffffffffffffe70101ff02ffffffffffffffffff01ff0000ffffffffffffffffffffffffffffffffffffff0078ffffffffffffffffffffffff000000ffffffffffffffffffff0205040107ffff00010001ffffffffffff01ffffffffffffffffe80101ff02ffffffffffffffffff01ff0000ffffffffffffffffffffffffffffffffffffff0078ffffffffffffffffffffffff000000ffffffffffffffffffff98bb" }
 
-fn test_start_is_silent_and_publishes_zero_buckets() {
+fn test_start_is_silent_and_publishes_no_buckets_on_a_cold_start() {
     let d = device();
     d.start();
     expect_eq(d.sent().len(), 0);
-    expect_props(d, #{ energy_hour: "0", energy_day: "0", energy_month: "0" });
+    // Fresh state: start must not overwrite retained values with zero
+    // buckets. The first report publishes the buckets (and the total).
+    expect_eq(d.property("energy"), ());
+    expect_eq(d.property("energy_hour"), ());
+    expect_eq(d.property("energy_day"), ());
+    expect_eq(d.property("energy_month"), ());
     expect_eq(d.script_error(), ());
 }
 

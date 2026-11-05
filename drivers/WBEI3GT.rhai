@@ -62,9 +62,11 @@ fn start(ctx) {}
 
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
-fn enum_name(table, raw) {
+// Selects may only publish listed options (il V-3): an undecoded code
+// clears the value instead of publishing an `Unknown (n)` fallback string.
+fn publish_enum(ctx, prop, table, raw) {
     let name = t::name(table, raw);
-    if name == () { "Unknown (" + raw.to_string() + ")" } else { name }
+    if name == () { il::publish_absent(ctx, prop); } else { il::publish_property(ctx, prop, name); }
 }
 
 // A Sec/Min/Hour triple at `o`, in seconds.
@@ -81,7 +83,7 @@ fn on_data(ctx, data) {
     if r == () { return; }
     il::publish_property(ctx, "available", "true");
     il::publish_property(ctx, "remote_start", c::bit(r[0], 0x02));
-    il::publish_property(ctx, "flex_mode", enum_name(flex_modes(), r[1]));
+    publish_enum(ctx, "flex_mode", flex_modes(), r[1]);
     il::publish_property(ctx, "drawer_power_level", r[47].to_string());
     let any_on = false;
     for b in burners() {
@@ -90,7 +92,7 @@ fn on_data(ctx, data) {
         let on = state != 0 && state != 3; // INIT and LOCK are the known not-heating states
         if on { any_on = true; }
         il::publish_property(ctx, b.key, c::on_off(if on { 1 } else { 0 }));
-        il::publish_property(ctx, b.key + "_state", enum_name(burner_states(), state));
+        publish_enum(ctx, b.key + "_state", burner_states(), state);
         il::publish_property(ctx, b.key + "_power_level", r[base + 1].to_string());
         il::publish_property(ctx, b.key + "_operation_time", duration(r, base + 2).to_string());
         il::publish_property(ctx, b.key + "_timer_remaining", duration(r, base + 6).to_string());

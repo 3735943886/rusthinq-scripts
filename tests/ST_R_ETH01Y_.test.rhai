@@ -64,6 +64,9 @@ fn test_an_off_record_publishes_power_only() {
     // Same EB shape with [9] = 0: course/duration are not trusted while off.
     d.feed(a::framed(hex_decode("310a0036000000000000eb000000000004000000350000000000000000000000000000000000000000000000000000000000")));
     expect_eq(d.property("power"), "false");
+    // The course/duration published while on are cleared at power-off.
+    expect_eq(d.property("active_course"), "");
+    expect_eq(d.property("duration_minutes"), "");
     expect_eq(d.script_error(), ());
 }
 

@@ -9,7 +9,7 @@
 //         (resets unpredictably - never trusted), [6] tick. Reports are retransmitted
 //         several times at ~5 s spacing, so they are deduplicated on (delta,total,tick)
 //         exactly as the TS driver does, and the delta accumulates into hour/day/month
-//         buckets persisted in driver state. The TS buckets are KST *calendar* buckets;
+//         buckets kept in driver state (the shared implementation is energy_common; the state survives a script reload but not a device reconnect or daemon restart - see that module). The TS buckets are KST *calendar* buckets;
 //         Rhai scripts have no wall clock, so here the buckets roll over on elapsed-time
 //         timers anchored at driver start (1 h / 24 h / 30 d) - the one intentional
 //         divergence from the TS driver, forced by the platform.
@@ -28,11 +28,13 @@
 import "aabb_common" as c;
 import "fridge_common" as f;
 import "il_common" as il;
+import "energy_common" as e;
 
 fn descriptor(ctx) {
     let props = f::props("C");
     props += #{
         express_freeze: #{ type: "binary", rw: true, label: "Express freeze" },
+        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy total" },
         energy_hour: #{ type: "number", class: "energy", unit: "Wh", label: "Energy this hour" },
         energy_day: #{ type: "number", class: "energy", unit: "Wh", label: "Energy today" },
         energy_month: #{ type: "number", class: "energy", unit: "Wh", label: "Energy this month" }
@@ -44,9 +46,9 @@ fn descriptor(ctx) {
 fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 
 fn start(ctx) {
-    // Silent on purpose (see the header). Publish the persisted buckets and arm the
-    // rollover timers.
-    energy_publish(ctx);
+    // Silent on purpose (see the header). Republish the buckets only when
+    // state actually survived (see energy_common), and arm the rollover timers.
+    e::start_publish(ctx);
     ctx.set_timer("energy_hour_roll", 3600000);
     ctx.set_timer("energy_day_roll", 86400000);
     ctx.set_timer("energy_month_roll", 2592000000);
@@ -55,42 +57,14 @@ fn start(ctx) {
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
 fn on_timer(ctx, name) {
-    switch name {
-        "energy_hour_roll" => { ctx.state_set("energy_hour_wh", 0); ctx.set_timer("energy_hour_roll", 3600000); }
-        "energy_day_roll" => { ctx.state_set("energy_day_wh", 0); ctx.set_timer("energy_day_roll", 86400000); }
-        "energy_month_roll" => { ctx.state_set("energy_month_wh", 0); ctx.set_timer("energy_month_roll", 2592000000); }
-        _ => { return; }
-    }
-    energy_publish(ctx);
-}
-
-fn bucket(ctx, key) {
-    let v = ctx.state_get(key);
-    if v == () { 0 } else { v }
-}
-
-fn energy_publish(ctx) {
-    il::publish_property(ctx, "energy_hour", bucket(ctx, "energy_hour_wh").to_string());
-    il::publish_property(ctx, "energy_day", bucket(ctx, "energy_day_wh").to_string());
-    il::publish_property(ctx, "energy_month", bucket(ctx, "energy_month_wh").to_string());
-}
-
-// One 0x3E report body ([0x10, 0x3e, 0, delta, total_hi, total_lo, tick]).
-fn energy_report(ctx, body) {
-    let key = body[3].to_string() + ":" + (body[4] * 256 + body[5]).to_string() + ":" + body[6].to_string();
-    if ctx.state_get("energy_last_report") == key { return; }
-    ctx.state_set("energy_last_report", key);
-    ctx.state_set("energy_hour_wh", bucket(ctx, "energy_hour_wh") + body[3]);
-    ctx.state_set("energy_day_wh", bucket(ctx, "energy_day_wh") + body[3]);
-    ctx.state_set("energy_month_wh", bucket(ctx, "energy_month_wh") + body[3]);
-    energy_publish(ctx);
+    e::roll(ctx, name);
 }
 
 fn on_data(ctx, data) {
     let inner = c::inner(data, 0x10);
     if inner == () { return; }
     if inner[1] == 0x3e {
-        if inner.len() == 7 { energy_report(ctx, inner); }
+        if inner.len() == 7 { e::report(ctx, inner[3], inner[4] * 256 + inner[5], inner[6]); }
         return;
     }
     let s = f::record(data, 90);

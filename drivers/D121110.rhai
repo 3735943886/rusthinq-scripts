@@ -92,10 +92,12 @@ fn on_data(ctx, data) {
     }
 }
 
-// The TS driver's enum fallback: an undecoded code publishes as `Unknown (n)`.
-fn enum_name(table, raw) {
+// Selects may only publish listed options (il V-3): an undecoded code
+// clears the value instead of publishing the TS driver's `Unknown (n)`
+// fallback string.
+fn publish_enum(ctx, prop, table, raw) {
     let name = t::name(table, raw);
-    if name == () { "Unknown (" + raw.to_string() + ")" } else { name }
+    if name == () { il::publish_absent(ctx, prop); } else { il::publish_property(ctx, prop, name); }
 }
 
 fn record(ctx, r) {
@@ -108,11 +110,11 @@ fn record(ctx, r) {
     il::publish_property(ctx, "initial_time", (b[3] * 60 + b[4]).to_string());
     il::publish_property(ctx, "remaining_time", (b[7] * 60 + b[8]).to_string());
     il::publish_property(ctx, "delay_start_time", (b[9] * 60 + b[10]).to_string());
-    il::publish_property(ctx, "status", enum_name(states(), state));
-    il::publish_property(ctx, "process", enum_name(processes(), b[1]));
+    publish_enum(ctx, "status", states(), state);
+    publish_enum(ctx, "process", processes(), b[1]);
     il::publish_property(ctx, "power", if state != 0 && state != 4 { "true" } else { "false" });
     let running = state == 2;
-    il::publish_property(ctx, "course", if running { enum_name(courses(), b[5]) } else { "NONE" });
+    if running { publish_enum(ctx, "course", courses(), b[5]); } else { il::publish_property(ctx, "course", "NONE"); }
     il::publish_property(ctx, "extra_dry", if running { c::bit(b[12], 0x04) } else { "false" });
     il::publish_property(ctx, "high_temp", if running { c::bit(b[12], 0x08) } else { "false" });
     il::publish_property(ctx, "child_lock", c::bit(b[11], 0x01));
