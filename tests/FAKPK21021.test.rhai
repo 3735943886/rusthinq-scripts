@@ -736,3 +736,51 @@ fn test_settled_transition_sends_no_refresh() {
  expect_props(d,#{power:"true",power_transition:"complete"});
  expect_eq(d.timers(),[]);expect_eq(d.sent().len(),1);
 }
+
+// Field-expansion regression vectors: real frames from a full wash cycle captured
+// on hardware on 2026-11-05 (wash -> rinse -> spin -> complete -> power off).
+// Each frame is a live 0xEC frame carrying the 67-byte record this PR reads; the
+// expectations pin the whole expanded publicKeys surface, so a wrong offset or
+// value mapping in any added field fails here. pre_state expectations follow the
+// transition semantics verified against the same capture: the value only changes
+// at a state transition and names the state the machine came from.
+
+// washing (19:22, mid-cycle)
+fn test_field_expansion_wash() {
+    let d = device();
+    d.feed("aaff330a009800b29c000100ec008600030302087200000000000000002400290035005e0b029a02000002270400000000200004900100300000000004000400004000000000000000f0000000040800000000030302087200000000000000002300290058005e0b029a02000002270400000000200004900100300000000004000400004000000000000000f000000004080000001929bb");
+    expect_props(d, #{"add_garment": "on", "aidd_led": "off", "apply_buzzer": "on", "apply_remote_maintain": "on", "auto_soak": "off", "buzzer": "very_large", "child_lock": "false", "cloud_course": "none", "course": "ai_wash", "crease_care": "off", "current_date_display": "off", "current_time_display": "off", "delay": "off", "detergent_idx_show": "off", "dnn_ready": "off", "door": "true", "door_lock": "true", "drum_light": "off", "drumlight_auto_on": "off", "drumlight_opt": "on", "dry_ready_state": "off", "end_reserve_time": "off", "error": "no_error", "ez_detergent_set": "off", "ez_detergent_state": "off", "ez_softener_set": "off", "ez_softener_state": "off", "favorite": "off", "initial_time": "41", "laundry_care": "off", "laundry_care_setting": "off", "power": "true", "pre_state": "pause", "pre_wash": "off", "remaining_time": "35", "remote_start": "true", "reserve_time": "0", "rinse_spin": "off", "smart_care": "on", "smart_grid": "off", "state": "washing", "wash_load_display": "off", "water_plus": "off"});
+    expect_eq(d.script_error(), ());
+}
+
+// first rinsing record (19:27, pre_state=washing)
+fn test_field_expansion_rinse_first() {
+    let d = device();
+    d.feed("aaff330a009800b374000100ec008600000002087200000000000000001c002700e6005e0c0b9a02000002270400000000200004900100300000000004000400004000000000000000f0000000040800000000000002087200000000000000001a002700e7005e0c0b9a02000002270400000000200004900100300000000004000400004000000000000000f000000004080000002f94bb");
+    expect_props(d, #{"add_garment": "on", "aidd_led": "off", "apply_buzzer": "on", "apply_remote_maintain": "on", "auto_soak": "off", "buzzer": "very_large", "child_lock": "false", "cloud_course": "none", "course": "ai_wash", "crease_care": "off", "current_date_display": "off", "current_time_display": "off", "delay": "off", "detergent_idx_show": "off", "dnn_ready": "off", "door": "true", "door_lock": "true", "drum_light": "off", "drumlight_auto_on": "off", "drumlight_opt": "on", "dry_ready_state": "off", "end_reserve_time": "off", "error": "no_error", "ez_detergent_set": "off", "ez_detergent_state": "off", "ez_softener_set": "off", "ez_softener_state": "off", "favorite": "off", "initial_time": "39", "laundry_care": "off", "laundry_care_setting": "off", "power": "true", "pre_state": "washing", "pre_wash": "off", "remaining_time": "26", "remote_start": "true", "reserve_time": "0", "rinse_spin": "off", "smart_care": "on", "smart_grid": "off", "state": "rinsing", "wash_load_display": "off", "water_plus": "off"});
+    expect_eq(d.script_error(), ());
+}
+
+// first spinning record (19:46, pre_state=rinsing)
+fn test_field_expansion_spin_first() {
+    let d = device();
+    d.feed("aaff330a009800b4cd000100ec008600000000087200000000000000000c00270121005e0e0c9a02000000270400000000200004100100300000000004000400004000000000000000f0000000040800000000000000087200000000000000000c00270122005e0e0c9a02000000270400000000200004900100300000000004000400004000000000000000f00000000408000000a9f9bb");
+    expect_props(d, #{"add_garment": "on", "aidd_led": "off", "apply_buzzer": "on", "apply_remote_maintain": "on", "auto_soak": "off", "buzzer": "very_large", "child_lock": "false", "cloud_course": "none", "course": "ai_wash", "crease_care": "off", "current_date_display": "off", "current_time_display": "off", "delay": "off", "detergent_idx_show": "off", "dnn_ready": "off", "door": "true", "door_lock": "true", "drum_light": "off", "drumlight_auto_on": "off", "drumlight_opt": "on", "dry_ready_state": "off", "end_reserve_time": "off", "error": "no_error", "ez_detergent_set": "off", "ez_detergent_state": "off", "ez_softener_set": "off", "ez_softener_state": "off", "favorite": "off", "initial_time": "39", "laundry_care": "off", "laundry_care_setting": "off", "power": "true", "pre_state": "rinsing", "pre_wash": "off", "remaining_time": "12", "remote_start": "true", "reserve_time": "0", "rinse_spin": "off", "smart_care": "on", "smart_grid": "off", "state": "spinning", "wash_load_display": "off", "water_plus": "off"});
+    expect_eq(d.script_error(), ());
+}
+
+// wash complete (20:00, pre_state=spinning)
+fn test_field_expansion_done() {
+    let d = device();
+    d.feed("aaff330a009800b5e0000100ec008600000000087200000000000000000100270152005e0e0c9a02000000270400000000200004900100300000000004000400004000000000000000f000000004080000000000000000000000000000000000000000015c005e100e9a00000000270400000000000004c00100300000000004000400004000000000000000f000000004080000004eaabb");
+    expect_props(d, #{"add_garment": "on", "aidd_led": "off", "apply_buzzer": "on", "apply_remote_maintain": "on", "auto_soak": "off", "buzzer": "very_large", "child_lock": "false", "cloud_course": "none", "course": "none", "crease_care": "off", "current_date_display": "off", "current_time_display": "off", "delay": "off", "detergent_idx_show": "off", "dnn_ready": "off", "door": "true", "door_lock": "true", "drum_light": "on", "drumlight_auto_on": "off", "drumlight_opt": "on", "dry_ready_state": "off", "end_reserve_time": "off", "error": "no_error", "ez_detergent_set": "off", "ez_detergent_state": "off", "ez_softener_set": "off", "ez_softener_state": "off", "favorite": "off", "initial_time": "0", "laundry_care": "off", "laundry_care_setting": "off", "power": "true", "pre_state": "spinning", "pre_wash": "off", "remaining_time": "0", "remote_start": "false", "reserve_time": "0", "rinse_spin": "off", "smart_care": "on", "smart_grid": "off", "state": "wash_complete", "wash_load_display": "off", "water_plus": "off"});
+    expect_eq(d.script_error(), ());
+}
+
+// power off (20:05, pre_state=wash_complete)
+fn test_field_expansion_off() {
+    let d = device();
+    d.feed("aaff330a009800b61f000100ec00860000000000000000000000000000000000015c005e00109a00000000280400000000000004410000300000000004000400004000000000000000f000000004080000000000000000000000000000000000000000015c005e00109a00000000280400000000000004010000300000000004000400004000000000000000f00000000408000000bc8ebb");
+    expect_props(d, #{"add_garment": "off", "aidd_led": "off", "apply_buzzer": "on", "apply_remote_maintain": "on", "auto_soak": "off", "buzzer": "very_large", "child_lock": "false", "cloud_course": "none", "course": "none", "crease_care": "off", "current_date_display": "off", "current_time_display": "off", "delay": "off", "detergent_idx_show": "off", "dnn_ready": "off", "door": "false", "door_lock": "false", "drum_light": "off", "drumlight_auto_on": "off", "drumlight_opt": "on", "dry_ready_state": "off", "end_reserve_time": "off", "error": "no_error", "ez_detergent_set": "off", "ez_detergent_state": "off", "ez_softener_set": "off", "ez_softener_state": "off", "favorite": "off", "initial_time": "0", "laundry_care": "off", "laundry_care_setting": "off", "power": "false", "pre_state": "wash_complete", "pre_wash": "off", "remaining_time": "0", "remote_start": "false", "reserve_time": "0", "rinse_spin": "off", "smart_care": "on", "smart_grid": "off", "state": "power_off", "wash_load_display": "off", "water_plus": "off"});
+    expect_eq(d.script_error(), ());
+}
