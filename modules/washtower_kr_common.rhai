@@ -9,10 +9,21 @@ fn entity(key) {
  "reserveTimeMinute"=>"reserve_time","remainTimeMinute"=>"remaining_time","initialTimeMinute"=>"initial_time",
  "doorClose"=>"door","childLock"=>"child_lock","doorLock"=>"door_lock","remoteStart"=>"remote_start",
  "remoteMaintain"=>"remote_maintain","soilWash"=>"soil_wash","freshCare"=>"fresh_care","turboWash"=>"turbo_wash",
- "ecoHybrid"=>"eco_hybrid","wrinkleCare"=>"wrinkle_care","dryLevel"=>"dry_level",_=>key }
+ "ecoHybrid"=>"eco_hybrid","wrinkleCare"=>"wrinkle_care","dryLevel"=>"dry_level",
+ "preState"=>"pre_state","AIDDLed"=>"aidd_led","addGarment"=>"add_garment","applyBuzzer"=>"apply_buzzer",
+ "applyRemoteMaintain"=>"apply_remote_maintain","autoSoak"=>"auto_soak","cloudCourse"=>"cloud_course",
+ "creaseCare"=>"crease_care","currentDateDisplay"=>"current_date_display","currentTimeDisplay"=>"current_time_display",
+ "detergentIdxShowBeforeStart"=>"detergent_idx_show","dnnReady"=>"dnn_ready","drumLight"=>"drum_light",
+ "drumlightAutoOn"=>"drumlight_auto_on","drumlightOpt"=>"drumlight_opt","dryReady_state"=>"dry_ready_state",
+ "endMelody"=>"end_melody","endReserveTime"=>"end_reserve_time","ezCSDetergentSetVal"=>"ez_detergent_set",
+ "ezCSSoftenerSetVal"=>"ez_softener_set","ezDetergentState"=>"ez_detergent_state","ezSoftenerState"=>"ez_softener_state",
+ "laundryCare"=>"laundry_care","preWash"=>"pre_wash","rinseSpin"=>"rinse_spin","smartCare_onOff"=>"smart_care",
+ "smartGridEnable"=>"smart_grid","ushLaundryCareSettingOnOff"=>"laundry_care_setting","washLoadDisplay"=>"wash_load_display",
+ "waterPlus"=>"water_plus",_=>key }
 }
-fn public_keys() { let out=["state","course","reserveTimeMinute","remainTimeMinute","initialTimeMinute","error","childLock","doorLock","remoteStart"];if model().tag==0x33 {out.push("doorClose");}out }
+fn public_keys() { let mk=model().publicKeys;if mk!=() {return mk;} let out=["state","course","reserveTimeMinute","remainTimeMinute","initialTimeMinute","error","childLock","doorLock","remoteStart"];if model().tag==0x33 {out.push("doorClose");}out }
 fn definition(f) {
+ if f.def!=() {let d=f.def;if d.type=="select" && d.options==() {d.options=t::options(f.values);}return d;}
  if ["childLock","doorLock","remoteStart","doorClose"].contains(f.key) {return #{type:"binary"};}
  if f.values!=() {return #{type:"select",options:t::options(f.values)};}
  #{type:"number",unit:"min"}
@@ -20,7 +31,8 @@ fn definition(f) {
 fn descriptor(ctx) {
  let props=#{available:#{type:"binary",role:"available"},power:#{type:"binary",rw:true},
  power_transition:#{type:"select",category:"diagnostic",options:["standby","turning_on","turning_off","command_accepted","complete","timeout"]},
- wake:#{type:"trigger"},power_off:#{type:"trigger"},pause:#{type:"trigger"},start:#{type:"trigger"},remote_maintain:#{type:"binary",rw:true}};
+ wake:#{type:"trigger"},pause:#{type:"trigger"},start:#{type:"trigger"},remote_maintain:#{type:"binary",rw:true}};
+ if model().hidePowerOff!=true {props.power_off=#{type:"trigger"};}
  for key in public_keys() {let f=field(key);if f!=() {props[entity(key)]=definition(f);}}
  for key in settings() {
   let f=field(key);if f==() || f.values==() {continue;}
