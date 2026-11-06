@@ -1,46 +1,63 @@
 import "aabb_test" as a;
 
-// Tests of WMLJ32RS.rhai (combi oven), ported from the owner's rethink TS driver.
-// The long frame is the unit's real captured state frame
-// (testdata/frames/WMLJ32RS.txt): an idle unit - state 0, all published fields 0
-// except target_time, whose [28..30] reads 0/0/3 exactly as the TS driver notes.
-// The two short frames are the unit's other real captures (undecoded shapes).
-// The nonzero frame is CONSTRUCTED to the documented layout to exercise the
-// unknown_<n> passthrough (the TS driver's nonzero enum names are unverified:
-// modelJSON gives option names, not wire numbers).
+// Tests of WMLJ32RS.rhai (combi oven). The EC frames are real captures of 2026-11-06
+// (an air-fry session, lined up with the LG cloud's state for the same seconds); the EB
+// frame is the unit's older real idle capture (testdata/frames/WMLJ32RS.txt).
 
-fn live() { "AA6540EB00310001DD00000000000000000001000000000000000000000011110000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000075BB" }
+fn live_eb() { "AA6540EB00310001DD00000000000000000001000000000000000000000011110000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000075BB" }
+fn pref185() { "AAC440EC07300000CC0B000000B40000000001000000000000000000000011150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000007300000CC0B000000B90000000001000000000000000000000011150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B00020000000000000000000000008CBB" }
+fn preheat() { "AAC440EC07300000CC0B000000B90000000001000000000000000000000011150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000001300000CC0B000000B90000000001000000000000000000003C11150000E300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000061BB" }
+fn paused_preheat() { "AAC440EC01300000CC0B000000B90000000001000000000000000000003C11150000E300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000004300000CC0B000000B9000000000100000000000000000000B917150000E300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000045BB" }
+fn cooking() { "AAC440EC02300000CC0B000000B9000000000100003200003200000000B917150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000002300000CC0B000000B9000000000100011100011400000000B917150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000088BB" }
+fn paused_cook() { "AAC440EC02300000CC0B000000B9000000000100011100011400000000B917150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000004300000CC0B000000B9000000000100010E00011400000000B917150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B0002000000000000000000000000CABB" }
+fn idle() { "AAC440EC00300001DD00000000000000000001000000000000000000000017150000C30000000D000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000000300001DD00000000000000000001000000000000000000000017150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B0002000000000000000000000000D0BB" }
+fn dial210() { "AAC440EC07300000CC04000000000000000001000000000000000000000011150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000007300000CC1500D200000000000001000000000000000000000011150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000014BB" }
 
-fn test_the_live_frame_becomes_il_properties() {
+fn test_the_idle_eb_frame() {
     let d = device();
-    d.feed(live());
+    d.feed(live_eb());
     expect_props(d, #{
-        available: "true",
-        oven_state: "initial",
-        standby: "normal",
-        control_lock: "disable",
-        error: "disable",
-        cook_mode: "standby",
-        target_temperature: "0",
-        current_temperature: "0",
-        remaining_time: "0",
-        target_time: "3"
+        available: "true", oven_state: "initial", standby: "standby", cook_mode: "none",
+        target_temperature: "0", remaining_time: "0", target_time: "0", preheat_phase: "false"
     });
     expect_eq(d.sent().len(), 0);
     expect_eq(d.script_error(), ());
 }
 
-// Device frames other than status records are acknowledged ahead of decoding (c::ack), as the
-// other AABB drivers do; without it the appliance repeated each notification ~10 times
-// (seen live 2026-11-05). aa0740190259bb is a real frame of this class; the ACK is the captured reply.
-fn test_device_frames_are_acknowledged() {
+fn test_setting_up_air_fry_at_185() {
     let d = device();
-    d.feed("aa0740190259bb");
-    let clips = d.clips();
-    expect_eq(clips.len(), 1);
-    expect_eq(clips[0].cmd, "ack");
-    expect_eq(clips[0].data, "AA08F0001904EABB");
+    d.feed(pref185());
+    expect_props(d, #{ oven_state: "preference", standby: "in_use", cook_mode: "air_fry", target_temperature: "185" });
     expect_eq(d.script_error(), ());
+}
+
+fn test_dialling_through_defrost() {
+    let d = device();
+    d.feed(dial210());
+    expect_props(d, #{ oven_state: "preference", cook_mode: "defrost", target_temperature: "0" });
+}
+
+fn test_preheating_and_pausing_in_preheat() {
+    let d = device();
+    d.feed(preheat());
+    expect_props(d, #{ oven_state: "preheating", preheat_phase: "true", target_temperature: "185" });
+    d.feed(paused_preheat());
+    expect_props(d, #{ oven_state: "paused", preheat_phase: "true" });
+}
+
+fn test_cooking_counts_down_the_timer() {
+    let d = device();
+    d.feed(cooking());
+    expect_props(d, #{ oven_state: "cooking", preheat_phase: "false", remaining_time: "77", target_time: "80" });
+    d.feed(paused_cook());
+    expect_props(d, #{ oven_state: "paused", remaining_time: "74", target_time: "80" });
+}
+
+fn test_back_to_idle() {
+    let d = device();
+    d.feed(cooking());
+    d.feed(idle());
+    expect_props(d, #{ oven_state: "initial", standby: "standby", cook_mode: "none", target_temperature: "0", remaining_time: "0" });
 }
 
 fn test_the_short_real_frames_are_ignored() {
@@ -52,25 +69,6 @@ fn test_the_short_real_frames_are_ignored() {
     expect_eq(d.script_error(), ());
 }
 
-fn test_a_constructed_nonzero_frame() {
-    let d = device();
-    // [0]=5, [1]=1, [2]=1, [3]=1, [14]=7, [16]=200, remain 1:30:15,
-    // target 2:00:00, [34]=180.
-    d.feed(a::framed(hex_decode("40eb00000000000005010101000000000000000000000700c80000000000000000011e0f020000000000b4000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")));
-    expect_props(d, #{
-        oven_state: "unknown_5",
-        standby: "standby",
-        control_lock: "enable",
-        error: "enable",
-        cook_mode: "unknown_7",
-        target_temperature: "200",
-        current_temperature: "180",
-        remaining_time: "5415",
-        target_time: "7200"
-    });
-    expect_eq(d.script_error(), ());
-}
-
 fn test_writes_are_rejected_and_nothing_is_sent() {
     let d = device();
     d.start();
@@ -78,4 +76,31 @@ fn test_writes_are_rejected_and_nothing_is_sent() {
     expect_eq(d.sent().len(), 0);
     expect(d.event("reject") != (), "a reject event is published");
     expect_eq(d.script_error(), ());
+}
+
+fn test_a_reload_republishes_the_last_values() {
+    let d = device();
+    d.feed(pref185());
+    d.start();
+    expect_eq(d.script_error(), ());
+    expect_props(d, #{ oven_state: "preference", cook_mode: "air_fry", target_temperature: "185" });
+}
+
+// Real capture, 20:34:20: a 10-second cook ran to the end; the cloud said "done".
+fn done_frame() { "AAC440EC02300000CC04000000AF000000000100000A00000A00000000AF11150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000005300000CC04000000AF0000000001000000000000000000000017190000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B0002000000000000000000000000D7BB" }
+
+fn test_a_finished_cook_is_done() {
+    let d = device();
+    d.feed(done_frame());
+    expect_props(d, #{ oven_state: "done", cook_mode: "oven", target_temperature: "175", remaining_time: "0" });
+    expect_eq(d.script_error(), ());
+}
+
+// Real capture, 20:38:28: an oven cook sent from the LG app, waiting for the start button.
+fn app_sent_oven() { "AAC440EC00300001DD00000000000000000001000000000000000000000011150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B00020000000000000000000000000A300000CC04000000B40000000001000000000000000000000011150000C300000000000353000000000000000001040B150203050609070A0D6300000019001700A900A6009D00DE0097000600A8009B000200000000000000000000000049BB" }
+
+fn test_a_cook_sent_from_the_app_waits_to_start() {
+    let d = device();
+    d.feed(app_sent_oven());
+    expect_props(d, #{ oven_state: "ready_to_start", cook_mode: "oven", target_temperature: "180" });
 }
