@@ -19,7 +19,9 @@
 //              lands stays published as set.
 //
 // Status record (36 bytes, extracted from the tunnel envelope the FX___S way):
-//   [2] course id, [6] expected duration in minutes, [9] power (nonzero = on).
+//   [2] course id, [6] expected duration in minutes, [9] power (nonzero = on),
+//   [20] smart care bits (1 fine dust, 2 humidity, 3 night care; 0 = master),
+//   [23]/[25] night care start/end hour.
 //   The record start (records from payload[10], body[14] overall) sits one byte
 //   later than aabb_common::enveloped_status (body[13]). This model's framing
 //   differs, but the offset is NOT yet verified against a raw live capture of
@@ -70,6 +72,24 @@ fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 fn start(ctx) {
     // The TS driver publishes the initially selected course from its constructor.
     il::publish_property(ctx, "course", t::name(courses(), selected(ctx)));
+    // A watched hot reload re-announces the entities, and an idle styler sends no record
+    // to refill them (no status-request frame is known for this model). Republish what
+    // the kept driver state already knows; a fresh attach has nothing kept and waits for
+    // the styler's own record as before. Nothing is sent to the appliance.
+    let power = ctx.state_get("power");
+    if power != () { il::publish_property(ctx, "power", if power { "true" } else { "false" }); }
+    if ctx.state_get("course_shown") == true {
+        il::publish_property(ctx, "active_course", ctx.state_get("shown_course"));
+        il::publish_property(ctx, "duration_minutes", ctx.state_get("shown_duration"));
+    }
+    let bits = ctx.state_get("smart_care_bits");
+    if bits != () { publish_smart_care(ctx, bits); }
+}
+
+fn publish_smart_care(ctx, bits) {
+    il::publish_property(ctx, "smart_care_fine_dust", c::on_off((bits >> 1) & 1));
+    il::publish_property(ctx, "smart_care_humidity", c::on_off((bits >> 2) & 1));
+    il::publish_property(ctx, "smart_care_night_care", c::on_off((bits >> 3) & 1));
 }
 
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
@@ -123,20 +143,32 @@ fn on_data(ctx, data) {
 fn record(ctx, r) {
     il::publish_property(ctx, "available", "true");
     let on = r[9] != 0;
+    // Smart care flags live in [20] (mapped live 2026-11-06 by toggling each setting and
+    // checking the cloud): bit 1 fine dust, bit 2 humidity, bit 3 night care; bit 0 stayed
+    // set throughout (the cloud's smart-care master switch). The writes stay optimistic and
+    // this confirms them, since the styler answers each write with a fresh record.
+    publish_smart_care(ctx, r[20]);
+    ctx.state_set("smart_care_bits", r[20]);
     // The TS driver publishes power only when it changes.
     if ctx.state_get("power") != on {
         ctx.state_set("power", on);
         il::publish_property(ctx, "power", if on { "true" } else { "false" });
-        if !on {
-            il::publish_absent(ctx, "active_course");
-            il::publish_absent(ctx, "duration_minutes");
-        }
     }
     if on {
         let name = t::name(courses(), r[2]);
         if name == () { name = "unknown_" + r[2].to_string(); }
         il::publish_property(ctx, "active_course", name);
         il::publish_property(ctx, "duration_minutes", r[6].to_string());
+        ctx.state_set("course_shown", true);
+        ctx.state_set("shown_course", name);
+        ctx.state_set("shown_duration", r[6].to_string());
+    } else if ctx.state_get("course_shown") == true {
+        // Clear the course published while on. Keyed on what was published, not on a
+        // power change: a remote power-off already set the power state optimistically,
+        // so the off record is not a "change" here (seen live 2026-11-06).
+        il::publish_absent(ctx, "active_course");
+        il::publish_absent(ctx, "duration_minutes");
+        ctx.state_set("course_shown", false);
     }
 }
 
