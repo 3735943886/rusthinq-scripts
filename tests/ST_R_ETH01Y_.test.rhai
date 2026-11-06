@@ -110,6 +110,17 @@ fn test_a_remote_power_off_still_clears_the_course() {
     expect_eq(d.script_error(), ());
 }
 
+// A daemon restart or reconnect starts with empty driver state while the retained
+// active_course from before is still on the broker; the first off record must clear it.
+fn test_the_first_off_record_after_a_restart_clears_a_retained_course() {
+    let d = device();
+    d.feed(a::framed(hex_decode("310a0036000000000000eb000000000004000000350000000000000000000000000000000000000000000000000000000000")));
+    expect_eq(d.property("power"), "false");
+    expect_eq(d.property("active_course"), "");
+    expect_eq(d.property("duration_minutes"), "");
+    expect_eq(d.script_error(), ());
+}
+
 fn test_the_completion_notification_is_an_event() {
     let d = device();
     d.feed(a::framed(hex_decode("31720000")));

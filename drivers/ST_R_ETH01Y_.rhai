@@ -162,7 +162,7 @@ fn record(ctx, r) {
         ctx.state_set("course_shown", true);
         ctx.state_set("shown_course", name);
         ctx.state_set("shown_duration", r[6].to_string());
-    } else if ctx.state_get("course_shown") == true {
+    } else if ctx.state_get("course_shown") != false {
         // Clear the course published while on. Keyed on what was published, not on a
         // power change: a remote power-off already set the power state optimistically,
         // so the off record is not a "change" here (seen live 2026-11-06).
