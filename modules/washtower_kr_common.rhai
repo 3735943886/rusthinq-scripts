@@ -80,6 +80,7 @@ fn course_defaults(ctx,course,preserve) {
  ctx.state_set("draft",d);ctx.state_set("dirty",dirty);publish_draft(ctx);true
 }
 fn on_data(ctx,data) {
+ c::ack(ctx,data);
  power_response(ctx,data);
  let r=record(data);if r==() {return;}
  let obs=observed(ctx);let d=draft(ctx);let dirty=dirty(ctx);

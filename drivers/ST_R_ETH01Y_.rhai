@@ -92,6 +92,7 @@ fn settings_write(ctx, pairs) {
 }
 
 fn on_data(ctx, data) {
+    c::ack(ctx, data);
     let body = c::inner(data, 0x31);
     if body == () { return; }
 

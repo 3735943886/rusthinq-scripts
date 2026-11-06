@@ -27,6 +27,19 @@ fn test_own_eb_publishes_the_idle_state() {
     expect_eq(d.script_error(), ());
 }
 
+// Device frames other than status records are acknowledged ahead of decoding (c::ack), as the
+// other AABB drivers do; without it the appliance repeated each notification ~10 times
+// (seen live 2026-11-05). aa0734190255bb is a real frame of this class; the ACK is the captured reply.
+fn test_device_frames_are_acknowledged() {
+    let d = device();
+    d.feed("aa0734190255bb");
+    let clips = d.clips();
+    expect_eq(clips.len(), 1);
+    expect_eq(clips[0].cmd, "ack");
+    expect_eq(clips[0].data, "AA08F0001904EABB");
+    expect_eq(d.script_error(), ());
+}
+
 fn test_own_ec_publishes_the_current_record() {
     let d = device();
     d.feed(own_ec());
