@@ -21,6 +21,33 @@ fn test_start_publishes_the_default_course() {
     expect_eq(d.script_error(), ());
 }
 
+// start() on a fresh attach knows no power yet and sends nothing.
+fn test_a_fresh_start_publishes_no_power() {
+    let d = device();
+    d.start();
+    expect_eq(d.property("power"), ());
+    expect_eq(d.property("active_course"), ());
+    expect_eq(d.property("smart_care_humidity"), ());
+    expect_eq(d.sent().len(), 0);
+}
+
+// After a hot reload (state kept, start() runs again) power and course are republished
+// from kept state; still nothing is sent.
+fn test_a_restart_republishes_kept_power_and_course() {
+    let d = device();
+    d.feed(eb_on());
+    let course = d.property("active_course");
+    let duration = d.property("duration_minutes");
+    let dust = d.property("smart_care_fine_dust");
+    d.start();
+    expect_eq(d.property("power"), "true");
+    expect_eq(d.property("active_course"), course);
+    expect_eq(d.property("duration_minutes"), duration);
+    expect_eq(d.property("smart_care_fine_dust"), dust);
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
 fn test_an_eb_record_becomes_il_properties() {
     let d = device();
     d.feed(eb_on());
@@ -65,6 +92,30 @@ fn test_an_off_record_publishes_power_only() {
     d.feed(a::framed(hex_decode("310a0036000000000000eb000000000004000000350000000000000000000000000000000000000000000000000000000000")));
     expect_eq(d.property("power"), "false");
     // The course/duration published while on are cleared at power-off.
+    expect_eq(d.property("active_course"), "");
+    expect_eq(d.property("duration_minutes"), "");
+    expect_eq(d.script_error(), ());
+}
+
+// A remote power-off sets power optimistically, so the off record is no power "change";
+// the course must still be cleared (seen live 2026-11-06: it stayed on 강력 스타일링).
+fn test_a_remote_power_off_still_clears_the_course() {
+    let d = device();
+    d.feed(eb_on());
+    d.set("power", "false");
+    expect_eq(d.property("power"), "false");
+    d.feed(a::framed(hex_decode("310a0036000000000000eb000000000004000000350000000000000000000000000000000000000000000000000000000000")));
+    expect_eq(d.property("active_course"), "");
+    expect_eq(d.property("duration_minutes"), "");
+    expect_eq(d.script_error(), ());
+}
+
+// A daemon restart or reconnect starts with empty driver state while the retained
+// active_course from before is still on the broker; the first off record must clear it.
+fn test_the_first_off_record_after_a_restart_clears_a_retained_course() {
+    let d = device();
+    d.feed(a::framed(hex_decode("310a0036000000000000eb000000000004000000350000000000000000000000000000000000000000000000000000000000")));
+    expect_eq(d.property("power"), "false");
     expect_eq(d.property("active_course"), "");
     expect_eq(d.property("duration_minutes"), "");
     expect_eq(d.script_error(), ());
@@ -146,4 +197,20 @@ fn test_an_unknown_course_is_rejected() {
     d.set("course", "없는 코스");
     expect_eq(d.sent().len(), n);
     expect(d.event("reject") != (), "a reject event is published");
+}
+
+// Smart care bits in record [20], from a live mapping run on 2026-11-06 (each setting
+// toggled and checked against the cloud). Frames are the real captures, in order.
+fn test_smart_care_flags_follow_the_record() {
+    let d = device();
+    d.feed("aaff310a005a001203000100ec00480a00000000000035003500000000000004000002190700041600060000000000000000000a0000040000003500350100000000000400000219070004160006000000000000000000b390bb");   // baseline: fine dust on, humidity on, night care off
+    expect_props(d, #{ smart_care_fine_dust: "true", smart_care_humidity: "true", smart_care_night_care: "false" });
+    d.feed("aaff310a005a00120a000100ec00480a00000400000035003501000000000004000002190700041600060000000000000000000a00000400000035003501000000000004000002190f00041600060000000000000000001417bb");   // night care switched on
+    expect_props(d, #{ smart_care_fine_dust: "true", smart_care_humidity: "true", smart_care_night_care: "true" });
+    d.feed("aaff310a005a001213000100ec00480a00000400000035003501000000000004000002190700041600060000000000000000000a0000040000003500350100000000000400000219030004160006000000000000000000b146bb");   // night care back off, humidity switched off
+    expect_props(d, #{ smart_care_fine_dust: "true", smart_care_humidity: "false", smart_care_night_care: "false" });
+    d.feed("aaff310a005a00121c000100ec00480a00000400000035003501000000000004000002190700041600060000000000000000000a0000040000003500350100000000000400000219050004160006000000000000000000f08abb");   // humidity back on, fine dust switched off
+    expect_props(d, #{ smart_care_fine_dust: "false", smart_care_humidity: "true", smart_care_night_care: "false" });
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
 }
