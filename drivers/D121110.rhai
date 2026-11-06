@@ -78,6 +78,7 @@ fn start(ctx) {}
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
 fn on_data(ctx, data) {
+    c::ack(ctx, data);
     let inner = c::inner(data, 0x32);
     if inner == () { return; }
     if inner[1] != 0xeb && inner[1] != 0xec { return; }

@@ -70,6 +70,7 @@ fn on_timer(ctx, name) {
 }
 
 fn on_data(ctx, data) {
+    c::ack(ctx, data);
     let inner = c::inner(data, 0x11);
     if inner == () { return; }
     if inner[1] == 0x3e {

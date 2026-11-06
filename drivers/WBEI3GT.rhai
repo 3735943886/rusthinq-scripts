@@ -73,6 +73,7 @@ fn publish_enum(ctx, prop, table, raw) {
 fn duration(r, o) { r[o + 2] * 3600 + r[o + 1] * 60 + r[o] }
 
 fn on_data(ctx, data) {
+    c::ack(ctx, data);
     let inner = c::inner(data, 0x42);
     if inner == () { return; }
     // The TS driver's length rule is >=, not exact: an EB body of at least

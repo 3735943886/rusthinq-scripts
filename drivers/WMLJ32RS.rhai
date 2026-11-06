@@ -58,6 +58,7 @@ fn temp_c(r, idx) {
 }
 
 fn on_data(ctx, data) {
+    c::ack(ctx, data);
     let inner = c::inner(data, 0x40);
     if inner == () { return; }
     // Only this exact shape is decoded; anything else is not parsed on a guess.
