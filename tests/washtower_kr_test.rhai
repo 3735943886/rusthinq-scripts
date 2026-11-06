@@ -8,3 +8,4 @@ fn status(tag,record) {
  hex_encode(frame)
 }
 fn response(tag) {hex_encode(aabb_wrap([tag,0xe6,0,2,1,255,1,2,0]))}
+fn off_response(tag) {hex_encode(aabb_wrap([tag,0xe6,0,0,1,255,1,2,0]))}

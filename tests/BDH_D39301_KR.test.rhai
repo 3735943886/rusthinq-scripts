@@ -74,7 +74,7 @@ fn test_pr_117_5() {
     expect_eq(d.script_error(), ());
 }
 
-// power switch uses vtCtrl power for ON, preserves state echo, and remote-gates OFF
+// power switch uses vtCtrl power for ON, preserves state echo; OFF rides F0 E5 without a remote gate (live capture 2026-11-05)
 fn test_pr_117_6() {
     let d = device();
     d.feed("aaff340a0045000000000100eb003300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055d6bb");
@@ -91,17 +91,18 @@ fn test_pr_117_6() {
     expect_eq(d.sent().len(), 1);
     expect_eq(d.script_error(), ());
     d.set("power", "false");
-    expect_props(d, #{"course": "none", "reserve_time": "0", "remaining_time": "0", "initial_time": "0", "state": "on", "error": "no_error", "remote_start": "false", "child_lock": "false", "door_lock": "false", "remote_maintain": "false", "setting_course": "standard", "setting_eco_hybrid": "auto", "setting_wrinkle_care": "off", "setting_steam": "off", "setting_dry_level": "standard", "power": "true", "power_transition": "complete"});
-    expect_eq(d.sent().len(), 1);
+    expect_props(d, #{"course": "none", "reserve_time": "0", "remaining_time": "0", "initial_time": "0", "state": "on", "error": "no_error", "remote_start": "false", "child_lock": "false", "door_lock": "false", "remote_maintain": "false", "setting_course": "standard", "setting_eco_hybrid": "auto", "setting_wrinkle_care": "off", "setting_steam": "off", "setting_dry_level": "standard", "power": "true", "power_transition": "turning_off"});
+    expect_eq(hex_encode(d.sent()[1]), "aa0df0e5000001ff010200dabb");
+    expect_eq(d.sent().len(), 2);
     expect_eq(d.script_error(), ());
     d.feed("aaff340a0045000000000100eb0033000000000000000000000000000100000000000000000000000040000000000000000000000000000000000000000000000000de5dbb");
-    expect_props(d, #{"course": "none", "reserve_time": "0", "remaining_time": "0", "initial_time": "0", "state": "on", "error": "no_error", "remote_start": "true", "child_lock": "false", "door_lock": "false", "remote_maintain": "false", "setting_course": "standard", "setting_eco_hybrid": "auto", "setting_wrinkle_care": "off", "setting_steam": "off", "setting_dry_level": "standard", "power": "true", "power_transition": "complete"});
-    expect_eq(d.sent().len(), 1);
+    expect_props(d, #{"course": "none", "reserve_time": "0", "remaining_time": "0", "initial_time": "0", "state": "on", "error": "no_error", "remote_start": "true", "child_lock": "false", "door_lock": "false", "remote_maintain": "false", "setting_course": "standard", "setting_eco_hybrid": "auto", "setting_wrinkle_care": "off", "setting_steam": "off", "setting_dry_level": "standard", "power": "true", "power_transition": "turning_off"});
+    expect_eq(d.sent().len(), 2);
     expect_eq(d.script_error(), ());
     d.set("power", "false");
-    expect_props(d, #{"course": "none", "reserve_time": "0", "remaining_time": "0", "initial_time": "0", "state": "on", "error": "no_error", "remote_start": "true", "child_lock": "false", "door_lock": "false", "remote_maintain": "false", "setting_course": "standard", "setting_eco_hybrid": "auto", "setting_wrinkle_care": "off", "setting_steam": "off", "setting_dry_level": "standard", "power": "true", "power_transition": "complete"});
-    expect_eq(hex_encode(d.sent()[1]), "aa09f0240101009cbb");
-    expect_eq(d.sent().len(), 2);
+    expect_props(d, #{"course": "none", "reserve_time": "0", "remaining_time": "0", "initial_time": "0", "state": "on", "error": "no_error", "remote_start": "true", "child_lock": "false", "door_lock": "false", "remote_maintain": "false", "setting_course": "standard", "setting_eco_hybrid": "auto", "setting_wrinkle_care": "off", "setting_steam": "off", "setting_dry_level": "standard", "power": "true", "power_transition": "turning_off"});
+    expect_eq(hex_encode(d.sent()[2]), "aa0df0e5000001ff010200dabb");
+    expect_eq(d.sent().len(), 3);
     expect_eq(d.script_error(), ());
 }
 
@@ -165,8 +166,8 @@ fn test_pr_117_8() {
     expect_eq(d.sent().len(), 0);
     expect_eq(d.script_error(), ());
     d.set("power_off", "");
-    expect_props(d, #{"course": "none", "reserve_time": "0", "remaining_time": "0", "initial_time": "0", "state": "drying", "error": "no_error", "remote_start": "false", "child_lock": "false", "door_lock": "false", "remote_maintain": "true", "setting_course": "standard", "setting_eco_hybrid": "auto", "setting_wrinkle_care": "off", "setting_steam": "off", "setting_dry_level": "standard", "power": "true", "power_transition": "standby"});
-    expect_eq(hex_encode(d.sent()[0]), "aa09f0240101009cbb");
+    expect_props(d, #{"course": "none", "reserve_time": "0", "remaining_time": "0", "initial_time": "0", "state": "drying", "error": "no_error", "remote_start": "false", "child_lock": "false", "door_lock": "false", "remote_maintain": "true", "setting_course": "standard", "setting_eco_hybrid": "auto", "setting_wrinkle_care": "off", "setting_steam": "off", "setting_dry_level": "standard", "power": "true", "power_transition": "turning_off"});
+    expect_eq(hex_encode(d.sent()[0]), "aa0df0e5000001ff010200dabb");
     expect_eq(d.sent().len(), 1);
     expect_eq(d.script_error(), ());
 }
@@ -201,8 +202,8 @@ fn test_pr_117_10() {
     expect_eq(d.sent().len(), 0);
     expect_eq(d.script_error(), ());
     d.set("power", "false");
-    expect_props(d, #{"course": "none", "reserve_time": "0", "remaining_time": "0", "initial_time": "0", "state": "drying", "error": "no_error", "remote_start": "false", "child_lock": "false", "door_lock": "false", "remote_maintain": "true", "setting_course": "standard", "setting_eco_hybrid": "auto", "setting_wrinkle_care": "off", "setting_steam": "off", "setting_dry_level": "standard", "power": "true", "power_transition": "standby"});
-    expect_eq(hex_encode(d.sent()[0]), "aa09f0240101009cbb");
+    expect_props(d, #{"course": "none", "reserve_time": "0", "remaining_time": "0", "initial_time": "0", "state": "drying", "error": "no_error", "remote_start": "false", "child_lock": "false", "door_lock": "false", "remote_maintain": "true", "setting_course": "standard", "setting_eco_hybrid": "auto", "setting_wrinkle_care": "off", "setting_steam": "off", "setting_dry_level": "standard", "power": "true", "power_transition": "turning_off"});
+    expect_eq(hex_encode(d.sent()[0]), "aa0df0e5000001ff010200dabb");
     expect_eq(d.sent().len(), 1);
     expect_eq(d.script_error(), ());
 }
@@ -586,6 +587,8 @@ fn test_pr_117_29() {
     expect_eq(d.script_error(), ());
     d.feed("aa0d34e6000201ff01020083bb");
     expect_props(d, #{"course": "none", "reserve_time": "0", "remaining_time": "0", "initial_time": "0", "state": "power_off", "error": "no_error", "remote_start": "false", "child_lock": "false", "door_lock": "false", "remote_maintain": "false", "setting_course": "standard", "setting_eco_hybrid": "auto", "setting_wrinkle_care": "off", "setting_steam": "off", "setting_dry_level": "standard", "power": "false", "power_transition": "command_accepted"});
+    expect_eq(d.sent().len(), 1);
+    d.fire("status_refresh");
     expect_eq(hex_encode(d.sent()[1]), "aa12f0ed1121010000001804111200005ebb");
     expect_eq(d.sent().len(), 2);
     expect_eq(d.script_error(), ());
@@ -664,21 +667,32 @@ fn test_pr_117_32() {
 
 import "washtower_kr_test" as wt;
 
-// Power-on success acknowledges acceptance; only telemetry confirms that the power changed.
+// start() asks the tower for a record, so a hot reload republishes state.
+fn test_start_queries_status() {
+ let d=device();d.start();
+ expect_eq(d.sent().len(),1);expect_eq(hex_encode(d.sent()[0]),"aa12f0ed1121010000001804111200005ebb");
+ expect_eq(d.timers(),[]);expect_eq(d.script_error(),());
+}
+// Power-on success acknowledges acceptance; status queries follow 1 s and 3 s later and only
+// telemetry confirms that the power changed.
 fn test_power_acceptance_waits_for_telemetry_and_then_times_out() {
  let d=device();d.start();let r=blob(50);
+ expect_eq(d.sent().len(),1);
  d.feed(wt::status(52,r));
  d.set("power","true");
  expect_props(d,#{power:"false",power_transition:"turning_on"});
  expect_eq(d.timers(),[["power_on_timeout",120000]]);
- d.set("power","true");expect_eq(d.sent().len(),1);
+ d.set("power","true");expect_eq(d.sent().len(),2);
  d.feed(wt::response(52));
  expect_props(d,#{power:"false",power_transition:"command_accepted"});
  expect_eq(d.sent().len(),2);
- d.feed(wt::response(52));expect_eq(d.sent().len(),2);
+ expect_eq(d.timers().filter(|t| t[0]=="status_refresh"),[["status_refresh",1000]]);
+ d.fire("status_refresh");
+ expect_eq(d.sent().len(),3);expect_eq(hex_encode(d.sent()[2]),"aa12f0ed1121010000001804111200005ebb");
+ d.feed(wt::response(52));expect_eq(d.sent().len(),3);
  d.fire("power_on_timeout");
  expect_props(d,#{power:"false",power_transition:"timeout"});
- d.set("power","true");expect_eq(d.sent().len(),3);
+ d.set("power","true");expect_eq(d.sent().len(),4);
  r[13]=1;d.feed(wt::status(52,r));
  expect_props(d,#{power:"true",power_transition:"complete"});
  expect_eq(d.timers(),[]);expect_eq(d.script_error(),());
@@ -687,4 +701,58 @@ fn test_disconnect_cancels_the_pending_power_timer() {
  let d=device();d.start();d.feed(wt::status(52,blob(50)));
  d.set("power","true");d.drop_device();
  expect_eq(d.timers(),[]);expect_eq(d.property("available"),"false");
+}
+// start() also republishes power_transition, which kept state would otherwise leave unknown.
+fn test_start_publishes_standby_transition() {
+ let d=device();d.start();
+ expect_props(d,#{power_transition:"standby"});expect_eq(d.script_error(),());
+}
+// Power off is tracked like power on: turning_off, command_accepted plus status queries at 1 s and 3 s,
+// then the off record completes it and clears every timer.
+fn test_power_off_is_tracked_to_completion() {
+ let d=device();let r=blob(50);r[13]=1;d.feed(wt::status(52,r));
+ d.set("power","false");
+ expect_eq(hex_encode(d.sent()[0]),"aa0df0e5000001ff010200dabb");
+ expect_props(d,#{power:"true",power_transition:"turning_off"});
+ expect_eq(d.timers(),[["power_off_timeout",60000]]);
+ d.feed(wt::off_response(52));
+ expect_props(d,#{power:"true",power_transition:"command_accepted"});
+ expect_eq(d.timers().filter(|t| t[0]=="status_refresh"),[["status_refresh",1000]]);
+ d.feed(wt::off_response(52));expect_eq(d.sent().len(),1);
+ d.fire("status_refresh");expect_eq(hex_encode(d.sent()[1]),"aa12f0ed1121010000001804111200005ebb");
+ r[13]=0;d.feed(wt::status(52,r));
+ expect_props(d,#{power:"false",power_transition:"complete"});
+ expect_eq(d.timers(),[]);expect_eq(d.script_error(),());
+}
+fn test_power_off_times_out_without_an_off_record() {
+ let d=device();let r=blob(50);r[13]=1;d.feed(wt::status(52,r));
+ d.set("power","false");d.fire("power_off_timeout");
+ expect_props(d,#{power:"true",power_transition:"timeout"});
+ d.set("power","false");expect_eq(d.sent().len(),2);
+ expect_props(d,#{power_transition:"turning_off"});expect_eq(d.script_error(),());
+}
+// An ON reply does not count as OFF acceptance.
+fn test_on_reply_does_not_accept_a_pending_off() {
+ let d=device();let r=blob(50);r[13]=1;d.feed(wt::status(52,r));
+ d.set("power","false");d.feed(wt::response(52));
+ expect_props(d,#{power_transition:"turning_off"});
+ expect_eq(d.timers(),[["power_off_timeout",60000]]);
+}
+// Acceptance queries at 1 s and retries once 2 s later while unsettled; never a third time.
+fn test_refresh_retries_once_then_stops() {
+ let d=device();let r=blob(50);d.feed(wt::status(52,r));
+ d.set("power","true");d.feed(wt::response(52));
+ d.fire("status_refresh");expect_eq(d.sent().len(),2);expect_eq(hex_encode(d.sent()[1]),"aa12f0ed1121010000001804111200005ebb");
+ expect_eq(d.timers().filter(|t| t[0]=="status_refresh"),[["status_refresh",2000]]);
+ d.fire("status_refresh");expect_eq(d.sent().len(),3);expect_eq(hex_encode(d.sent()[2]),"aa12f0ed1121010000001804111200005ebb");
+ expect_eq(d.timers().filter(|t| t[0]=="status_refresh"),[]);
+ expect_props(d,#{power_transition:"command_accepted"});expect_eq(d.script_error(),());
+}
+// A record that settles the transition before the first query cancels both queries.
+fn test_settled_transition_sends_no_refresh() {
+ let d=device();let r=blob(50);d.feed(wt::status(52,r));
+ d.set("power","true");d.feed(wt::response(52));
+ r[13]=1;d.feed(wt::status(52,r));
+ expect_props(d,#{power:"true",power_transition:"complete"});
+ expect_eq(d.timers(),[]);expect_eq(d.sent().len(),1);
 }

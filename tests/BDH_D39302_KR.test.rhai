@@ -65,12 +65,15 @@ fn test_power_on_uses_the_vtctrl_frame() {
     expect_eq(d.script_error(), ());
 }
 
-fn test_power_off_is_remote_gated() {
+// Power off rides the F0 E5 power channel like the official app (live capture
+// 2026-11-05) and is not gated on remote start; only an already-off dryer refuses it.
+fn test_power_off_uses_the_e5_channel_without_remote_gate() {
     let d = device();
     d.feed(own_ec()); // state on, but remote_start / remote_maintain both off
     let n = d.sent().len();
     d.set("power", "false");
-    expect_eq(d.sent().len(), n);
+    expect_eq(d.sent().len(), n + 1);
+    expect_eq(hex_encode(d.sent()[n]), "aa0df0e5000001ff010200dabb");
     expect_eq(d.script_error(), ());
 }
 
