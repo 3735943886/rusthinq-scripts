@@ -339,7 +339,10 @@ fn on_data(ctx, data) {
     let known = false;
     for k in ["ROBOT_STATE", "BATT_P", "MODE", "SUCTION_LEVEL", "WATERSUPPLY_LEVEL",
               "VOLUME_LEVEL", "CLEAN_TYPE", "ZZ_DIST", "STATION_SET", "SMART_TURBO", "BUTTON_LOCK",
-              "RECLEAN", "TOGGLE_RECLEAN", "LIGHT", "AI_DETECTION", "MAINT_FILTER", "UPDATE", "EMERGENCY"] {
+              "RECLEAN", "TOGGLE_RECLEAN", "LIGHT", "AI_DETECTION", "MAINT_FILTER", "UPDATE", "EMERGENCY",
+              "UTC_SLEEPMODE", "SLEEP_MODE", "CARPET_AVOID", "CLEAN_TIME", "CLEAN_WHERE",
+              "MAINT_MAINBRUSH", "MAINT_SIDEBRUSH", "MAINT_MOP", "MAINT_DUSTBAG", "VERSION",
+              "LANGUAGE", "ROBOT_EVENT", "CLEAN_ORDER", "CLEANING_RSV", "DND_INFO"] {
         if get2(body, k) != () { known = true; break; }
     }
     if !known { return; }
