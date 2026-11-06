@@ -35,6 +35,7 @@ Each test file cites the captures its driver is checked against.
 | `AIR_910604_WW` | air purifier | TLV | captured |
 | `HUM_056905_WW` | humidifying air purifier | TLV | captured |
 | `HWWA9K_F2` | CordZero A9 stick vacuum | AABB | captured |
+| `IV12SNNWW` | robot vacuum (RoboKing AI all-in-one) | JSON | live |
 | `PAC_910604_WW` | floor-standing air conditioner | TLV | captured |
 | `CST_570004_WW` | ceiling-cassette air conditioner | TLV | captured |
 | `POT_056905_WW` | portable air conditioner | TLV | captured |
