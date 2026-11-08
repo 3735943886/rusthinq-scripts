@@ -105,3 +105,20 @@ fn test_a_restart_republishes_the_kept_record() {
     expect_eq(d.sent().len(), sent);
     expect_eq(d.script_error(), ());
 }
+
+// Reconnect (docs/writing-a-driver.md checklist): start() after a drop must not publish a
+// default over a value the driver had reported, and must send nothing. The test harness
+// keeps ctx state across drop_device(), so start() here re-decodes the kept record (as on a
+// reload); on the real host a reconnect clears the state and start() publishes nothing,
+// which test_a_fresh_start_publishes_nothing covers.
+fn test_a_reconnect_does_not_overwrite_reported_values() {
+    let d = device();
+    d.feed(a::framed(hex_decode("42eb030101091e01000000050000000000000000000000000000000000000000000000000000000002030000000000000000")));
+    d.drop_device();
+    expect_eq(d.property("available"), "false");
+    let sent = d.sent().len();
+    d.start();
+    expect_props(d, #{ cooking: "true", lf: "true", lf_state: "COOKING_IN_PROGRESS", lf_power_level: "9", center_state: "PAUSED" });
+    expect_eq(d.sent().len(), sent);
+    expect_eq(d.script_error(), ());
+}

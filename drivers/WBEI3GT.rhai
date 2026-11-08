@@ -3,13 +3,28 @@
 // any command on this model (not even a status request), so this driver sends
 // nothing - unlike the sibling WBEY3GT.rhai, a different model whose driver has
 // live-verified writes and a different burner map; nothing is borrowed from it.
-// Evidence base (the TS driver's, kept explicit): this unit's modelJSON
-// Monitoring protocol lists 48 fields - WiFiAccess, FlexMode, five 9-byte burner
-// blocks in protocol order LF, LR, RF, RR, Center, then DrawerPowerLevel - and
-// exactly one real frame, an idle report (testdata/frames/WBEI3GT.txt), whose
-// 48 record bytes match that field count one byte per field. What is confirmed
-// is only "an off cooktop reads INIT/0 everywhere"; every nonzero decode below
-// is the modelJSON enum order, unverified until lit-burner frames are captured.
+// Evidence base: this unit's modelJSON Monitoring protocol lists 48 fields -
+// WiFiAccess, FlexMode, five 9-byte burner blocks in protocol order LF, LR, RF, RR,
+// Center, then DrawerPowerLevel - and the 48 record bytes match that count one byte
+// per field. Live frames from this unit:
+//   - an idle report (testdata/frames/WBEI3GT.txt): an off cooktop reads INIT/0
+//     everywhere;
+//   - 2026-11-06, three burners lit in order left front, left rear, right at power
+//     1, 2, 3: the records lit slots lf, rf, lr in that order with those powers;
+//   - 2026-11-07, a real cook on the left front and right burners: lf and lr read
+//     state 1 (COOKING_IN_PROGRESS) with the power set on the knob (9, then 7 and 4),
+//     operation time counting up from 0 and the remaining timer counting down a
+//     one-hour auto-off; the LG cloud reported left_front and right_front cooking at
+//     the same moments. Records arrive every second for about three minutes after a
+//     change, then less often.
+// Verified on this unit: burner state 0 (INIT) and 1 (COOKING_IN_PROGRESS), power
+// level, operation time, remaining time, and the slot-to-burner mapping
+// (lf = left front, rf = left rear, lr = right).
+// Not verified: states 2 (PAUSED) and 3 (LOCK) and any other code (modelJSON order
+// only), the flex mode and remote start values, the timer display byte (+5), the
+// drawer byte. Slots rr and center never changed in any capture, so they are labelled
+// unused; that is an observation from this unit's captures, not something the
+// modelJSON says.
 //   0xEB carries one record (body >= 50 bytes), 0xEC two (the second is current)
 //   [0] WiFiAccess bitset (bit 1 = remote start), [1] flex mode,
 //   [47] drawer power level (modelJSON marks it _NOT_USED: diagnostic only)
@@ -17,7 +32,7 @@
 //   Sec/Min/Hour, +5 timer display (not published), +6..8 remaining Sec/Min/Hour.
 //   A burner counts as on unless its state is INIT (0) or LOCK (3) - PAUSED and
 //   unknown states report on, the sibling range's call, kept from the TS driver.
-//   Unknown enum codes publish as `Unknown (n)`, the TS driver's fallback.
+//   An undecoded state code clears the select instead of publishing a fallback.
 
 import "aabb_common" as c;
 import "table_common" as t;
