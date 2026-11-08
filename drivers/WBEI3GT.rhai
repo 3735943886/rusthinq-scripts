@@ -3,13 +3,28 @@
 // any command on this model (not even a status request), so this driver sends
 // nothing - unlike the sibling WBEY3GT.rhai, a different model whose driver has
 // live-verified writes and a different burner map; nothing is borrowed from it.
-// Evidence base (the TS driver's, kept explicit): this unit's modelJSON
-// Monitoring protocol lists 48 fields - WiFiAccess, FlexMode, five 9-byte burner
-// blocks in protocol order LF, LR, RF, RR, Center, then DrawerPowerLevel - and
-// exactly one real frame, an idle report (testdata/frames/WBEI3GT.txt), whose
-// 48 record bytes match that field count one byte per field. What is confirmed
-// is only "an off cooktop reads INIT/0 everywhere"; every nonzero decode below
-// is the modelJSON enum order, unverified until lit-burner frames are captured.
+// Evidence base: this unit's modelJSON Monitoring protocol lists 48 fields -
+// WiFiAccess, FlexMode, five 9-byte burner blocks in protocol order LF, LR, RF, RR,
+// Center, then DrawerPowerLevel - and the 48 record bytes match that count one byte
+// per field. Live frames from this unit:
+//   - an idle report (testdata/frames/WBEI3GT.txt): an off cooktop reads INIT/0
+//     everywhere;
+//   - 2026-11-06, three burners lit in order left front, left rear, right at power
+//     1, 2, 3: the records lit slots lf, rf, lr in that order with those powers;
+//   - 2026-11-07, a real cook on the left front and right burners: lf and lr read
+//     state 1 (COOKING_IN_PROGRESS) with the power set on the knob (9, then 7 and 4),
+//     operation time counting up from 0 and the remaining timer counting down a
+//     one-hour auto-off; the LG cloud reported left_front and right_front cooking at
+//     the same moments. Records arrive every second for about three minutes after a
+//     change, then less often.
+// Verified on this unit: burner state 0 (INIT) and 1 (COOKING_IN_PROGRESS), power
+// level, operation time, remaining time, and the slot-to-burner mapping
+// (lf = left front, rf = left rear, lr = right).
+// Not verified: states 2 (PAUSED) and 3 (LOCK) and any other code (modelJSON order
+// only), the flex mode and remote start values, the timer display byte (+5), the
+// drawer byte. Slots rr and center never changed in any capture, so they are labelled
+// unused; that is an observation from this unit's captures, not something the
+// modelJSON says.
 //   0xEB carries one record (body >= 50 bytes), 0xEC two (the second is current)
 //   [0] WiFiAccess bitset (bit 1 = remote start), [1] flex mode,
 //   [47] drawer power level (modelJSON marks it _NOT_USED: diagnostic only)
@@ -17,7 +32,7 @@
 //   Sec/Min/Hour, +5 timer display (not published), +6..8 remaining Sec/Min/Hour.
 //   A burner counts as on unless its state is INIT (0) or LOCK (3) - PAUSED and
 //   unknown states report on, the sibling range's call, kept from the TS driver.
-//   Unknown enum codes publish as `Unknown (n)`, the TS driver's fallback.
+//   An undecoded state code clears the select instead of publishing a fallback.
 
 import "aabb_common" as c;
 import "table_common" as t;
@@ -27,13 +42,19 @@ fn flex_modes() { #{ "0": "OFF", "1": "LEFT_FLEX", "2": "RIGHT_FLEX" } }
 fn burner_states() {
     #{ "0": "INIT", "1": "COOKING_IN_PROGRESS", "2": "PAUSED", "3": "LOCK" }
 }
+// Labels follow this unit's physical burners, not the protocol slot names. The owner's
+// unit has three burners (left front, left rear, right); on 2026-11-06 they were lit in
+// that order at power 1, 2, 3 and the records lit lf, rf, lr in that order with those
+// power levels. On 2026-11-07 a real cook on the left front and right burners lit lf and
+// lr, and the cloud named them left_front and right_front. So slot rf is the left rear
+// burner and slot lr the right burner; rr and center never changed. Keys stay as they are so entity IDs do not move.
 fn burners() {
     [
         #{ key: "lf", offset: 2, label: "Left front burner" },
-        #{ key: "lr", offset: 11, label: "Left rear burner" },
-        #{ key: "rf", offset: 20, label: "Right front burner" },
-        #{ key: "rr", offset: 29, label: "Right rear burner" },
-        #{ key: "center", offset: 38, label: "Center burner" }
+        #{ key: "lr", offset: 11, label: "Right burner" },
+        #{ key: "rf", offset: 20, label: "Left rear burner" },
+        #{ key: "rr", offset: 29, label: "Unused slot (right rear)" },
+        #{ key: "center", offset: 38, label: "Unused slot (center)" }
     ]
 }
 
@@ -58,7 +79,14 @@ fn descriptor(ctx) {
 
 fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 
-fn start(ctx) {}
+// The cooktop reports only when something changes, so a hot reload (which re-announces
+// the entities) left every value unknown until the next use (seen 2026-11-06). The last
+// record is kept in driver state and decoded again here; nothing is sent. A fresh attach
+// has nothing kept and waits for the cooktop's own record as before.
+fn start(ctx) {
+    let kept = ctx.state_get("last_record");
+    if kept != () { publish_record(ctx, hex_decode(kept)); }
+}
 
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
@@ -82,6 +110,11 @@ fn on_data(ctx, data) {
     if inner[1] == 0xeb && inner.len() >= 50 { r = inner.extract(2, 48); }
     if inner[1] == 0xec && inner.len() >= 98 { r = inner.extract(50, 48); }
     if r == () { return; }
+    ctx.state_set("last_record", hex_encode_upper(r));
+    publish_record(ctx, r);
+}
+
+fn publish_record(ctx, r) {
     il::publish_property(ctx, "available", "true");
     il::publish_property(ctx, "remote_start", c::bit(r[0], 0x02));
     publish_enum(ctx, "flex_mode", flex_modes(), r[1]);

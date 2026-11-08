@@ -85,3 +85,40 @@ fn test_writes_are_rejected_and_nothing_is_sent() {
     expect(d.event("reject") != (), "a reject event is published");
     expect_eq(d.script_error(), ());
 }
+
+// The cooktop reports only on change: a fresh attach publishes nothing from start(),
+// and a hot reload re-decodes the kept last record without sending anything.
+fn test_a_fresh_start_publishes_nothing() {
+    let d = device();
+    d.start();
+    expect(d.property("lf_state") == (), "nothing is published before a record");
+    expect_eq(d.sent().len(), 0);
+    expect_eq(d.script_error(), ());
+}
+
+fn test_a_restart_republishes_the_kept_record() {
+    let d = device();
+    d.feed(a::framed(hex_decode("42eb030101091e01000000050000000000000000000000000000000000000000000000000000000002030000000000000000")));
+    let sent = d.sent().len();
+    d.start();
+    expect_props(d, #{ cooking: "true", lf: "true", lf_state: "COOKING_IN_PROGRESS", lf_power_level: "9", center_state: "PAUSED" });
+    expect_eq(d.sent().len(), sent);
+    expect_eq(d.script_error(), ());
+}
+
+// Reconnect (docs/writing-a-driver.md checklist): start() after a drop must not publish a
+// default over a value the driver had reported, and must send nothing. The test harness
+// keeps ctx state across drop_device(), so start() here re-decodes the kept record (as on a
+// reload); on the real host a reconnect clears the state and start() publishes nothing,
+// which test_a_fresh_start_publishes_nothing covers.
+fn test_a_reconnect_does_not_overwrite_reported_values() {
+    let d = device();
+    d.feed(a::framed(hex_decode("42eb030101091e01000000050000000000000000000000000000000000000000000000000000000002030000000000000000")));
+    d.drop_device();
+    expect_eq(d.property("available"), "false");
+    let sent = d.sent().len();
+    d.start();
+    expect_props(d, #{ cooking: "true", lf: "true", lf_state: "COOKING_IN_PROGRESS", lf_power_level: "9", center_state: "PAUSED" });
+    expect_eq(d.sent().len(), sent);
+    expect_eq(d.script_error(), ());
+}
