@@ -27,13 +27,19 @@ fn flex_modes() { #{ "0": "OFF", "1": "LEFT_FLEX", "2": "RIGHT_FLEX" } }
 fn burner_states() {
     #{ "0": "INIT", "1": "COOKING_IN_PROGRESS", "2": "PAUSED", "3": "LOCK" }
 }
+// Labels follow this unit's physical burners, not the protocol slot names. The owner's
+// unit has three burners (left front, left rear, right); on 2026-11-06 they were lit in
+// that order at power 1, 2, 3 and the records lit lf, rf, lr in that order with those
+// power levels. On 2026-11-07 a real cook on the left front and right burners lit lf and
+// lr, and the cloud named them left_front and right_front. So slot rf is the left rear
+// burner and slot lr the right burner; rr and center never changed. Keys stay as they are so entity IDs do not move.
 fn burners() {
     [
         #{ key: "lf", offset: 2, label: "Left front burner" },
-        #{ key: "lr", offset: 11, label: "Left rear burner" },
-        #{ key: "rf", offset: 20, label: "Right front burner" },
-        #{ key: "rr", offset: 29, label: "Right rear burner" },
-        #{ key: "center", offset: 38, label: "Center burner" }
+        #{ key: "lr", offset: 11, label: "Right burner" },
+        #{ key: "rf", offset: 20, label: "Left rear burner" },
+        #{ key: "rr", offset: 29, label: "Unused slot (right rear)" },
+        #{ key: "center", offset: 38, label: "Unused slot (center)" }
     ]
 }
 
@@ -58,7 +64,14 @@ fn descriptor(ctx) {
 
 fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 
-fn start(ctx) {}
+// The cooktop reports only when something changes, so a hot reload (which re-announces
+// the entities) left every value unknown until the next use (seen 2026-11-06). The last
+// record is kept in driver state and decoded again here; nothing is sent. A fresh attach
+// has nothing kept and waits for the cooktop's own record as before.
+fn start(ctx) {
+    let kept = ctx.state_get("last_record");
+    if kept != () { publish_record(ctx, hex_decode(kept)); }
+}
 
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
@@ -82,6 +95,11 @@ fn on_data(ctx, data) {
     if inner[1] == 0xeb && inner.len() >= 50 { r = inner.extract(2, 48); }
     if inner[1] == 0xec && inner.len() >= 98 { r = inner.extract(50, 48); }
     if r == () { return; }
+    ctx.state_set("last_record", hex_encode_upper(r));
+    publish_record(ctx, r);
+}
+
+fn publish_record(ctx, r) {
     il::publish_property(ctx, "available", "true");
     il::publish_property(ctx, "remote_start", c::bit(r[0], 0x02));
     publish_enum(ctx, "flex_mode", flex_modes(), r[1]);
