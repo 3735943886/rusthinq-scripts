@@ -17,7 +17,13 @@
 //         shared with nothing else). The running total matches the LG app's own "전력
 //         사용량" (energy monitoring) figure exactly (503 on the wire, 503 Wh in the app), so
 //         the unit is Wh and this is genuinely the appliance's power consumption -- see
-//         energy_today() below. Resets on some cycle not yet observed, presumably daily
+//         energy_today() below. The total covers 96 reports: after sequence number 0x60 it
+//         starts again at that report's delta with sequence 0x01. At about 15 minutes a report
+//         that is a day, but not a calendar one: a week of live capture (2026-11-02 to 11-09)
+//         reset at 08:57, 09:17 and 09:37 KST on successive days
+//
+// Every frame is acked as the LG cloud does (aabb_common::ack). Unacked, the appliance sends
+// each 0x18, 0xC5 and 0x3E report six times, 5 s apart, and 0xE9 eleven times.
 //
 // Status record offsets (index within the record, matching this model's own field layout;
 // the fields beyond these were never exercised in a real capture, so only these are
@@ -100,9 +106,11 @@ fn descriptor(ctx) {
         door_open_count_fridge: #{ type: "number", label: "Fridge compartment door opens today" },
         door_open_count_freezer: #{ type: "number", label: "Freezer compartment door opens today" },
         // Confirmed live against the LG app's own energy-monitoring figure (503 on the
-        // wire, 503 Wh in the app). Cumulative for the current day, same as the door
-        // counts above; resets on some cycle not yet observed.
-        energy_today: #{ type: "number", class: "energy", unit: "Wh", label: "Energy used today" },
+        // wire, 503 Wh in the app). The appliance's own total over its last 96 reports (see
+        // the 0x3E notes above): a counter that falls back to one report's delta, so it
+        // survives a reconnect and includes what was used while disconnected.
+        energy_today: #{ type: "number", class: "energy", series: "counter", unit: "Wh",
+                         label: "Energy used in the appliance's daily period" },
         smart_care: #{ type: "binary", label: "Smart Care+" },
         night_glare: #{ type: "select", options: t::options(night_glare_modes()),
                         label: "Night glare prevention" },
@@ -125,6 +133,7 @@ fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
 fn on_data(ctx, data) {
+    c::ack(ctx, data);
     let inner = c::inner(data, 0x10);
     if inner == () { return; }
 

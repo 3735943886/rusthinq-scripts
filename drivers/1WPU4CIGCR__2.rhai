@@ -19,6 +19,10 @@
 // Not published: fields that only ever read IGNORE, unidentified bytes 7/9/21,
 // and the individual unidentified dispensing slots 3/4. ThinQ's app shows
 // energy monitoring: 0xAF reports approximately 15-minute Wh deltas, summed in memory.
+//
+// Every frame is acked as the LG cloud does (aabb_common::ack). Unacked, the appliance sends
+// each 0xAF, 0xE2 and 0x1F frame six times, 1-3 s apart (a week of live capture, 2026-11-02
+// to 11-09), which the energy sum would count six times over.
 
 import "aabb_common" as c;
 import "table_common" as t;
@@ -96,6 +100,7 @@ fn publish_config(ctx) {
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
 fn on_data(ctx, data) {
+    c::ack(ctx, data);
     let inner = c::inner(data, 0x12);
     if inner == () { return; }
 

@@ -302,6 +302,45 @@ fn test_energy_today_climbs_with_no_state_change() {
     expect_props(d, #{ energy_today: "312" });
 }
 
+// Captured live, 2026-11-03: the 96th report (sequence 0x60) at 1060 Wh, then the next one
+// starting over at its own 10 Wh delta with sequence 0x01.
+fn test_energy_today_starts_over_after_96_reports() {
+    let d = device();
+    d.feed("aa0b103e000d042460cdbb");
+    expect_props(d, #{ energy_today: "1060" });
+    d.feed("aa0b103e000a000a014dbb");
+    expect_props(d, #{ energy_today: "10" });
+}
+
+fn test_energy_today_is_a_counter() {
+    let d = device();
+    d.start();
+    let p = runtime::descriptor(d).props.energy_today;
+    expect_eq(p.class, "energy");
+    expect_eq(p.series, "counter");
+    expect_eq(p.unit, "Wh");
+}
+
+// Captured live, 2026-11-02 to 11-09: unacked, the 0x18, 0xC5 and 0x3E reports each arrived
+// six times and 0xE9 eleven times.
+fn test_reports_are_acked_as_the_cloud_does_and_status_records_are_not() {
+    let d = device();
+    d.feed(live_reply());
+    d.feed("aa0710c302d3bb");
+    expect_eq(d.clips().len(), 0);
+    for frame in ["aa0a101800f501cbc8bb", "aa2010c5350401000000000703000000000111000000007013000000000cd1bb",
+                  "aa0b103e00050005015bbb", "aa07f0e90ac1bb"] {
+        d.feed(frame);
+    }
+    let clips = d.clips();
+    expect_eq(clips.len(), 4);
+    expect_eq(clips[0].cmd, "ack");
+    expect_eq(clips[0].data, "AA08F0001804EBBB");
+    expect_eq(clips[1].data, "AA08F000C5043EBB");
+    expect_eq(clips[2].data, "AA08F0003E04B1BB");
+    expect_eq(clips[3].data, "AA08F000E904DABB");
+}
+
 // Availability follows the online lifecycle, independently of state reports.
 fn test_reconnect_restores_availability_without_a_state_frame() {
     let d = device();

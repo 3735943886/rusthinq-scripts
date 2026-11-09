@@ -161,7 +161,8 @@ fn test_reconnect_restores_availability_without_a_state_frame() {
     expect_eq(d.script_error(), ());
 }
 
-fn test_energy_sums_captured_deltas_including_repeated_reports() {
+// Separate 15-minute reports, each acked; unacked, the appliance would resend each one.
+fn test_energy_sums_captured_deltas() {
     let d = device();
     d.start();
     expect_eq(d.property("energy"), "0");
@@ -178,6 +179,24 @@ fn test_energy_sums_captured_deltas_including_repeated_reports() {
     fresh.start();
     expect_eq(fresh.property("energy"), "0");
     expect_eq(d.script_error(), ());
+}
+
+// Captured live, 2026-11-02 to 11-09: unacked, each of these arrived six times.
+fn test_reports_are_acked_as_the_cloud_does_and_status_records_are_not() {
+    let d = device();
+    d.feed(uv_done());
+    d.feed(query_reply());
+    expect_eq(d.clips().len(), 0);
+    for frame in ["aa0912af0d0003d1bb", "aa0a12e2da01025888bb", "aa12121f01fd00000000000000000000bebb"] {
+        d.feed(frame);
+    }
+    let clips = d.clips();
+    expect_eq(clips.len(), 3);
+    expect_eq(clips[0].cmd, "ack");
+    expect_eq(clips[0].data, "AA08F000AF0400BB");
+    expect_eq(clips[1].data, "AA08F000E204DDBB");
+    expect_eq(clips[2].data, "AA08F0001F0490BB");
+    expect_eq(d.property("energy"), "3");
 }
 
 fn test_invalid_energy_envelopes_do_not_add_to_total() {
