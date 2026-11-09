@@ -11,7 +11,7 @@ use it for a 0.1 host.
 
 ## Using it
 
-Point `[drivers] directory` at this checkout (or an extracted archive):
+Point `[drivers] directory` at this checkout (or an extracted release):
 
 ```toml
 [drivers]
@@ -100,15 +100,29 @@ To write a new driver, start with [docs/capture-and-test.md](docs/capture-and-te
 for the capture, control and observe loop, then follow
 [docs/writing-a-driver.md](docs/writing-a-driver.md).
 
-## Installing from an archive
+## Dated releases
 
-A GitHub archive of a branch or commit, such as
-`https://codeload.github.com/3735943886/rusthinq-scripts/tar.gz/master`, works like a
-checkout: extract it and point the host at that directory. The rusthinq Home Assistant
-integration installs and updates the drivers this way, from master. `VERSION` holds the
-archived commit and date, which rusthinq shows for installs that are not Git checkouts.
-Root overrides are not in the archive, so extracting an update over it keeps them; stop
-rusthinq first.
+Push an annotated date tag to run the release workflow:
+
+```sh
+git tag -a 2026.10.08 -m "Driver release 2026.10.08"
+git push origin 2026.10.08
+```
+
+Tags must be valid calendar dates in `yyyy.mm.dd` form. For another release on
+that date, use `yyyy.mm.dd.1`, then `.2`, and so on; existing releases are not
+replaced. Use the Asia/Seoul date when choosing the tag.
+
+After the driver suite passes, the workflow publishes a GitHub Release whose
+notes name the tested rusthinq commit. Its source archive is the checkout as is:
+extract it and point the host at that directory. In any GitHub archive, a release
+or a branch, `VERSION` holds the archived commit and date, which rusthinq shows for
+installs that are not Git checkouts. Root overrides are not in the
+archive, so extracting an update over it keeps them; stop rusthinq first.
+
+The rusthinq Home Assistant integration installs the dated release it pins, so a
+driver change reaches its users once a release is tagged and the integration moves
+its pin.
 
 ## Drivers
 
