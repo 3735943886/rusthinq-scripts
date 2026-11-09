@@ -17,7 +17,7 @@
 //         shared with nothing else). The running total matches the LG app's own "전력
 //         사용량" (energy monitoring) figure exactly (503 on the wire, 503 Wh in the app), so
 //         the unit is Wh and this is genuinely the appliance's power consumption -- see
-//         energy_today() below. The total covers 96 reports: after sequence number 0x60 it
+//         the energy property below. The total covers 96 reports: after sequence number 0x60 it
 //         starts again at that report's delta with sequence 0x01. At about 15 minutes a report
 //         that is a day, but not a calendar one: a week of live capture (2026-11-02 to 11-09)
 //         reset at 08:57, 09:17 and 09:37 KST on successive days
@@ -109,8 +109,8 @@ fn descriptor(ctx) {
         // wire, 503 Wh in the app). The appliance's own total over its last 96 reports (see
         // the 0x3E notes above): a counter that falls back to one report's delta, so it
         // survives a reconnect and includes what was used while disconnected.
-        energy_today: #{ type: "number", class: "energy", series: "counter", unit: "Wh",
-                         label: "Energy used in the appliance's daily period" },
+        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh",
+                   label: "Energy (appliance's daily counter)" },
         smart_care: #{ type: "binary", label: "Smart Care+" },
         night_glare: #{ type: "select", options: t::options(night_glare_modes()),
                         label: "Night glare prevention" },
@@ -150,7 +150,7 @@ fn on_data(ctx, data) {
         door_stats(ctx, inner);
     } else if inner[1] == 0x3e {
         if inner.len() < 6 { return; }
-        il::publish_property(ctx, "energy_today", (inner[4] * 256 + inner[5]).to_string());
+        il::publish_property(ctx, "energy", (inner[4] * 256 + inner[5]).to_string());
     }
 }
 

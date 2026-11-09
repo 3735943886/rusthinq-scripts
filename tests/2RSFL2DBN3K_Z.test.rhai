@@ -290,32 +290,32 @@ fn test_door_open_counts_after_the_door_test() {
 // door or setting changes in between (just the compressor running): the cumulative total
 // climbed from 234 to 312, confirmed against the LG app's own energy-monitoring figure at a
 // later point in the same sequence (503 on the wire, 503 Wh in the app).
-fn test_energy_today_first_reading() {
+fn test_energy_first_reading() {
     let d = device();
     d.feed("AA0B103E001E00EA0747BB");
-    expect_props(d, #{ energy_today: "234" });
+    expect_props(d, #{ energy: "234" });
 }
 
-fn test_energy_today_climbs_with_no_state_change() {
+fn test_energy_climbs_with_no_state_change() {
     let d = device();
     d.feed("AA0B103E001E01380A31BB");
-    expect_props(d, #{ energy_today: "312" });
+    expect_props(d, #{ energy: "312" });
 }
 
 // Captured live, 2026-11-03: the 96th report (sequence 0x60) at 1060 Wh, then the next one
 // starting over at its own 10 Wh delta with sequence 0x01.
-fn test_energy_today_starts_over_after_96_reports() {
+fn test_energy_starts_over_after_96_reports() {
     let d = device();
     d.feed("aa0b103e000d042460cdbb");
-    expect_props(d, #{ energy_today: "1060" });
+    expect_props(d, #{ energy: "1060" });
     d.feed("aa0b103e000a000a014dbb");
-    expect_props(d, #{ energy_today: "10" });
+    expect_props(d, #{ energy: "10" });
 }
 
-fn test_energy_today_is_a_counter() {
+fn test_energy_is_a_counter() {
     let d = device();
     d.start();
-    let p = runtime::descriptor(d).props.energy_today;
+    let p = runtime::descriptor(d).props.energy;
     expect_eq(p.class, "energy");
     expect_eq(p.series, "counter");
     expect_eq(p.unit, "Wh");
