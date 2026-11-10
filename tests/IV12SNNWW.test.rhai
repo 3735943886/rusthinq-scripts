@@ -123,10 +123,6 @@ fn test_app_rules_block_controls_by_state() {
     d.set("spot_clean", "");
     d.set("homing", "");
     expect_eq(d.clips().len(), n);
-    d.feed(mon_state("SLEEP"));
-    d.set("suction", "low");
-    expect_eq(d.clips().len(), n);
-    expect(d.property("last_reject").contains("power_saving"), "refusal names the state");
 }
 
 fn test_unknown_state_does_not_block() {
@@ -171,4 +167,29 @@ fn test_delta_with_only_unlisted_fields_publishes() {
     expect(d.property("do_not_disturb") != (), "do_not_disturb published");
     expect(d.property("do_not_disturb").contains("22:00"), "do_not_disturb carries the schedule");
     expect_eq(d.script_error(), ());
+}
+
+fn test_commands_are_sent_while_asleep() {
+    let d = device();
+    d.start();
+    d.feed(mon_state("SLEEP"));
+    d.set("clean_type", "vacuum");
+    expect_eq(last_value(d), #{ CLEAN_TYPE: "SUCTION" });
+    d.set("suction", "low");
+    expect_eq(last_value(d), #{ SUCTION_LEVEL: "QUIET" });
+}
+
+// Sleep is judged as charging (the robot only sleeps on the dock), so the
+// controls that charging refuses stay refused while asleep.
+fn test_sleep_refuses_controls_charging_refuses() {
+    let d = device();
+    d.start();
+    d.feed(mon_state("SLEEP"));
+    let n = d.clips().len();
+    d.set("spot_clean", "");
+    expect_eq(d.property("last_reject"), "Spot cleaning is not available while charging.");
+    d.set("pause", "");
+    d.set("homing", "");
+    d.set("mop_dry_stop", "");
+    expect_eq(d.clips().len(), n);
 }
