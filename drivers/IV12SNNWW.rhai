@@ -435,8 +435,11 @@ fn refusal(ctx, prop) {
     // Asleep the app disables its buttons behind "wake from power saving", but the robot
     // itself takes a command while asleep, applies it and wakes (verified live 2026-11-07:
     // CLEAN_TYPE sent in SLEEP -> mon CLEAN_TYPE, controlResult 0000, then
-    // FINISHED_CHARGING). So nothing is refused for being asleep.
-    if cat == "sleep" { return (); }
+    // FINISHED_CHARGING). The robot only sleeps on the dock and wakes into charging, so
+    // treat sleep as charging: mode, suction, settings, station and find_robot commands
+    // still go out, while the controls charging refuses (spot_clean, pause, homing,
+    // mop_dry_stop) stay refused.
+    if cat == "sleep" { cat = "charging"; }
     let raw = ctx.state_get("raw_state");
     // App rule: focus (spot) cleaning cannot start while charging.
     if prop == "spot_clean" && cat == "charging" { return "Spot cleaning is not available while charging."; }

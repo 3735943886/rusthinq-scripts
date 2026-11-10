@@ -178,3 +178,18 @@ fn test_commands_are_sent_while_asleep() {
     d.set("suction", "low");
     expect_eq(last_value(d), #{ SUCTION_LEVEL: "QUIET" });
 }
+
+// Sleep is judged as charging (the robot only sleeps on the dock), so the
+// controls that charging refuses stay refused while asleep.
+fn test_sleep_refuses_controls_charging_refuses() {
+    let d = device();
+    d.start();
+    d.feed(mon_state("SLEEP"));
+    let n = d.clips().len();
+    d.set("spot_clean", "");
+    expect_eq(d.property("last_reject"), "Spot cleaning is not available while charging.");
+    d.set("pause", "");
+    d.set("homing", "");
+    d.set("mop_dry_stop", "");
+    expect_eq(d.clips().len(), n);
+}
