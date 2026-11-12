@@ -1,127 +1,96 @@
-// Port of anszom/rethink PR #114, 5898c3b6c2407c71281d8ef6e6caffb036a82b22.
-// Captures: tests/cloud/devices/HUM_056905_WW.test.ts at that revision.
-import "tlv_fields_common";
-fn identity() { #{"kind": "humidifier", "label": "Humidifying air purifier"} }
-fn fields() {
-    #{
-        "power": #{ "tag": 503, "def": #{ "type": "binary", "rw": true, "role": "on" } },
-        "mode": #{
-            "tag": 505,
-            "def": #{ "type": "select", "rw": true, "role": "mode" },
-            "table": #{ "5": "air_clean", "12": "humidify_clean", "24": "humidify" },
-            "power_on": true,
-            "attach": [503]
-        },
-        "target": #{
-            "tag": 595,
-            "def": #{
-                "type": "number",
-                "rw": true,
-                "min": 0,
-                "max": 100,
-                "step": 1,
-                "unit": "%",
-                "role": "target_humidity"
-            }
-        },
-        "humidity": #{
-            "tag": 822,
-            "def": #{ "type": "number", "unit": "%", "role": "current_humidity", "class": "humidity" }
-        },
-        "fan": #{
-            "tag": 506,
-            "def": #{ "type": "select", "rw": true, "role": "fan_speed" },
-            "table": #{ "8": "auto", "2": "low", "4": "medium", "6": "high", "7": "turbo" }
-        },
-        "hygiene_dry": #{
-            "tag": 489,
-            "def": #{ "type": "select", "rw": true },
-            "table": #{ "0": "off", "1": "gentle", "2": "quiet", "3": "quick", "4": "focus", "5": "default" }
-        },
-        "standby_sterilize": #{
-            "tag": 356,
-            "def": #{ "type": "select", "rw": true },
-            "table": #{ "0": "rapid", "1": "normal", "2": "silent", "3": "power" }
-        },
-        "display": #{
-            "tag": 543,
-            "def": #{ "type": "select", "rw": true },
-            "table": #{ "0": "off", "8": "level_1", "9": "level_2", "10": "level_3" }
-        },
-        "mood_color": #{
-            "tag": 992,
-            "def": #{ "type": "select", "rw": true },
-            "table": #{
-                "1": "blue",
-                "2": "green",
-                "3": "red",
-                "4": "purple",
-                "6": "yellow",
-                "7": "pink",
-                "8": "pure_white",
-                "9": "aquarium",
-                "10": "candlelight",
-                "11": "sunlight",
-                "12": "rose",
-                "13": "mint",
-                "14": "lime",
-                "15": "very_peri",
-                "16": "warm_white",
-                "17": "cool_white",
-                "18": "sapphire",
-                "19": "rainbow"
-            }
-        },
-        "temperature": #{ "tag": 509, "def": #{ "type": "number", "unit": "°C", "class": "temperature" }, "scale": 2 },
-        "status": #{
-            "tag": 483,
-            "def": #{ "type": "select" },
-            "table": #{
-                "0": "normal",
-                "1": "no_tank",
-                "2": "low_water",
-                "3": "sterilizing",
-                "4": "drying",
-                "5": "boiling",
-                "6": "boiling_low"
-            }
-        },
-        "off_timer": #{
-            "tag": 539,
-            "def": #{ "type": "number", "rw": true, "min": 0, "max": 720, "step": 15, "unit": "min", "class": "duration" }
-        },
-        "night_mode": #{ "tag": 265, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
-        "sleep_mode": #{ "tag": 484, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
-        "auto_strength": #{ "tag": 486, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
-        "humidify": #{ "tag": 487, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
-        "anti_glare": #{ "tag": 353, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
-        "mood_light": #{ "tag": 440, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
-        "bell_sound": #{ "tag": 928, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
-        "pm1": #{ "tag": 819, "def": #{ "type": "number", "unit": "µg/m³" } },
-        "pm25": #{ "tag": 820, "def": #{ "type": "number", "unit": "µg/m³" } },
-        "pm10": #{ "tag": 821, "def": #{ "type": "number", "unit": "µg/m³" } },
-        "watertank_remain": #{ "tag": 494, "def": #{ "type": "number", "unit": "%" } },
-        "watertank_time": #{ "tag": 685, "def": #{ "type": "number", "unit": "min" } },
-        "water_filter": #{ "tag": 493, "def": #{ "type": "number", "unit": "%" } },
-        "filter_used_time": #{ "tag": 853, "def": #{ "type": "number", "unit": "h" } },
-        "filter_life_time": #{ "tag": 854, "def": #{ "type": "number", "unit": "h" } },
-        "autodry_remain": #{ "tag": 549, "def": #{ "type": "number", "unit": "%" } }
-    }
-}
-// HUM capabilities use 0x3e8, rather than 0x2da.
-fn receive_frame(ctx, data) {
- let tlvs = tlv_frame_parse(data); if tlvs == () { return (); }
- let caps = tlvs.some(|e| e.t == 0x3e8);
- if caps && !c::is_set(ctx, "caps") {
-  ctx.state_set("caps", true); ctx.cancel_timer("caps_retry");
-  c::query(ctx, 2); ctx.set_timer("values_retry", c::retry_ms());
- }
- let first = !caps && c::is_set(ctx, "caps") && !c::is_set(ctx, "values") && tlvs.some(|e| [0x1f7,0x1f9,0x1fa].contains(e.t));
- if first { ctx.state_set("values", true); ctx.cancel_timer("values_retry"); ctx.set_timer("refresh", c::refresh_ms()); }
- #{ tlvs: tlvs, caps: caps, first: first }
+// LG humidifying air purifier HUM_056905_WW: hum_common, plus the appliance's own start/stop
+// reservations. First ported from anszom/rethink PR #114 (5898c3b6c2407c71281d8ef6e6caffb036a82b22),
+// then brought to a private rethink fork driver running on installed units, checked against live
+// capability/value replies from two units (2026-11-10).
+//
+// Reservations (start_time 0x35a, stop_time 0x35b, HHMM, 0 = none, 2400 = midnight) travel in
+// private command 03, not as TLV writes, which the appliance acknowledges without effect. Every
+// values query is followed by GET `00ff..65fd02 0001 03`; the reply `..87fd03 000d 03` carries both
+// times as little-endian uint32. SET is `0102..65fd01 0009 03`, a big-endian uint32 selector (1 =
+// start, 2 = stop) and value. The appliance answers 02 (ACK) or 03 (NACK), and also pushes a
+// `..6501 04` notification of the two tags. A set, readback and clear were captured on two units.
+// Writes wait until this session has read the time back, and nothing is published from them: an
+// ACK re-queries once, a NACK rejects the pending property. Every private frame's CRC is checked.
+//
+// Not ported: rethink's Home Assistant entity layout and Korean labels.
+import "hum_common";
+
+fn native_reservations() { true }
+
+fn valid_hhmm(v) { v >= 0 && v <= 2400 && (v == 2400 || v % 100 < 60) }
+
+fn reservation_query(ctx) { ctx.send_raw(hex_decode("00ff0400000065fd02000103413a")); }
+fn after_values_query(ctx) { reservation_query(ctx); }
+// A new session must read the times back before writing them.
+fn on_capabilities(ctx) { for key in ["t858", "t859", "res_pending"] { ctx.state_remove(key); } }
+
+fn u32le(b, at) { b[at].to_int() | (b[at + 1].to_int() << 8) | (b[at + 2].to_int() << 16) | (b[at + 3].to_int() << 24) }
+
+fn publish_time(ctx, tag, v) {
+    let prop = if tag == 0x35a { "start_time" } else { "stop_time" };
+    c::put(ctx, tag, v);
+    if publishable(ctx, prop, v.to_string()) { il::publish_property(ctx, prop, v.to_string()); }
 }
 
-fn write_extra(ctx, prop, value) {
- if prop=="target" {let v=c::to_number(value);c::write(ctx,0x253,(v/5.0).round().to_int()*5,[]);return true;}
- false
+fn crc_ok(data) {
+    let n = data.len();
+    let body = blob(); for i in 2..(n - 2) { body.push(data[i]); }
+    crc16(body) == ((data[n - 2].to_int() << 8) | data[n - 1].to_int())
+}
+
+// A private reservation frame (consumed, even when malformed), or false for anything else.
+fn reservation_frame(ctx, data) {
+    let n = data.len();
+    if n < 13 || data[2] != 0x04 || data[3] != 0 || data[4] != 0 || data[5] != 0 { return false; }
+    // GET reply: [00 ff 04 00 00 00 87 fd 03 00 0d] 03 start(LE32) stop(LE32) 00 00 00 00 crc16.
+    if data[1] == 0xff && data[6] == 0x87 && data[7] == 0xfd && data[8] == 0x03 && data[10] == n - 13 {
+        if n - 13 == 13 && data[11] == 0x03 && crc_ok(data) {
+            let start = u32le(data, 12);
+            let stop = u32le(data, 16);
+            if valid_hhmm(start) && valid_hhmm(stop) { publish_time(ctx, 0x35a, start); publish_time(ctx, 0x35b, stop); }
+        }
+        return true;
+    }
+    // Command response: 02 = ACK, 03 = NACK, [.. 87 fd 10 00 05 fe] cmd.
+    if (data[0] == 0x02 || data[0] == 0x03) && data[6] == 0x87 && data[7] == 0xfd && data[8] == 0x10
+        && data[9] == 0 && data[10] == 0x05 && data[11] == 0xfe {
+        let pending = ctx.state_get("res_pending");
+        if data[12] == 0x03 && pending != () && crc_ok(data) {
+            ctx.state_remove("res_pending");
+            if data[0] == 0x02 { reservation_query(ctx); }
+            else { c::reject(ctx, pending, "the appliance refused the reservation"); }
+        }
+        return true;
+    }
+    // Notification after a reservation write: [.. 65 01 04 seq len] TLVs crc16.
+    if data[6] == 0x65 && data[7] == 0x01 && data[8] == 0x04 && data[10] == n - 13 {
+        if !crc_ok(data) { return true; }
+        let tlvs = blob(); for i in 11..(n - 2) { tlvs.push(data[i]); }
+        for e in tlv_parse(tlvs) {
+            if (e.t == 0x35a || e.t == 0x35b) && valid_hhmm(e.v) { publish_time(ctx, e.t, e.v); }
+        }
+        return true;
+    }
+    false
+}
+
+fn receive_frame(ctx, data) {
+    if reservation_frame(ctx, data) { return (); }
+    hum_receive_frame(ctx, data)
+}
+
+fn write_reservation(ctx, prop, value) {
+    let tag = if prop == "start_time" { 0x35a } else { 0x35b };
+    if ctx.state_get("t" + tag) == () { c::reject(ctx, prop, "reservation not read back yet"); return; }
+    let v = c::to_number(value).to_int();
+    if !valid_hhmm(v) { c::reject(ctx, prop, "not a time of day (HHMM)"); return; }
+    let mask = if tag == 0x35a { 1 } else { 2 };
+    let frame = blob();
+    for b in [0x01, 0x02, 0x04, 0, 0, 0, 0x65, 0xfd, 0x01, 0, 0x09, 0x03] { frame.push(b); }
+    for x in [mask, v] { for s in [24, 16, 8, 0] { frame.push((x >> s) & 0xff); } }
+    let crc = crc16(frame.extract(2));
+    frame.push(crc >> 8); frame.push(crc & 0xff);
+    ctx.send_raw(frame);
+    ctx.state_set("res_pending", prop);
+    reservation_query(ctx);
 }

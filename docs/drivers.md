@@ -34,6 +34,7 @@ Each test file cites the captures its driver is checked against.
 | `1WPD6CMIDR__3` | water/ice purifier (WD722RH) | AABB | captured |
 | `AIR_910604_WW` | air purifier | TLV | captured |
 | `HUM_056905_WW` | humidifying air purifier | TLV | captured |
+| `HUM_0C0112_WW` | humidifying air purifier (MAX; no reservations) | TLV | captured |
 | `HWWA9K_F2` | CordZero A9 stick vacuum | AABB | captured |
 | `IV12SNNWW` | robot vacuum (RoboKing AI all-in-one) | JSON | live |
 | `PAC_910604_WW` | floor-standing air conditioner | TLV | captured |
