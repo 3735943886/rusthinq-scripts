@@ -75,6 +75,7 @@ Each test file cites the captures its driver is checked against.
 | `WLSI_633_` | induction range (read-only) | AABB | captured |
 | `WMVEL2137` | microwave/hood | AABB | captured |
 | `WMVEM1825` | microwave | AABB | captured |
+| `ML32PWFOTA` | lightwave oven (read-only; polls status every 30 s) | AABB | captured |
 | `Pd0F_F` | mini washer | AABB monitoring | constructed |
 | `T1789EFH_F` | top-load washer | AABB | captured |
 | `TLVE5BB` | top-load washer (read-only) | AABB envelope | captured |

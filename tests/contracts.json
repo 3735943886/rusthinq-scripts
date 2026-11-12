@@ -199,6 +199,10 @@
     "contract": "il",
     "transport": "thinq2"
   },
+  "ML32PWFOTA": {
+    "contract": "il",
+    "transport": "thinq2"
+  },
   "N17": {
     "contract": "il",
     "transport": "thinq2"
