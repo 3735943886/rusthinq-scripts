@@ -1,4 +1,5 @@
 import "runtime_test" as runtime;
+import "tlv_test" as t;
 // BEGIN PR VECTORS
 // Regression vectors from rethink PR #114 (5898c3b6c2407c71281d8ef6e6caffb036a82b22).
 // Original test names are retained below. Expected TX bytes come from executing the TS driver.
@@ -298,4 +299,19 @@ fn test_descriptor_uses_il_humidity_roles_and_minute_timer() {
  expect_eq(doc.props.off_timer.unit,"min");expect_eq(doc.props.off_timer.max,720);
  expect_eq(doc.props.temperature["class"],"temperature");
  expect_eq(d.script_error(),());
+}
+
+// tlv_fields_common: an exact_one switch reads only 0 and 1; any other code leaves the last reading.
+fn test_exact_one_switches_keep_their_reading_on_other_codes() {
+    let d = device();
+    d.feed("000004000000a702012778640f644f6c4cb00eb0601020b480a5c0965020b0a001d4b4e05000b5b020100057c3580f79507bb6a04956b6e04378b700b750feb9501eb99046bc200800bc70020201b3c0bd1031bd60099fbd85d3c0d400dd04f7905af7d014fa01fb0bf870fffc40ef83b5c5b600b642b5ccb600b642b5d018b600b642e059");
+    d.feed("000004000000a702042d9d6880698069c06a006a406a806ac06b006b406b806bc06c006cc06e405902fa807dc17e457e827f50374241584179c07a437a807b50647b8fb4501cb7901c86c0870087c08940898094d041d8808790c8cd46cd05ccc49001cd90308840d5503ed59064ab007f00e801e900e94ae989ebc1ed08ed40ee405cf0180c055d00f80b6e0178c179007980ab40b5c5b600b642b5ccb600b642b5d018b600b64290c1");
+    expect_eq(d.property("night_mode"), "true");
+    d.feed(t::notify([[0x109, 255]]));
+    expect_eq(d.property("night_mode"), "true");
+    d.feed(t::notify([[0x109, 0]]));
+    expect_eq(d.property("night_mode"), "false");
+    d.feed(t::notify([[0x109, 2]]));
+    expect_eq(d.property("night_mode"), "false");
+    expect_eq(d.script_error(), ());
 }
