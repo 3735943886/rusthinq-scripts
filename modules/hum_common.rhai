@@ -16,6 +16,12 @@
 // mode (0x337), the tank light (0x21e), modes 108/109, standby sterilization "power", and off-timer
 // minutes off the 15-minute grid.
 //
+// Sound (0x3a0) reads raw 0 as on and raw 1 as off. The modelJSON labels say the opposite (0 off,
+// 1 on); the basis is a static reading of the shipped LG app module (GPH 3501.04), whose sound
+// switch shows the raw value inverted, and the LG app's label disagreeing with the old reading on
+// an installed unit. Round trips were driven from Home Assistant, not the app, and the beep itself
+// was not physically checked.
+//
 // 0x355/0x356 are LG's filter "remainTime"/"maxTime"; their unit is unconfirmed, so neither
 // declares one. Over-humidity prevention (0x117) and the auto-dry switch (0x20e) are left out: no
 // unit reports their state and the LG app has no control for them.
@@ -126,7 +132,7 @@ fn fields() {
         "humidify": #{ "tag": 487, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
         "anti_glare": #{ "tag": 353, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
         "mood_light": #{ "tag": 440, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
-        "bell_sound": #{ "tag": 928, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
+        "bell_sound": #{ "tag": 928, "def": #{ "type": "binary", "rw": true }, "exact_one": true, "on": 0 },
         "watertank_light": #{ "tag": 542, "def": #{ "type": "number", "rw": true, "min": 0, "max": 200, "step": 1 } },
         "pm1": #{ "tag": 819, "def": #{ "type": "number", "unit": "µg/m³" } },
         "pm25": #{ "tag": 820, "def": #{ "type": "number", "unit": "µg/m³" } },

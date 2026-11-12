@@ -79,6 +79,11 @@ the 15-minute grid.
 
 ### Behavior changes for existing HUM_056905_WW users
 
+- **`bell_sound` is inverted**: raw 0 now reads `true` (sound on) and raw 1
+  `false` (muted), and writes follow. The modelJSON labels say 0 off / 1 on; the
+  basis is a static reading of the shipped LG app module (GPH 3501.04) and the
+  app's label disagreeing with the old reading on an installed unit. Round trips
+  were driven from Home Assistant, not the app; the beep was not checked.
 - `autodry_remain` declares `min` instead of `%`; LG labels it a remaining
   time, which has not been timed.
 - `filter_used_time` and `filter_life_time` lose the `h` unit and the
