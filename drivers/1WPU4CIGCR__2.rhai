@@ -162,11 +162,12 @@ fn status(ctx, r, o) {
     }
 }
 
-// Only the model's documented 0 / 1 codes are a setting; IGNORE (0xff) or an undocumented
-// code clears the reading rather than showing it as off.
+// Only the model's documented 0 / 1 codes are a setting. IGNORE (0xff) is the model's
+// "not reported" sentinel, so the reading is absent (il.md V-1) rather than off. Any other code
+// is undocumented and leaves the last confirmed reading, as the selects here do.
 fn setting_flag(ctx, prop, raw) {
     if raw == 0 || raw == 1 { il::publish_property(ctx, prop, c::on_off(raw)); }
-    else { il::publish_absent(ctx, prop); }
+    else if raw == 0xff { il::publish_absent(ctx, prop); }
 }
 
 // Six BE volumes: live-verified normal/hot/cold at slots 0/1/2, clean at 5.

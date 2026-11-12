@@ -348,14 +348,24 @@ fn test_owner_capture_decodes_settings_and_raw_schedule() {
  expect_props(d,#{status:"normal",water_selection:"normal",water_amount:"120ml",default_water:"last_used",default_amount:"120ml",button_sound:"true",auto_care:"true",not_use_notice:"false",self_clean_next:"07-28 18:30"});
 }
 
-// Frame bytes 42 / 50 / 38 (button sound / auto care / unused-water notice) = ff / 02 / fe.
-// A binary has no value for "unknown", so keeping the last reading or showing false would both
-// claim a setting the frame does not report; the reading is cleared instead.
-fn test_ignore_or_undocumented_setting_codes_clear_instead_of_reading_false() {
+// Frame bytes 42 / 50 / 38 (button sound / auto care / unused-water notice) = ff: the model's
+// IGNORE sentinel, "this unit does not report the field". The reading is absent, not false.
+fn test_ignore_setting_codes_are_absent_instead_of_reading_false() {
  let d=device();d.feed(owner_state());
- d.feed("aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101fffffeff0101ffffff071c121eff02ff03000001c3bb");
+ d.feed("aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101ffffffff0101ffffff071c121effffff03000001c1bb");
  expect_props(d,#{button_sound:"",auto_care:"",not_use_notice:""});
  d.feed(owner_state());expect_props(d,#{button_sound:"true",auto_care:"true",not_use_notice:"false"});
+}
+
+// The same bytes = 02 / fe / 02: undocumented codes, not the sentinel. The last confirmed
+// reading stands (first moved to false / false / true so it cannot pass by coincidence).
+fn test_undocumented_setting_codes_leave_the_last_reading() {
+ let d=device();d.feed(owner_state());
+ d.feed("aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101ffff01ff010100ffff071c121eff00ff03000001cdbb");
+ expect_props(d,#{button_sound:"false",auto_care:"false",not_use_notice:"true"});
+ d.feed("aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101ffff02ff010102ffff071c121efffeff03000001ccbb");
+ expect_props(d,#{button_sound:"false",auto_care:"false",not_use_notice:"true"});
+ expect_eq(d.script_error(),());
 }
 
 // An unset reservation (0xff in any of frame bytes 45..48 = month / day / hour / minute) or an
