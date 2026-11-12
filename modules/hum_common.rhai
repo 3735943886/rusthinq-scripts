@@ -126,6 +126,14 @@ fn fields() {
             "tag": 539,
             "def": #{ "type": "number", "rw": true, "min": 0, "max": 720, "step": 1, "unit": "min", "class": "duration" }
         },
+        "start_time": #{
+            "tag": 858,
+            "def": #{ "type": "number", "rw": true, "min": 0, "max": 2400, "step": 1, "label": "Start time (HHMM, 0 = none)" }
+        },
+        "stop_time": #{
+            "tag": 859,
+            "def": #{ "type": "number", "rw": true, "min": 0, "max": 2400, "step": 1, "label": "Stop time (HHMM, 0 = none)" }
+        },
         "night_mode": #{ "tag": 265, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
         "sleep_mode": #{ "tag": 484, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
         "auto_strength": #{ "tag": 486, "def": #{ "type": "binary", "rw": true }, "exact_one": true },
@@ -155,6 +163,13 @@ fn apply_extra(ctx, tag, value) {
         il::publish_property(ctx, "water_lack", if value == 2 { "true" } else { "false" });
     }
 }
+
+// The model's appliance-side start/stop reservations (start_time, stop_time), its hooks on the
+// capability reply and after every values query, and its reservation write.
+fn native_reservations() { false }
+fn on_capabilities(ctx) {}
+fn after_values_query(ctx) {}
+fn write_reservation(ctx, prop, value) { c::reject(ctx, prop, "unknown property"); }
 
 fn has_feature(caps, tag, n) {
     let mask = caps[tag.to_string()];
@@ -191,6 +206,7 @@ fn supported(caps) {
     if !has_feature(caps, 0x2d6, 22) { off += ["mood_light", "mood_color", "watertank_light"]; }
     if !has_feature(caps, 0x374, 3) { off.push("bell_sound"); }
     if !has_feature(caps, 0x2d3, 15) { off.push("off_timer"); }
+    if !has_feature(caps, 0x2d3, 13) { off += ["start_time", "stop_time"]; }
     for p in [["pm1", 2], ["pm25", 3], ["pm10", 4], ["air_quality", 5], ["humidity", 6], ["temperature", 7]] {
         if !has_feature(caps, 0x2dd, p[1]) { off.push(p[0]); }
     }
@@ -198,6 +214,7 @@ fn supported(caps) {
 }
 
 fn field_def(ctx, prop, field, definition) {
+    if ["start_time", "stop_time"].contains(prop) && !native_reservations() { return (); }
     let support = ctx.state_get("hum_support");
     if support == () { return definition; }
     if support.off.contains(prop) { return (); }
@@ -232,9 +249,10 @@ fn hum_receive_frame(ctx, data) {
         for e in tlvs { reply[e.t.to_string()] = e.v; }
         ctx.state_set("hum_support", supported(reply));
         ctx.state_set("caps", true); ctx.cancel_timer("caps_retry");
+        on_capabilities(ctx);
         il::publish_il(ctx, descriptor(ctx));
         clear_narrowed(ctx);
-        c::query(ctx, 2);
+        c::query(ctx, 2); after_values_query(ctx);
         ctx.set_timer("values_retry", c::retry_ms());
     }
     let first = !caps && c::is_set(ctx, "caps") && !c::is_set(ctx, "values") && tlvs.some(|e| [0x1f7, 0x1f9, 0x1fa].contains(e.t));
@@ -243,7 +261,15 @@ fn hum_receive_frame(ctx, data) {
 }
 fn receive_frame(ctx, data) { hum_receive_frame(ctx, data) }
 
+fn on_timer(ctx, name) {
+    let query = name == "refresh" || (name == "values_retry" && !c::is_set(ctx, "values"));
+    c::on_timer(ctx, name);
+    if query { after_values_query(ctx); }
+}
+
 fn write_extra(ctx, prop, value) {
     if !c::is_set(ctx, "caps") { il::reject(ctx, prop, "not_now", "capabilities not received yet"); return true; }
+    // Reservations travel in the model's own protocol, never as a TLV write.
+    if prop == "start_time" || prop == "stop_time" { write_reservation(ctx, prop, value); return true; }
     false
 }

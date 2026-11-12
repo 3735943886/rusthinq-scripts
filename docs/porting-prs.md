@@ -75,7 +75,8 @@ are power, modes 5/12/24, fan, target humidity, night, sleep and auto
 operation. Never observed accepted, and written as the modelJSON labels say:
 the sensor mode (`sensor_mon`, 0x337), the tank light (`watertank_light`,
 0x21e), modes 108/109, standby sterilization `power`, and off-timer minutes off
-the 15-minute grid.
+the 15-minute grid. `start_time`/`stop_time` (HHMM) use the appliance's private
+command 03, whose set, readback and clear were captured on two units.
 
 ### Behavior changes for existing HUM_056905_WW users
 
