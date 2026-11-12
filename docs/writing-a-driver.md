@@ -29,7 +29,7 @@ written to be read by an AI agent driving the work as much as by a person.
 | family | framing | shared module | pick when |
 |---|---|---|---|
 | TLV | `[hdr..] len [tag,val].. crc16` | `tlv_common.rhai` (`import "tlv_common" as c;`) | the device answers a caps/values handshake (CST_570004_WW, DHUM_056905_WW, AIR_910604_WW) |
-| TLV, air conditioner | as TLV, with power/mode/fan/setpoint tags `0x1f7`/`0x1f9`/`0x1fa`/`0x1fe` | `climate_common.rhai`, a whole driver: a model inherits it with `import "climate_common";` and overrides its code tables, `*_attach()` lists and the `extra_props`/`apply_extra`/`after_values`/`set_extra` hooks | CST_570004_WW, POT_056905_WW, WIN_056905_WW, RAC_056905_WW (`rac_common`, which also branches to ThinQ1 on `ctx.is_thinq2()`) |
+| TLV, air conditioner | as TLV, with power/mode/fan/setpoint tags `0x1f7`/`0x1f9`/`0x1fa`/`0x1fe` | `climate_common.rhai`, a whole driver: a model inherits it with `import "climate_common";` and overrides its code tables, `*_attach()` lists and the `extra_props`/`apply_extra`/`after_values`/`set_extra` hooks | CST_570004_WW and CST_170004_WW (`cst_common`), POT_056905_WW, WIN_056905_WW, RAC_056905_WW (`rac_common`, which also branches to ThinQ1 on `ctx.is_thinq2()`) |
 | AABB, fixed status | `AA len inner csum BB`, inner is a flat byte record | `aabb_common.rhai` | the device pushes/answers with one fixed-layout status record (1WPU4CIGCR__2, WBEY3GT) |
 | AABB, refrigerator | class `0x10` EB/EC records, `F0 17` writes | `fridge_common.rhai` (imports `aabb_common`) | LG refrigerators (2RSFL2DBN3K_Z and the `2RE*` models) |
 | AABB, EU washer | class `0x20` EC frame of two 37-byte records, `F0 24`/`F0 2A` commands | `washer_common.rhai`, a whole driver: a model inherits it with `import "washer_common";` and overrides `features()` | LG EU front-load washers (F_V8_Y, F_VB_Y, F_VB_F, F_V__F and aliases) |
@@ -156,7 +156,7 @@ Everything else (timers, `on_timer`, TLV handshake retries) is what the shared m
 
 A device whose valid range or unit depends on something only known after the first frame
 (a capability query's reported min/max, a display unit the appliance is currently set to)
-follows this shape, used by `drivers/CST_570004_WW.rhai` (capability-driven range) and
+follows this shape, used by `modules/climate_common.rhai` (capability-driven range) and
 `drivers/2RSFL2DBN3K_Z.rhai` (unit-driven range):
 
 ```rhai
@@ -185,7 +185,7 @@ out to look like (verify against a captured accepted write before choosing):
 1. **Tag-attach (TLV)**: `c::write(ctx, tag, value, [other_tags_to_carry])` — the shared
    TLV module handles current-value lookup and framing; the third argument is which other
    tags a write of this one must also carry (a mode write also needs power=on, for instance).
-   See `drivers/CST_570004_WW.rhai`.
+   See `modules/cst_common.rhai`.
 2. **All-`0xFF`-but-one template (AABB)**: build `[0xf0, cmd]` then push `0xFF` for
    every offset except the one being set — valid when a captured accepted write really is
    uniform apart from the one field. See `1WPU4CIGCR__2.rhai`'s `set_field`.

@@ -37,7 +37,8 @@ Each test file cites the captures its driver is checked against.
 | `HWWA9K_F2` | CordZero A9 stick vacuum | AABB | captured |
 | `IV12SNNWW` | robot vacuum (RoboKing AI all-in-one) | JSON | live |
 | `PAC_910604_WW` | floor-standing air conditioner | TLV | captured |
-| `CST_570004_WW` | ceiling-cassette air conditioner | TLV | captured |
+| `CST_170004_WW` | ceiling-cassette air conditioner (`cst_common`) | TLV | constructed |
+| `CST_570004_WW` | ceiling-cassette air conditioner (`cst_common`) | TLV | captured |
 | `POT_056905_WW` | portable air conditioner | TLV | captured |
 | `RAC_056905_WW` | split air conditioner | TLV or ThinQ1 | captured |
 | `RAC_0B0001_WW` | split air conditioner (alias of `RAC_056905_WW`) | TLV | captured |
