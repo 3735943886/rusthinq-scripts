@@ -337,3 +337,48 @@ fn test_user_capture_keeps_two_byte_volumes_and_last_report_semantics() {
  d.feed("aa12121f00fc00000000000000000000bcbb");expect_props(d,#{normal_water_last_dispensed:"252",hot_water_last_dispensed:"0",cold_water_last_dispensed:"0",clean_water_last_dispensed:"0"});
  expect_eq(d.property("water_usage_total"),());expect_eq(d.script_error(),());
 }
+
+// The owner's rethink driver (tests/cloud/devices/1WPU4CIGCR__2.test.ts, deployed tree): its
+// STATE frame is real, captured 2026-07-28; the others are that frame with the bytes named
+// below changed and the checksum recomputed, as in that suite.
+fn owner_state() { "aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101ffff00ff010101ffff071c121eff01ff03000001ccbb" }
+
+fn test_owner_capture_decodes_settings_and_raw_schedule() {
+ let d=device();d.feed(owner_state());
+ expect_props(d,#{status:"normal",water_selection:"normal",water_amount:"120ml",default_water:"last_used",default_amount:"120ml",button_sound:"true",auto_care:"true",not_use_notice:"false",self_clean_next:"07-28 18:30"});
+}
+
+// Frame bytes 42 / 50 / 38 (button sound / auto care / unused-water notice) = ff / 02 / fe.
+// A binary has no value for "unknown", so keeping the last reading or showing false would both
+// claim a setting the frame does not report; the reading is cleared instead.
+fn test_ignore_or_undocumented_setting_codes_clear_instead_of_reading_false() {
+ let d=device();d.feed(owner_state());
+ d.feed("aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101fffffeff0101ffffff071c121eff02ff03000001c3bb");
+ expect_props(d,#{button_sound:"",auto_care:"",not_use_notice:""});
+ d.feed(owner_state());expect_props(d,#{button_sound:"true",auto_care:"true",not_use_notice:"false"});
+}
+
+// An unset reservation (0xff in any of frame bytes 45..48 = month / day / hour / minute) or an
+// impossible date clears self_clean_next rather than leaving the previous one standing.
+fn test_an_unset_or_impossible_self_clean_reservation_clears_the_previous_one() {
+ let d=device();
+ for frame in [
+  "aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101ffff00ff010101ffffff1c121eff01ff03000001c4bb", // month ff
+  "aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101ffff00ff010101ffff071cff1eff01ff03000001d3bb", // hour ff
+  "aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101ffff00ff010101ffff071c12ffff01ff030000012fbb", // minute ff
+  "aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101ffff00ff010101ffff021e121eff01ff03000001c3bb", // 02-30
+  "aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101ffff00ff010101ffff041f121eff01ff03000001ccbb"  // 04-31
+ ] {d.feed(owner_state());expect_eq(d.property("self_clean_next"),"07-28 18:30");d.feed(frame);expect_eq(d.property("self_clean_next"),"");}
+ // with no year on the wire, 29 February is a real date
+ d.feed("aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101ffff00ff010101ffff021d121eff01ff03000001c0bb");
+ expect_eq(d.property("self_clean_next"),"02-29 18:30");
+}
+
+// Frame byte 41 = 4: continuous exists only for the live selection, so it is not published as
+// the default. Keeping the last reading is deliberate: the porting notes allow an unknown enum
+// to be absent or to leave the last confirmed reading, and the other selects here keep it.
+fn test_continuous_is_not_a_default_amount() {
+ let d=device();d.feed(owner_state());
+ d.feed("aa3a12ec020102010101ffff00ff010101ffff071c121eff01ff03000001020002010101ffff00ff010401ffff071c121eff01ff03000001c9bb");
+ expect_eq(d.property("default_amount"),"120ml");expect_eq(d.script_error(),());
+}
