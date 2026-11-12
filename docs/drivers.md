@@ -75,6 +75,7 @@ Each test file cites the captures its driver is checked against.
 | `WLSI_633_` | induction range (read-only) | AABB | captured |
 | `WMVEL2137` | microwave/hood | AABB | captured |
 | `WMVEM1825` | microwave | AABB | captured |
+| `ML32PWFOTA` | lightwave oven (read-only; polls status every 30 s) | AABB | captured |
 | `Pd0F_F` | mini washer | AABB monitoring | constructed |
 | `T1789EFH_F` | top-load washer | AABB | captured |
 | `TLVE5BB` | top-load washer (read-only) | AABB envelope | captured |
@@ -82,6 +83,7 @@ Each test file cites the captures its driver is checked against.
 | `F3L7CYK5W_US_WIFI` | washer (read-only) | AABB | captured |
 | `F3P3CYK2_` | washer (power off only) | AABB | captured |
 | `FAFXU25006` | washer (read-only) | AABB envelope | captured |
+| `FX___N` | FX25 washer (power, course, cycle settings, remote start, laundry care) | AABB envelope | captured |
 | `RV13B6BSD_D_US_WIFI` | dryer (read-only) | AABB | captured |
 | `RV13B6ES_D_US_WIFI` | dryer (read-only) | AABB | captured |
 | `RV13U6AM8W_D_US_WIFI` | dryer (read-only) | AABB | captured |
