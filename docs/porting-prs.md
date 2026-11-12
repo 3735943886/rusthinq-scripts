@@ -65,6 +65,37 @@ speculative `water_usage_*` counters are excluded pending event/delta evidence. 
 percentages on AIR remain available alongside the PR's raw remaining/lifetime
 hours. PAC remains passive. AIR retains its existing handshake and refresh timers.
 
+## Later HUM_056905_WW changes
+
+After the PR #114 port, `HUM_056905_WW` moved its fields into `hum_common` and
+follows a private rethink fork driver running on installed units; the new test
+frames are live captures from 2026-11-10 of two units. The capability reply
+narrows modes, options and controls per unit. Writes seen accepted on the wire
+are power, modes 5/12/24, fan, target humidity, night, sleep and auto
+operation. Never observed accepted, and written as the modelJSON labels say:
+the sensor mode (`sensor_mon`, 0x337), the tank light (`watertank_light`,
+0x21e), modes 108/109, standby sterilization `power`, and off-timer minutes off
+the 15-minute grid.
+
+### Behavior changes for existing HUM_056905_WW users
+
+- `autodry_remain` declares `min` instead of `%`; LG labels it a remaining
+  time, which has not been timed.
+- `filter_used_time` and `filter_life_time` lose the `h` unit and the
+  `duration` class, and become diagnostic: LG labels them filter
+  "remainTime"/"maxTime" with no confirmed unit.
+- `target` is 30–70 % in steps of 5 (was 0–100, step 1, snapped to 5): values
+  off the step or range are rejected.
+- `off_timer` takes whole minutes (was a 15-minute step).
+- The capability reply narrows `mode`, `fan`, `hygiene_dry`,
+  `standby_sterilize` and `mood_color` options and drops controls and sensors
+  the unit does not declare; their retained values are cleared. `hygiene_dry`
+  `default` and mood colours `blue`, `green`, `red`, `purple` and `pink` are
+  no longer offered by any unit.
+- Writes are refused (`not_now`) until the capability reply arrives.
+- Switches keep their last reading on codes other than 0 and 1, instead of
+  reading `false`.
+
 ## Verification
 
 Each `tests/<model>.test.rhai` cites its PR head and retains upstream test names.
