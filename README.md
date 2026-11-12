@@ -72,7 +72,8 @@ VERSION               commit and date, filled in by GitHub archives; do not edit
 The washer/dryer/styler family uses `monitoring_common`, refrigerators use
 `fridge_common`, dishwashers `dishwasher_common` and the EU washers
 `washer_common`; all import `aabb_common`. TLV drivers delegate handshake,
-retry, refresh and framing to `tlv_common`; PAC listens passively. `tlv_fields_common` supplies fixed field maps for the newer
+retry, refresh and framing to `tlv_common`; the air conditioners build on `climate_common`, with
+`rac_common` and `cst_common` for the split and ceiling-cassette models; PAC listens passively. `tlv_fields_common` supplies fixed field maps for the newer
 TLV profiles, and `washtower_kr_common` handles the Korean split WashTower. Every driver publishes through
 `il_common`; named `*_common.rhai` files are modules, not device drivers.
 

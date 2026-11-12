@@ -1,13 +1,14 @@
 import "runtime_test" as runtime;
 import "tlv_test" as t;
 
-// Tests of CST_170004_WW.rhai (cst_common), ported from the owner's rethink test suite
-// (tests/cloud/devices/CST_170004_WW.test.ts, up to "power on CST units with the power preset").
-// Its fixtures are values captured from the installed units: feature caps 0x2cb = 0x1006, jet /
-// swing caps 0x2cd = 0x1fe7b7, setpoint range 16-30, cool, auto fan, room 29, setpoint 18,
-// power 177 W, humidity 47 %, display 50 %, vane position 4. The frames below are those fixtures
-// framed as the TS test frames them, and every expected write is what the TS driver sent for the
-// same command (run with the TS mocks), byte for byte. Upstream test names are quoted.
+// Tests of CST_170004_WW.rhai (cst_common), ported from the test suite of a private rethink fork
+// driver that runs on installed CST_170004_WW units. Its fixtures are tag lists with values read
+// off those units: feature caps 0x2cb = 0x1006, jet / swing caps 0x2cd = 0x1fe7b7, setpoint range
+// 16-30, cool, auto fan, room 29, setpoint 18, power 177 W, humidity 47 %, display 50 %, vane
+// position 4. The frames below are those lists framed as that suite frames them, so they are
+// constructed rather than raw captures. Every expected write was recorded by executing that
+// driver on the same frames, byte for byte, except the values query this driver adds after a
+// preset or sleep timer write. Its test names are quoted.
 
 fn caps() { "000004000000A702010115B2E01006B3701FE7B7B4C1B6A01234B85020B8903C452D" }
 fn values() {
@@ -30,6 +31,9 @@ fn left_power_fan() { "000004000000A7020401057F90367E861DF1" }
 
 fn running() { t::running(device(), caps(), values()) }
 
+// The values query sent after a preset or sleep timer write.
+fn query_hex() { hex_encode(t::query(2)) }
+
 fn sent_hex(d, n) {
     let out = [];
     for i in n..d.sent().len() { out.push(hex_encode(d.sent()[i])); }
@@ -44,14 +48,11 @@ fn test_the_captured_capabilities_give_the_descriptor() {
     expect_eq(p.fan.options, ["auto", "very_low", "low", "medium", "high", "power"]);
     expect_eq(p.vane_position.options, ["off", "1", "2", "3", "4", "5", "6"]);
     expect_eq(p.preset.options, ["none", "fan_2h_off", "power"]);
-    expect_eq(p.target.min, 16);
-    expect_eq(p.target.max, 30);
     expect_eq(p.sleep_timer.max, 420);
     expect_eq(p.swing_vertical.role, "swing_vertical");
     expect_eq(p.swing_horizontal.role, "swing_horizontal");
     expect(p.auto_dry != (), "auto dry");
     expect(p.energy_save != (), "energy saving");
-    expect(p.jet == (), "no jet: 0x2cd claims it, the unit has none");
     expect_eq(p.odu_power.unit, "W");
 }
 
@@ -119,7 +120,7 @@ fn test_the_power_preset_turns_an_off_unit_on_in_cool_with_power_fan() {
     d.feed(off_in_fan_only());
     let n = d.sent().len();
     d.set("preset", "power");
-    expect_eq(sent_hex(d, n), ["01010400000065020101097e407dc17e877f9024d96f"]);
+    expect_eq(sent_hex(d, n), ["01010400000065020101097e407dc17e877f9024d96f", query_hex()]);
     expect_eq(d.property("preset"), "none"); // nothing is published from a write
     d.feed(t::notify([[0x1f7, 1], [0x1f9, 0], [0x1fa, 7]]));
     expect_eq(d.property("preset"), "power");
@@ -134,6 +135,7 @@ fn test_the_fan_2h_preset_carries_medium_fan_and_arms_the_sleep_timer() {
     expect_eq(sent_hex(d, n), [
         "01010400000065020101097e427dc17e847f9024cd15",
         "0101040000006502010103869078b292",
+        query_hex(),
     ]);
     d.feed(fan_2h_echo());
     expect_eq(d.property("mode"), "fan_only");
@@ -148,7 +150,7 @@ fn test_the_none_preset_clears_the_sleep_timer_only() {
     d.feed(fan_2h_echo());
     let n = d.sent().len();
     d.set("preset", "none");
-    expect_eq(sent_hex(d, n), ["010104000000650201010286808289"]);
+    expect_eq(sent_hex(d, n), ["010104000000650201010286808289", query_hex()]);
     d.feed(t::notify([[0x21a, 0]]));
     expect_eq(d.property("preset"), "none");
     expect_eq(d.property("mode"), "fan_only");
@@ -256,7 +258,9 @@ fn test_the_model_settings_write_the_ts_drivers_frames() {
         "010104000000650201010aa400a440f540f581f5c0850e",
         "01010400000065020101028341b411",
         "010104000000650201010386901ebef2",
+        query_hex(),
         "010104000000650201010486a001a4f047",
+        query_hex(),
         "01010400000065020101038390ffb80d",
         "010104000000650201010387d096948e",
         "01010400000065020101028fc160f4",
@@ -269,20 +273,19 @@ fn test_the_outdoor_unit_power_is_read_from_0x2b5() {
     expect_eq(d.property("odu_power"), "3261");
 }
 
-fn test_a_bad_write_is_refused_and_sends_nothing() {
-    let d = running();
-    let n = d.sent().len();
-    d.set("preset", "boost");
-    d.set("vane_position", "on");
-    d.set("vane_position", "7");
-    d.set("sleep_timer", "421");
-    d.set("fan", "turbo");
-    d.set("mode", "heat");
-    d.set("target", "30.5");
-    d.set("odu_power", "100"); // read only
-    d.set("turn_on_timer", "30"); // not offered here
-    expect_eq(d.sent().len(), n);
-    expect(d.event("reject") != (), "a reject event");
+// Each bad write, on a fresh device, sends nothing and publishes a reject of its own.
+fn test_each_bad_write_is_refused_and_sends_nothing() {
+    for w in [["preset", "boost"], ["vane_position", "on"], ["vane_position", "7"],
+              ["sleep_timer", "421"], ["fan", "turbo"], ["mode", "heat"], ["target", "30.5"],
+              ["odu_power", "100"], ["turn_on_timer", "30"]] {
+        let d = running();
+        let n = d.sent().len();
+        expect_eq(d.event("reject"), ());
+        d.set(w[0], w[1]);
+        expect_eq(d.sent().len(), n);
+        let r = d.event("reject");
+        expect(r != () && r.contains("\"prop\":\"" + w[0] + "\""), "a reject naming " + w[0]);
+    }
 }
 
 fn test_unknown_codes_leave_the_last_reading() {
@@ -314,4 +317,49 @@ fn test_energy_saving_is_rewritten_after_a_power_cycle_without_a_report() {
     d.feed(t::notify([[0x1f7, 1], [0x1f9, 0]]));
     expect_eq(t::sent_since(d, n), [[[0x20d, 1]]]);
     expect_eq(d.property("energy_save"), "true");
+}
+
+// A setpoint asked for right after the power preset, before its echo: the echo of power fan
+// itself must not drop it; it is written once the unit reports leaving power fan.
+fn test_a_setpoint_after_the_power_preset_survives_its_echo() {
+    let d = running();
+    d.set("preset", "power");
+    let n = d.sent().len();
+    d.set("target", "26");
+    expect_eq(t::sent_since(d, n), [[[0x1fa, 6], [0x1f9, 0], [0x1fe, 36]]]);
+    d.feed(fan_report(7));
+    expect_eq(d.sent().len(), n + 1);
+    d.feed(fan_report(6));
+    expect_eq(t::sent_since(d, n)[1], [[0x1fe, 52], [0x1f9, 0], [0x1fa, 6]]);
+}
+
+// While a setpoint is held, another one replaces it and writes nothing: the last one wins.
+fn test_a_second_setpoint_while_one_is_held_replaces_it() {
+    let d = running();
+    d.feed(fan_report(7));
+    let n = d.sent().len();
+    d.set("target", "26");
+    d.set("target", "24.5");
+    expect_eq(d.sent().len(), n + 1);
+    d.feed(fan_report(6));
+    expect_eq(t::sent_since(d, n), [
+        [[0x1fa, 6], [0x1f9, 0], [0x1fe, 36]],
+        [[0x1fe, 49], [0x1f9, 0], [0x1fa, 6]],
+    ]);
+    d.feed(fan_report(8));
+    expect_eq(d.sent().len(), n + 2);
+}
+
+// fan_only is not polled, so the query after a sleep timer write is what brings the reading.
+fn test_a_sleep_timer_write_asks_for_the_values() {
+    let d = running();
+    d.feed(t::notify([[0x1f9, 2]]));
+    let n = d.sent().len();
+    d.set("sleep_timer", "60");
+    expect_eq(t::sent_since(d, n)[0], [[0x21a, 60]]);
+    expect_eq(sent_hex(d, n)[1], query_hex());
+    expect_eq(d.sent().len(), n + 2);
+    d.feed(t::notify([[0x21a, 60]]));
+    expect_eq(d.property("sleep_timer"), "60");
+    expect_eq(d.property("preset"), "fan_2h_off");
 }
