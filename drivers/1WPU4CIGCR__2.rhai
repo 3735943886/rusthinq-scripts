@@ -134,10 +134,10 @@ fn status(ctx, r, o) {
         }
     }
     c::pub_name(ctx, "default_water", t::name(default_waters(), r[o + 10]));
-    c::pub_name(ctx, "default_amount", t::name(amounts(), r[o + 11]));
-    il::publish_property(ctx, "auto_care", c::on_off(r[o + 20]));
-    il::publish_property(ctx, "button_sound", c::on_off(r[o + 12]));
-    il::publish_property(ctx, "not_use_notice", c::on_off(r[o + 8]));
+    c::pub_name(ctx, "default_amount", t::name(default_amounts(), r[o + 11]));
+    setting_flag(ctx, "auto_care", r[o + 20]);
+    setting_flag(ctx, "button_sound", r[o + 12]);
+    setting_flag(ctx, "not_use_notice", r[o + 8]);
 
     let sterilize = switch r[o+23] {0=>"standby",1|2|3=>"water_line_sterilizing",4=>"outlet_sterilizing",5=>"cancelling_sterilize",_=>()};
     c::pub_name(ctx,"sterilize_state",sterilize);
@@ -145,13 +145,28 @@ fn status(ctx, r, o) {
     il::publish_property(ctx,"app_version",r[o+25].to_string());
     il::publish_property(ctx,"data_refresh",r[o+22].to_string());
     // The next self-clean, as month / day / hour / minute with no year, in UTC. Converting
-    // to local time needs a timezone and a calendar, which is a consumer's business.
+    // to local time needs a timezone and a calendar, which is a consumer's business. Any
+    // field out of range (0xff is IGNORE) means no reservation, so the stale one is cleared.
+    // With no year, 29 February is accepted.
     let month = r[o + 15];
     let day = r[o + 16];
-    if month >= 1 && month <= 12 && day >= 1 && day <= 31 {
+    let hour = r[o + 17];
+    let minute = r[o + 18];
+    let valid_day = month >= 1 && month <= 12 && day >= 1
+        && day <= [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+    if valid_day && hour <= 23 && minute <= 59 {
         il::publish_property(ctx, "self_clean_next",
-            c::pad2(month) + "-" + c::pad2(day) + " " + c::pad2(r[o + 17]) + ":" + c::pad2(r[o + 18]));
+            c::pad2(month) + "-" + c::pad2(day) + " " + c::pad2(hour) + ":" + c::pad2(minute));
+    } else {
+        il::publish_absent(ctx, "self_clean_next");
     }
+}
+
+// Only the model's documented 0 / 1 codes are a setting; IGNORE (0xff) or an undocumented
+// code clears the reading rather than showing it as off.
+fn setting_flag(ctx, prop, raw) {
+    if raw == 0 || raw == 1 { il::publish_property(ctx, prop, c::on_off(raw)); }
+    else { il::publish_absent(ctx, prop); }
 }
 
 // Six BE volumes: live-verified normal/hot/cold at slots 0/1/2, clean at 5.
