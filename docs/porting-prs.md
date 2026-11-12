@@ -102,6 +102,12 @@ command 03, whose set, readback and clear were captured on two units.
 - Switches keep their last reading on codes other than 0 and 1, instead of
   reading `false`.
 
+`HUM_0C0112_WW` (the MAX) shares `hum_common`; its capability reply adds the AI
+and cozy humidify modes and three mood colours. Reservations are not available
+on it: it NACKs the private-command SET, and the rethink fork's server-side
+replacement needs a disk store a driver session does not have. A Home
+Assistant time automation on `power` covers a timed start or stop.
+
 ## Verification
 
 Each `tests/<model>.test.rhai` cites its PR head and retains upstream test names.

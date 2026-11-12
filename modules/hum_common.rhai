@@ -1,4 +1,5 @@
-// LG humidifying air purifier fields (deviceType 404), for drivers that `import "hum_common";`.
+// LG humidifying air purifier fields (deviceType 404), shared by HUM_056905_WW and HUM_0C0112_WW:
+// each model's driver is `import "hum_common";`.
 // Tags and enums are the modelJSON labels ("targetHumidity_state_tlv_595", ...). Behavior follows a
 // private rethink fork driver running on installed units; frames in the tests are live captures
 // from 2026-11-10.
