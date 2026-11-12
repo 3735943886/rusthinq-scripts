@@ -363,3 +363,69 @@ fn test_a_sleep_timer_write_asks_for_the_values() {
     expect_eq(d.property("sleep_timer"), "60");
     expect_eq(d.property("preset"), "fan_2h_off");
 }
+
+// Choosing none in power fan sets the fan to high (where the unit goes when power fan ends), so
+// the reading becomes none instead of snapping back to power. The rethink driver only cleared
+// the timer, which left the unit at power fan and the reading at power.
+fn test_the_none_preset_ends_power_fan() {
+    let d = running();
+    d.feed(fan_report(7));
+    expect_eq(d.property("preset"), "power");
+    let n = d.sent().len();
+    d.set("preset", "none");
+    expect_eq(sent_hex(d, n), [
+        "01010400000065020101077e867e407f902405f0",
+        "010104000000650201010286808289",
+        query_hex(),
+    ]);
+    expect_eq(d.property("preset"), "power"); // nothing is published from a write
+    d.feed(left_power_fan());
+    expect_eq(d.property("preset"), "none");
+    expect_eq(d.property("fan"), "high");
+}
+
+// If the unit never leaves power fan, the held setpoint is dropped with a reject after
+// pending_ms(), and the next setpoint is not swallowed: it starts the exchange again.
+fn test_a_held_setpoint_times_out_when_power_fan_does_not_end() {
+    let d = running();
+    d.feed(fan_report(7));
+    let n = d.sent().len();
+    d.set("target", "26");
+    expect_eq(d.sent().len(), n + 1);
+    expect(d.timers().some(|t| t[0] == "pending_target" && t[1] == 60000), "timeout armed");
+    d.feed(fan_report(7));
+    d.fire("pending_target");
+    let r = d.event("reject");
+    expect(r != () && r.contains("\"prop\":\"target\""), "a reject naming target");
+    d.feed(fan_report(6));
+    expect_eq(d.sent().len(), n + 1); // the dropped setpoint is not written later
+    d.feed(fan_report(7));
+    d.set("target", "24");
+    expect_eq(t::sent_since(d, n)[1], [[0x1fa, 6], [0x1f9, 0], [0x1fe, 36]]);
+    d.feed(fan_report(6));
+    expect_eq(t::sent_since(d, n)[2], [[0x1fe, 48], [0x1f9, 0], [0x1fa, 6]]);
+    expect_eq(d.script_error(), ());
+}
+
+// A released setpoint cancels the timeout, so it cannot fire a stale reject later.
+fn test_a_released_setpoint_cancels_its_timeout() {
+    let d = running();
+    d.feed(fan_report(7));
+    d.set("target", "26");
+    d.feed(fan_report(6));
+    expect(!d.timers().some(|t| t[0] == "pending_target"), "timeout cancelled");
+}
+
+// A reconnect drops a held setpoint: a fan report in the new session does not write it.
+fn test_a_reconnect_drops_the_held_setpoint() {
+    let d = running();
+    d.feed(fan_report(7));
+    let n = d.sent().len();
+    d.set("target", "26");
+    d.drop_device();
+    d.start();
+    let m = d.sent().len();
+    d.feed(fan_report(6));
+    expect_eq(d.sent().len(), m);
+    expect_eq(d.script_error(), ());
+}

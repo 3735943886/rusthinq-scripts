@@ -20,7 +20,9 @@
 // - `preset` is a reading of mode, fan and sleep timer, and a macro over them:
 //     fan_2h_off  fan_only at medium fan (both in the one mode frame), then a 120 min sleep timer
 //     power       cool with power fan (7), in the one mode frame, which also powers the unit on
-//     none        clears the sleep timer and leaves mode and fan as they are
+//     none        clears the sleep timer and leaves mode as it is; from power fan it also sets
+//                 the fan to high, where the unit itself goes when power fan ends, as otherwise the
+//                 reading would stay power and the choice would not hold
 //   fan_2h_off reads first (fan_only with a timer running), then power (fan 7). Choosing power
 //   from fan_2h_off leaves the 120 min sleep timer running, as the rethink driver does. A preset
 //   or sleep timer write is followed by a values query, so the reading follows without waiting
@@ -31,6 +33,9 @@
 //   the unit reports a fan other than power. Unlike the rethink driver, a report of power fan
 //   itself (such as the echo of the power preset) does not drop the held setpoint, and a further
 //   setpoint while one is held replaces it without writing again: the last one asked for wins.
+//   If the unit has not left power fan within pending_ms(), the held setpoint is dropped with a
+//   reject event, so a fan write the unit ignored cannot hold every later setpoint; the next
+//   setpoint starts over. A reconnect drops it too.
 //
 // Left out: the on/off reservation relay (0x21b / 0x21c), which the unit acknowledges but never
 // runs. rethink runs it by watching the cloud's writes, reporting the reservation back to the
@@ -97,6 +102,7 @@ fn after_values(ctx, tlvs, before) {
         let pending = ctx.state_get("pending_target");
         if pending != () && fan != power_fan() {
             ctx.state_set("pending_target", ());
+            ctx.cancel_timer("pending_target");
             climate_set_property(ctx, "target", pending);
         }
     }
@@ -104,11 +110,29 @@ fn after_values(ctx, tlvs, before) {
 
 // ---- writes -----------------------------------------------------------------------
 
+// Two 28 s polls: the unit is in cool (power fan is cool only), so it is being polled.
+fn pending_ms() { 60000 }
+
+fn start(ctx) {
+    ctx.state_set("pending_target", ());
+    climate_start(ctx);
+}
+
+fn timer_extra(ctx, name) {
+    if name != "pending_target" { return false; }
+    if ctx.state_get("pending_target") != () {
+        ctx.state_set("pending_target", ());
+        c::reject(ctx, "target", "the unit did not leave power fan");
+    }
+    true
+}
+
 fn set_property(ctx, prop, value) {
     if prop == "target" && ctx.state_get("pending_target") != () {
         ctx.state_set("pending_target", value);
     } else if prop == "target" && c::get(ctx, 0x1fa) == power_fan() {
         ctx.state_set("pending_target", value);
+        ctx.set_timer("pending_target", pending_ms());
         climate_set_property(ctx, "fan", "high");
     } else {
         climate_set_property(ctx, prop, value);
@@ -144,7 +168,10 @@ fn set_extra(ctx, prop, value) {
                     c::put(ctx, 0x1fa, power_fan());
                     climate_set_property(ctx, "mode", "cool");
                 }
-                _ => { c::write(ctx, 0x21a, 0, []); }
+                _ => {
+                    if c::get(ctx, 0x1fa) == power_fan() { climate_set_property(ctx, "fan", "high"); }
+                    c::write(ctx, 0x21a, 0, []);
+                }
             }
             c::query(ctx, 2);
         }
