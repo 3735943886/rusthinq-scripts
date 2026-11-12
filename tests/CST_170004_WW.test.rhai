@@ -303,3 +303,15 @@ fn test_reconnect_keeps_the_reported_values() {
     expect_eq(d.property("vane_position"), "4");
     expect_eq(d.property("odu_power"), "3469");
 }
+
+// The captured state carries no 0x20d. Energy saving set while cooling is written again when
+// the unit next enters cool, since it forgets it over a power cycle and does not report it.
+fn test_energy_saving_is_rewritten_after_a_power_cycle_without_a_report() {
+    let d = running();
+    d.set("energy_save", "true");
+    d.feed(t::notify([[0x1f7, 0]]));
+    let n = d.sent().len();
+    d.feed(t::notify([[0x1f7, 1], [0x1f9, 0]]));
+    expect_eq(t::sent_since(d, n), [[[0x20d, 1]]]);
+    expect_eq(d.property("energy_save"), "true");
+}

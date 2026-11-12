@@ -130,7 +130,7 @@ fn cst_after_values(ctx, tlvs, before) {
 fn settle_energy(ctx, reported, entered_cool) {
     let want = ctx.state_get("energy_want");
     if entered_cool && want != () {
-        if (reported != 0) != want { c::write(ctx, 0x20d, if want { 1 } else { 0 }, []); }
+        if reported == () || (reported != 0) != want { c::write(ctx, 0x20d, if want { 1 } else { 0 }, []); }
         il::publish_property(ctx, "energy_save", c::flag(if want { 1 } else { 0 }));
     } else if reported != () && effective_mode(ctx) == "cool" {
         c::put(ctx, 0x20d, reported);
