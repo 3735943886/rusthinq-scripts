@@ -65,6 +65,7 @@ modules/              IL, code table, AABB, TLV, refrigerator, dishwasher,
 tests/                Device tests, protocol test helpers and runtime_test.rhai
 tools/rethink_frames.ts  Prints upstream rethink frames for ported tests
 tools/rethink_fixtures.mjs  Prints an upstream rethink test's fixtures
+tools/capture-all.sh  Captures every appliance, following daemon restarts
 RUSTHINQ_REF          rusthinq ref the drivers are tested against
 VERSION               commit and date, filled in by GitHub archives; do not edit
 ```
@@ -103,25 +104,92 @@ for the capture, control and observe loop, then follow
 
 ## Pull requests
 
-Merge once it works, then fine-tune. A driver that basically works is merged
-without waiting for it to be complete; gaps are closed in follow-up changes as
-captures and reports come in. The bar for merging is:
+A driver is merged once it works and is fine-tuned afterwards. Completeness is not
+a condition for merging; gaps are closed in follow-up changes as captures and
+reports arrive. The conditions for merging are:
 
 - both suites pass;
 - the driver keeps the repository's rules (the MUSTs in
   [docs/writing-a-driver.md](docs/writing-a-driver.md));
-- its row in [docs/drivers.md](docs/drivers.md) states honestly how far it has been
+- its row in [docs/drivers.md](docs/drivers.md) states how far it has been
   verified, and its header names what is unverified or left out.
 
-Missing features, unconfirmed codes and rough edges are not reasons to hold a
-merge back; say what they are, in the header or the PR, and fix them later.
+Missing features, unconfirmed codes and rough edges do not hold a merge back,
+provided the header or the PR describes them.
 
-Changes that contradict an existing driver are the one place we ask for a little
-more. If a PR changes what a driver already decodes or sends, for example a
-different code, offset or scale, please include the captures that show it. The
-existing behaviour usually rests on someone's captures, too, and without frames
-to compare we cannot tell which reading is right. Your unit may simply be a
-variant; with the captures in hand, both can often be supported.
+A change that contradicts an existing driver is the one exception. When a PR
+changes what a driver already decodes or sends (a different code, offset or
+scale, for example), it is expected to include the captures that show the new
+reading. The existing behaviour usually rests on captures as well, and without
+frames to compare it is not possible to tell which reading is right. The unit in
+question may simply be a variant; with captures from both, both can often be
+supported.
+
+## Requesting a driver
+
+A request for an appliance that has no driver is most useful with the
+following, roughly in order of value:
+
+1. **A packet capture**, if at all possible: a session in which the appliance is
+   used normally, with a note for each action (see *Capturing packets* below).
+2. **What happened, and when.** For each action during the capture, the time
+   and what was done or what changed: a control used in the LG ThinQ app (or the
+   official LG integration in Home Assistant), and the state the app showed
+   afterwards (mode, temperature, remaining time, an error). The history of the
+   official integration's entities serves the same purpose. With these times a
+   frame can be matched to its meaning; without them, a capture is mostly
+   guesswork.
+3. **The model**: the `modelId` rusthinq reports for the appliance, and the
+   model name on its label.
+4. **An existing rethink driver**, if there is one: a `cloud/devices/<modelId>.ts`
+   in [rethink](https://github.com/anszom/rethink) or one of its forks, with its
+   tests. Such a driver can be ported as is; its captures, where it has them,
+   make the port `captured` rather than `unverified`.
+
+An appliance with a capture can also be ported directly. AI coding assistants
+handle this well: point one at this repository with the capture and the notes,
+and have it follow [docs/capture-and-test.md](docs/capture-and-test.md) and
+[docs/writing-a-driver.md](docs/writing-a-driver.md), then open a PR. Such a PR
+is held to the same conditions as any other (see *Pull requests*).
+
+### Capturing packets
+
+**Standalone rusthinq.** Either of:
+
+- the dashboard: the appliance's monitor page, then *Export capture*;
+- the command line: `rusthinqctl capture DEVICE capture.jsonl`, typing a note and
+  Enter at each action (details in
+  [docs/capture-and-test.md](docs/capture-and-test.md#1-capture)).
+
+**rusthinq embedded in Home Assistant** (the rusthinq integration). The same
+`rusthinqctl` capture works from a shell on the Home Assistant host (on Home
+Assistant OS, the SSH add-on). The integration installs `rusthinqctl` next to the
+daemon, and the daemon's management address and credentials are in the
+`[management]` section of its configuration:
+
+```sh
+cd /config/rusthinq
+m() { sed -n "/^\[management\]/,/^\[/s/^$1 = \"\(.*\)\"$/\1/p" config.toml; }
+export RUSTHINQ_API="http://$(m bind)/" RUSTHINQ_USER="$(m user)" RUSTHINQ_PASSWORD="$(m password)"
+bin/rusthinqctl devices
+bin/rusthinqctl capture DEVICE capture.jsonl
+```
+
+The port and the password change at every start of the daemon (each Home
+Assistant restart or integration reload), so read them again after one.
+
+**Long captures.** [tools/capture-all.sh](tools/capture-all.sh) captures every
+appliance into `OUTDIR/<device>.jsonl` and keeps going across daemon restarts,
+re-reading the management address and credentials from the configuration each
+time. It needs `rusthinqctl` on the `PATH`; with the embedded daemon:
+
+```sh
+sudo env PATH="/config/rusthinq/bin:$PATH" tools/capture-all.sh /config/rusthinq/config.toml captures
+```
+
+Captures contain the appliance's identifiers. Removing or masking the device ID
+before posting a capture publicly is advisable; the frames themselves are what
+matters.
 
 ## Dated releases
 
