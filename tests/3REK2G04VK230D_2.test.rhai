@@ -5,8 +5,8 @@ import "aabb_test" as a;
 // real captures from the owner's unit (rethink frame log, 2026-11-03): the EB
 // record reads raw 2/2/0/5 at [1..4], matching the official integration's live
 // values that day (left/right = kimchi light, middle = kimchi medium,
-// bottom = vegetable/fruit light), and the energy deltas add onto the totals
-// (4 + 111 = 118 in the next report).
+// bottom = vegetable/fruit light), and each report's running total is the energy
+// counter (111, then 111 + 7 = 118).
 
 fn eb() { "aa2d11eb0202020005ff00010001db0200000000000000000000000000000000000000000000000000780160bb" }
 fn ec() { "aa5411ec0202020005ff00010001db020000000000000000000000000000000000000000000000000078010202020005ff00010001dc0200000000000000000000000000000000000000000000000000780195bb" }
@@ -76,15 +76,17 @@ fn test_a_constructed_ec_uses_the_second_record() {
     expect_eq(d.script_error(), ());
 }
 
-fn test_energy_reports_dedupe_and_accumulate() {
+fn test_energy_is_the_running_total() {
     let d = device();
     d.start();
+    expect_eq(d.timers().len(), 0);
     d.feed("aa0b113e0004006f21cdbb"); // delta 4, total 111, tick 0x21
-    expect_props(d, #{ energy_hour: "4", energy_day: "4", energy_month: "4" });
-    d.feed("aa0b113e0004006f21cdbb"); // retransmission: ignored
-    expect_props(d, #{ energy_hour: "4", energy_day: "4", energy_month: "4" });
+    expect_eq(d.property("energy"), "111");
+    d.feed("aa0b113e0004006f21cdbb"); // retransmission: same total
+    expect_eq(d.property("energy"), "111");
     d.feed("aa0b113e0007007622f6bb"); // delta 7, total 118 (= 111 + 7), tick 0x22
-    expect_props(d, #{ energy_hour: "11", energy_day: "11", energy_month: "11" });
+    expect_eq(d.property("energy"), "118");
+    expect_eq(d.property("energy_hour"), ());
     expect_eq(d.script_error(), ());
 }
 

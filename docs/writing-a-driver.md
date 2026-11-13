@@ -85,6 +85,21 @@ fn descriptor(ctx) {
   "diagnostic"` for a fault code or a filter counter; `category: "config"` for a setting a
   person sets once, not an everyday control. Use `series: "gauge"` for the last
   dispensing volume; a decreasing event value is not a daily counter.
+- **Energy (a MUST, no exceptions).** Energy is published in the form Home Assistant's
+  energy dashboard takes as is, and nothing else:
+  - one cumulative property, normally `energy`: `type: "number"`, `class: "energy"`,
+    `series: "counter"`, `unit: "Wh"` or `"kWh"` (HA `device_class: energy`,
+    `state_class: total_increasing`). Its value is the appliance's own counter (a cycle
+    total, a meter that resets): it only rises, and a drop is a reset, which HA handles.
+  - **no hour/day/month or other windowed totals.** Period figures are each user's
+    Home Assistant `utility_meter` over that counter. A driver has no wall clock and no
+    storage that outlives a reconnect, so a window it keeps is wrong at every restart and
+    never matches the calendar. When a source driver keeps such buckets, do not port them;
+    say so in the header.
+  - when the appliance reports only deltas (Wh since the last report) and no total, the
+    driver may add them up only into this counter, labelled as covering one session; it
+    never splits them into windows.
+  - a power reading (`class: "power"`, `series: "gauge"`, W) is separate and allowed.
 - **`requires`** for a control that only takes effect under a condition the device itself
   enforces (a burner ring that ignores commands unless the panel granted remote start) — the
   script calls `il::validate` to check it before building the write.
@@ -303,6 +318,8 @@ driver is yours to keep; it does not belong in this repository.
 - [ ] no `select` value outside `options`; unknown codes are absent or leave the last reading
 - [ ] power off clears running values; a pause does not
 - [ ] nothing is published from a write, and a driver-summed total states that it covers one session
+- [ ] energy is one `class: "energy"`, `series: "counter"` property in Wh or kWh, with no
+      hour/day/month windows (those are the user's `utility_meter`)
 - [ ] running totals declare `series: "counter"`, and shared logic lives in a module rather than
       being copied between drivers
 - [ ] `docs/drivers.md` table row added
