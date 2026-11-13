@@ -25,6 +25,7 @@ Each test file cites the captures its driver is checked against.
 | `2REF11EIDA__4` | refrigerator | AABB | captured |
 | `2REF11EIDG__4` | refrigerator | AABB | captured |
 | `2REF11EII__M2` | refrigerator (LMXS28626) | AABB | captured |
+| `2REF21EBNSX_3` | refrigerator (setpoints, express freeze, Smart Care+, section doors, ambient, energy) | AABB | captured |
 | `2REFT1DIC4P_U` | refrigerator | AABB | captured |
 | `2REFTBDII4P_U` | refrigerator | AABB | captured |
 | `2RES1VE600FWC` | refrigerator | AABB | captured |
