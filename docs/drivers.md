@@ -11,6 +11,8 @@ a row, see [writing-a-driver.md](writing-a-driver.md#8-wiring-it-in).
   available, writes the LG app sent; not yet run live.
 - **constructed**: status frames built from documented offsets or around a
   captured record; writes match captured frames.
+- **unverified**: ported from a source with no tests and no captures; frames are
+  constructed from the source's code, so the tag map is the source's word alone.
 
 Each test file cites the captures its driver is checked against.
 
@@ -45,6 +47,7 @@ Each test file cites the captures its driver is checked against.
 | `RAC_056905_WW` | split air conditioner | TLV or ThinQ1 | captured |
 | `RAC_0B0001_WW` | split air conditioner (alias of `RAC_056905_WW`) | TLV | captured |
 | `WIN_056905_WW` | window air conditioner | TLV | constructed |
+| `VENT_725601_WW` | ventilator (ERV: power, mode, fan, UVnano, temperatures, filters, air quality) | TLV | unverified |
 | `D140110` | dishwasher (read-only) | AABB | captured |
 | `D0211` | dishwasher (read-only) | AABB | captured |
 | `D2211` | dishwasher (read-only; alias of `D0211`) | AABB | captured |
