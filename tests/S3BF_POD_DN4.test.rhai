@@ -150,7 +150,7 @@ fn test_the_descriptor_lists_the_courses_start_can_express() {
     expect_eq(desc.props.start.requires, "remote_start");
 }
 
-fn test_il_common_holds_start_back_until_remote_start_is_armed() {
+fn test_il_common_holds_pause_back_until_remote_start_is_armed() {
     let d = device();
     let disarmed = drying();
     disarmed[14] = disarmed[14] & 0xf7;
@@ -158,12 +158,39 @@ fn test_il_common_holds_start_back_until_remote_start_is_armed() {
     // start sends only the status query
     expect_eq(hex_encode(d.sent()[0]), "aa0ef0ed1121010000001800b5bb");
     d.feed(status(disarmed));
-    d.set("power_off", "");
+    d.set("pause", "");
     expect_eq(d.sent().len(), 1);
     expect(d.event("reject").contains("requires remote_start"), "il_common names the requirement");
     d.feed(status(drying())); // armed
-    d.set("power_off", "");
+    d.set("pause", "");
     expect_eq(d.sent().len(), 2);
+}
+
+// Live capture, 2026-11-13 07:18-07:20 KST (r5c). A pause from here, with remote start armed,
+// was acked; the cabinet paused, cleared remote start (rec[14] 0x28 -> 0x20) and sent 72 00 c8.
+// The LG app then powered it off with remote start still clear: acked, and the next record read
+// off. So power_off is not held back by remote start, while start and pause still are.
+fn paused_disarmed() {
+    "aa4231ec051c030117020017003700000000000020000002f8000000000142420000001c030117020017003700000000000020000002f80000000001424200000fbb"
+}
+fn switched_off() {
+    "aa4231ec001c030117020017003700000000000020000002f8000000000142420000001c000117020000000300000000000020000002f800000000014242000052bb"
+}
+
+fn test_power_off_works_after_a_pause_disarmed_remote_start() {
+    let d = device();
+    d.start();
+    d.feed(paused_disarmed());
+    expect_props(d, #{ status: "paused", remote_start: "false", power: "true" });
+    d.set("start", "");
+    expect_eq(d.sent().len(), 1); // start (resume) still needs remote start
+    d.set("power_off", "");
+    expect_eq(hex_encode(d.sent()[1]), "aa09f0240101009cbb"); // the app's frame, byte for byte
+    d.feed("aa083100240052bb"); // the captured ack
+    d.feed(switched_off());
+    expect_props(d, #{ power: "false", status: "off", remote_start: "false" });
+    expect_eq(runtime::descriptor(d).props.power_off.requires, ());
+    expect_eq(d.script_error(), ());
 }
 
 // Availability follows the online lifecycle, independently of state reports.
