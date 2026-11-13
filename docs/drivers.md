@@ -77,6 +77,7 @@ Each test file cites the captures its driver is checked against.
 | `WMVEM1825` | microwave | AABB | captured |
 | `ML32PWFOTA` | lightwave oven (read-only; polls status every 30 s) | AABB | captured |
 | `Pd0F_F` | mini washer | AABB monitoring | constructed |
+| `MI2D7B` | MiniWash (power, pause/resume; start unverified) | AABB | captured |
 | `T1789EFH_F` | top-load washer | AABB | captured |
 | `TLVE5BB` | top-load washer (read-only) | AABB envelope | captured |
 | `F3L2CYU__` | washer (read-only) | AABB | captured |
