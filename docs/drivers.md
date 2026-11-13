@@ -31,6 +31,7 @@ Each test file cites the captures its driver is checked against.
 | `2RES1VE61NFWA` | refrigerator (alias of `2RES1VE600FWC`) | AABB | captured |
 | `2RES1VE61NFA2` | refrigerator | AABB | captured |
 | `1WPU4CIGCR__2` | water purifier | AABB | captured |
+| `3REK2G03VI200S_2` | kimchi refrigerator (three compartment modes, one-touch deodorize, energy) | AABB | captured |
 | `1WPD6CMIDR__3` | water/ice purifier (WD722RH) | AABB | captured |
 | `AIR_910604_WW` | air purifier | TLV | captured |
 | `HUM_056905_WW` | humidifying air purifier | TLV | captured |
