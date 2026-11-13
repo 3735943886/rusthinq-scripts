@@ -47,6 +47,7 @@ Each test file cites the captures its driver is checked against.
 | `D2211` | dishwasher (read-only; alias of `D0211`) | AABB | captured |
 | `D30` | dishwasher (read-only) | AABB | captured |
 | `H11` | dishwasher | AABB | captured |
+| `H01` | dishwasher (power, six settings; course start and energy unverified) | AABB | captured |
 | `N17` | dishwasher | AABB | captured |
 | `DHUM_056905_WW` | dehumidifier | TLV | captured |
 | `DHUM_231006_WW` | dehumidifier | TLV | captured |
