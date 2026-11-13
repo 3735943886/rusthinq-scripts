@@ -247,6 +247,10 @@
     "contract": "il",
     "transport": "thinq2"
   },
+  "RD20_S": {
+    "contract": "il",
+    "transport": "thinq2"
+  },
   "RH14_N_KR": {
     "contract": "il",
     "transport": "thinq2"

@@ -65,6 +65,7 @@ Each test file cites the captures its driver is checked against.
 | `F24VDD` | washer | AABB monitoring | captured |
 | `RH14_N_KR` | dryer | AABB monitoring | captured |
 | `RH16_T_KR` | heat-pump dryer | AABB | captured |
+| `RD20_S` | dryer (power, drum light auto-on) | AABB | captured |
 | `S3BF_POD_DN4` | styler | AABB monitoring | captured |
 | `ST_B_E4H01Y_APL` | styler | AABB | captured |
 | `S5MPC` | styler | AABB | captured |
