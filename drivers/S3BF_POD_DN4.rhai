@@ -17,6 +17,11 @@
 // to this appliance; it acknowledged each and did nothing, exactly as it does for a control type
 // of 0x7f. Its model JSON lists only downloadCourse, offPower, startCourse, resumeCourse,
 // pauseCourse and wakeup, and wakeup wakes the Wi-Fi module, not the cabinet.
+//
+// Power off does NOT need remote start, unlike start and pause. Seen live 2026-11-13: a pause
+// disarms remote start on this cabinet (rec[14] 0x28 -> 0x20, then the 72 00 c8 notice), as the
+// LG app shows too, and the app then switched it off with the same f0 24 01 01 00: acked, and the
+// next record read off with remote start still clear.
 
 import "aabb_common" as c;
 import "monitoring_common" as m;
@@ -126,6 +131,7 @@ fn resume_payload(course) {
 
 fn descriptor(ctx) {
     let props = m::props(states(), courses(), startable());
+    props.power_off.remove("requires"); // see the header: off works with remote start disarmed
     props.mixin(#{
         smart_course: #{ type: "select", options: t::options(smart_courses()) },
         download_course: #{ type: "select", category: "diagnostic", label: "Downloaded course",

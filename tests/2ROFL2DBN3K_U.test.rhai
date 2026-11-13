@@ -5,22 +5,18 @@ import "aabb_test" as a;
 // The EB/EC status frames and the three 0x3E energy frames are real captures from
 // the owner's unit (rethink frame log, 2026-11-03): the status record reads fridge
 // wire 5 / freezer wire 4 (3 C / -18 C, matching the official integration's live
-// values that day), and the energy deltas add onto the running totals exactly
-// (7 + 762 = 773, 11 + 773 = 780 in the following reports' totals).
+// values that day), and each report's running total is the energy counter.
 
 fn eb() { "aa6010eb0205040107ffff00010001ffffffffffff01ffffffffffffffffe70101ff02ffffffffffffffffff01ff0000ffffffffffffffffffffffffffffffffffffff0078ffffffffffffffffffffffff000000ffffffffffffffffffff6ebb" }
 fn ec() { "aaba10ec0205040107ffff00010001ffffffffffff01ffffffffffffffffe70101ff02ffffffffffffffffff01ff0000ffffffffffffffffffffffffffffffffffffff0078ffffffffffffffffffffffff000000ffffffffffffffffffff0205040107ffff00010001ffffffffffff01ffffffffffffffffe80101ff02ffffffffffffffffff01ff0000ffffffffffffffffffffffffffffffffffffff0078ffffffffffffffffffffffff000000ffffffffffffffffffff98bb" }
 
-fn test_start_is_silent_and_publishes_no_buckets_on_a_cold_start() {
+fn test_start_is_silent_and_publishes_no_energy_on_a_cold_start() {
     let d = device();
     d.start();
     expect_eq(d.sent().len(), 0);
-    // Fresh state: start must not overwrite retained values with zero
-    // buckets. The first report publishes the buckets (and the total).
+    expect_eq(d.timers().len(), 0);
+    // Start must not overwrite the retained counter; the first report publishes it.
     expect_eq(d.property("energy"), ());
-    expect_eq(d.property("energy_hour"), ());
-    expect_eq(d.property("energy_day"), ());
-    expect_eq(d.property("energy_month"), ());
     expect_eq(d.script_error(), ());
 }
 
@@ -62,26 +58,19 @@ fn test_the_live_ec_publishes_the_current_record() {
     expect_eq(d.script_error(), ());
 }
 
-fn test_energy_reports_dedupe_and_accumulate() {
+fn test_energy_is_the_running_total() {
     let d = device();
     d.start();
+    expect_eq(runtime::descriptor(d).props.energy.series, "counter");
     // delta 7, total 762, tick 0x58 - then the same report retransmitted.
     d.feed("aa0b103e000702fa580bbb");
-    expect_props(d, #{ energy_hour: "7", energy_day: "7", energy_month: "7" });
+    expect_eq(d.property("energy"), "762");
     d.feed("aa0b103e000702fa580bbb");
-    expect_props(d, #{ energy_hour: "7", energy_day: "7", energy_month: "7" });
+    expect_eq(d.property("energy"), "762");
     // delta 11, total 773 (= 762 + 11), tick 0x59 - a new report.
     d.feed("aa0b103e000b0305593abb");
-    expect_props(d, #{ energy_hour: "18", energy_day: "18", energy_month: "18" });
-    expect_eq(d.script_error(), ());
-}
-
-fn test_the_hour_bucket_rolls_over_on_its_timer() {
-    let d = device();
-    d.start();
-    d.feed("aa0b103e000702fa580bbb");
-    d.fire("energy_hour_roll");
-    expect_props(d, #{ energy_hour: "0", energy_day: "7", energy_month: "7" });
+    expect_eq(d.property("energy"), "773");
+    expect_eq(d.property("energy_hour"), ());
     expect_eq(d.script_error(), ());
 }
 

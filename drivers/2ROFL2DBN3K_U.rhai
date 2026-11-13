@@ -5,14 +5,11 @@
 // sends no query either). Inner frames (class 0x10, then):
 //   0xEB  one 90-byte status record
 //   0xEC  the previous record then the current one, stacked
-//   0x3E  energy report, 7 bytes: [3] per-interval Wh delta, [4..5] running total
-//         (resets unpredictably - never trusted), [6] tick. Reports are retransmitted
-//         several times at ~5 s spacing, so they are deduplicated on (delta,total,tick)
-//         exactly as the TS driver does, and the delta accumulates into hour/day/month
-//         buckets kept in driver state (the shared implementation is energy_common; the state survives a script reload but not a device reconnect or daemon restart - see that module). The TS buckets are KST *calendar* buckets;
-//         Rhai scripts have no wall clock, so here the buckets roll over on elapsed-time
-//         timers anchored at driver start (1 h / 24 h / 30 d) - the one intentional
-//         divergence from the TS driver, forced by the platform.
+//   0x3E  energy report, 7 bytes: [3] per-interval Wh delta, [4..5] running total,
+//         [6] tick. The running total is `energy`, a counter that resets at no fixed time
+//         (a consumer's utility meter handles the reset); a retransmitted report carries
+//         the same total. The TS driver's KST hour/day/month buckets are not kept: period
+//         totals are the consumer's utility meter (writing-a-driver.md, Energy).
 //   0x0A  periodic snapshot, not decoded (as in the TS driver)
 //
 // Status record offsets (verified live against the official integration's values):
@@ -28,16 +25,12 @@
 import "aabb_common" as c;
 import "fridge_common" as f;
 import "il_common" as il;
-import "energy_common" as e;
 
 fn descriptor(ctx) {
     let props = f::props("C");
     props += #{
         express_freeze: #{ type: "binary", rw: true, label: "Express freeze" },
-        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy total" },
-        energy_hour: #{ type: "number", class: "energy", unit: "Wh", label: "Energy this hour" },
-        energy_day: #{ type: "number", class: "energy", unit: "Wh", label: "Energy today" },
-        energy_month: #{ type: "number", class: "energy", unit: "Wh", label: "Energy this month" }
+        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy" }
     };
     json_stringify(#{ il: 0, kind: "fridge", label: "Refrigerator", vendor: "LG",
                       model: ctx.model_id(), props: props })
@@ -45,27 +38,17 @@ fn descriptor(ctx) {
 
 fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 
-fn start(ctx) {
-    // Silent on purpose (see the header). Republish the buckets only when
-    // state actually survived (see energy_common), and arm the rollover timers.
-    e::start_publish(ctx);
-    ctx.set_timer("energy_hour_roll", 3600000);
-    ctx.set_timer("energy_day_roll", 86400000);
-    ctx.set_timer("energy_month_roll", 2592000000);
-}
+// Silent on purpose (see the header).
+fn start(ctx) { }
 
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
-
-fn on_timer(ctx, name) {
-    e::roll(ctx, name);
-}
 
 fn on_data(ctx, data) {
     c::ack(ctx, data);
     let inner = c::inner(data, 0x10);
     if inner == () { return; }
     if inner[1] == 0x3e {
-        if inner.len() == 7 { e::report(ctx, inner[3], inner[4] * 256 + inner[5], inner[6]); }
+        if inner.len() == 7 { il::publish_property(ctx, "energy", (inner[4] * 256 + inner[5]).to_string()); }
         return;
     }
     let s = f::record(data, 90);

@@ -5,10 +5,9 @@
 // Inner frames (class 0x11, then):
 //   0xEB  one 39-byte status record (the answer to the start query)
 //   0xEC  the previous record then the current one, stacked
-//   0x3E  energy report - same layout and handling as the 2ROFL2DBN3K_U fridge driver,
-//         including the (delta,total,tick) dedupe and the hour/day/month buckets;
-//         buckets roll over on elapsed-time timers because Rhai has no wall clock
-//         (the TS driver uses KST calendar buckets - the one forced divergence)
+//   0x3E  energy report - same layout and handling as the 2ROFL2DBN3K_U fridge driver:
+//         its running total is `energy`; the TS driver's KST hour/day/month buckets are
+//         not kept (period totals are the consumer's utility meter)
 //   0x00 0xE5 write ack, 0xE6 write echo, 0x0A/0x31/0xC5 family traffic: ignored
 //
 // Record layout (only the head is decoded, as in the TS driver):
@@ -29,7 +28,6 @@ import "aabb_common" as c;
 import "fridge_common" as f;
 import "table_common" as t;
 import "il_common" as il;
-import "energy_common" as e;
 
 fn left_modes() { #{ "0": "맛지킴 김치 (중)", "1": "맛지킴 김치 (강)", "2": "맛지킴 김치 (약)", "3": "냉장 (중)", "4": "냉장 (강)", "5": "냉장 (약)", "6": "냉동", "7": "유산균 김치+", "8": "유산균 김치+ (1단계)", "9": "유산균 김치+ (2단계)", "10": "유산균 김치+ (3단계)", "11": "익힘", "12": "맛지킴 김치 (중) 익힘 완료", "21": "맛지킴 김치 (약)", "22": "맛지킴 김치 (강)", "45": "멀티모드 45", "46": "멀티모드 46", "47": "멀티모드 47", "48": "멀티모드 48", "59": "멀티모드 59", "60": "멀티모드 60", "61": "멀티모드 61", "101": "클라우드 보관" } }
 fn middle_modes() { #{ "0": "맛지킴 김치 (중)", "1": "맛지킴 김치 (강)", "2": "맛지킴 김치 (약)", "3": "야채·과일 (중)", "4": "야채·과일 (강)", "5": "야채·과일 (약)", "6": "구입 김치", "7": "유산균 김치+", "8": "유산균 김치+ (1단계)", "9": "유산균 김치+ (2단계)", "10": "유산균 김치+ (3단계)", "11": "익힘", "12": "맛지킴 김치 (중) 익힘 완료", "13": "꺼짐", "21": "맛지킴 김치 (약)", "22": "맛지킴 김치 (강)", "31": "멀티모드 31", "32": "멀티모드 32", "33": "멀티모드 33", "34": "멀티모드 34", "35": "멀티모드 35", "37": "멀티모드 37", "38": "멀티모드 38", "39": "멀티모드 39", "40": "멀티모드 40", "42": "멀티모드 42", "43": "멀티모드 43", "44": "멀티모드 44", "49": "멀티모드 49", "55": "멀티모드 55", "56": "멀티모드 56", "58": "멀티모드 58", "59": "멀티모드 59", "60": "멀티모드 60", "61": "멀티모드 61", "101": "클라우드 보관", "102": "클라우드 익힘", "103": "클라우드 익힘 (1단계)", "104": "클라우드 익힘 (2단계)", "105": "클라우드 익힘 (3단계)" } }
@@ -44,10 +42,7 @@ fn descriptor(ctx) {
         bottom_compartment: #{ type: "select", rw: true, options: t::options(bottom_modes()), label: "Bottom compartment mode" },
         one_touch_filter: #{ type: "binary", rw: true, label: "One-touch deodorize" },
         door: #{ type: "binary", class: "door", label: "Any door open" },
-        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy total" },
-        energy_hour: #{ type: "number", class: "energy", unit: "Wh", label: "Energy this hour" },
-        energy_day: #{ type: "number", class: "energy", unit: "Wh", label: "Energy today" },
-        energy_month: #{ type: "number", class: "energy", unit: "Wh", label: "Energy this month" }
+        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy" }
     };
     json_stringify(#{ il: 0, kind: "fridge", label: "Kimchi refrigerator", vendor: "LG",
                       model: ctx.model_id(), props: props })
@@ -57,24 +52,16 @@ fn publish_config(ctx) { il::publish_il(ctx, descriptor(ctx)); }
 
 fn start(ctx) {
     f::query(ctx); // f0 ed 12 11 01 00 00 01 04 00, the frame this unit's traffic shows
-    e::start_publish(ctx); // republish buckets only when state survived (see energy_common)
-    ctx.set_timer("energy_hour_roll", 3600000);
-    ctx.set_timer("energy_day_roll", 86400000);
-    ctx.set_timer("energy_month_roll", 2592000000);
 }
 
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
-
-fn on_timer(ctx, name) {
-    e::roll(ctx, name);
-}
 
 fn on_data(ctx, data) {
     c::ack(ctx, data);
     let inner = c::inner(data, 0x11);
     if inner == () { return; }
     if inner[1] == 0x3e {
-        if inner.len() == 7 { e::report(ctx, inner[3], inner[4] * 256 + inner[5], inner[6]); }
+        if inner.len() == 7 { il::publish_property(ctx, "energy", (inner[4] * 256 + inner[5]).to_string()); }
         return;
     }
     let o = c::common_status_offset(inner, 39);
