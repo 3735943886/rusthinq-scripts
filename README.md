@@ -101,6 +101,28 @@ To write a new driver, start with [docs/capture-and-test.md](docs/capture-and-te
 for the capture, control and observe loop, then follow
 [docs/writing-a-driver.md](docs/writing-a-driver.md).
 
+## Pull requests
+
+Merge once it works, then fine-tune. A driver that basically works is merged
+without waiting for it to be complete; gaps are closed in follow-up changes as
+captures and reports come in. The bar for merging is:
+
+- both suites pass;
+- the driver keeps the repository's rules (the MUSTs in
+  [docs/writing-a-driver.md](docs/writing-a-driver.md));
+- its row in [docs/drivers.md](docs/drivers.md) states honestly how far it has been
+  verified, and its header names what is unverified or left out.
+
+Missing features, unconfirmed codes and rough edges are not reasons to hold a
+merge back; say what they are, in the header or the PR, and fix them later.
+
+Changes that contradict an existing driver are the one place we ask for a little
+more. If a PR changes what a driver already decodes or sends, for example a
+different code, offset or scale, please include the captures that show it. The
+existing behaviour usually rests on someone's captures, too, and without frames
+to compare we cannot tell which reading is right. Your unit may simply be a
+variant; with the captures in hand, both can often be supported.
+
 ## Dated releases
 
 Push an annotated date tag to run the release workflow:
@@ -128,8 +150,8 @@ its pin.
 ## Drivers
 
 [docs/drivers.md](docs/drivers.md) lists every supported model and how far each has
-been verified: run on the real appliance, tested against its captures, or tested
-against constructed frames.
+been verified: run on the real appliance, tested against its captures, tested
+against constructed frames, or ported unverified from a source with no captures.
 
 ## License
 
