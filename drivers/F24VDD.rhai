@@ -208,6 +208,11 @@ fn on_data(ctx,data) {
   if (b[1]==0xcd && b.len()==405) || (b[1]==0xbd && [406,476].contains(b.len())) {
    // The user's app-checked 1941 Wh capture disproves the PR's low-byte read.
    let off=if b[1]==0xcd {35} else {36};
+   // Once status records arrive, they alone carry energy. The dump is a few Wh off the record
+   // (behind on r5c 2026-11-15, 310 -> 308; ahead in the 2026-10-09 capture), and the first
+   // dump of a cycle still holds the last cycle's total (201 after the record reset to 0), so
+   // alternating the two made the counter step back. The dump stays the source without records.
+   if get(ctx,"protocol",false) || get(ctx,"record",false) {return;}
    il::publish_property(ctx,"energy",(b[off]*256+b[off+1]).to_string());return;
   }
  }
@@ -265,7 +270,13 @@ fn set_property(ctx,prop,value) {
 }
 
 fn base_props(ctx) {json_parse(legacy::descriptor(ctx)).props}
-fn legacy_data(ctx,data) {legacy::on_data(ctx,data);}
+fn legacy_data(ctx,data) {
+ // The 34-byte monitoring records (0xEB 38 bytes, 0xEC 74 bytes) take this path, not the
+ // 36-byte one above that sets "protocol".
+ let b=data.extract(2,data.len()-4);
+ if b.len()>=2 && ((b[1]==0xec && b.len()==74) || (b[1]==0xeb && b.len()==38)) {put(ctx,"record",true);}
+ legacy::on_data(ctx,data);
+}
 fn legacy_control(ctx,prop,value) {
  // Core API keeps the existing presets and automatic paused-cycle resume.
  // PR option/download commands explicitly opt into the captured control builder.
