@@ -33,9 +33,16 @@ fn test_the_capabilities_reply_moves_on_to_the_values_query() {
 fn test_the_captured_state_becomes_il_properties() {
     expect_props(running(), #{
         available: "true", power: "false", mode: "smart", fan: "low", target: "40",
-        humidity: "44", temperature: "31", sterilize: "false", uvnano: "true",
-        bucket_light: "false", off_timer: "0", error: "0"
+        humidity: "44", off_timer: "0", error: "0"
     });
+}
+
+// 0x1fd, sterilize, UVnano and the bucket light are not published (a Korean unit, fw 537, has none).
+fn test_the_removed_features_are_not_published() {
+    let d = running();
+    for p in ["temperature", "sterilize", "uvnano", "bucket_light", "tank_state"] {
+        expect_eq(d.property(p), ());
+    }
 }
 
 fn test_the_first_values_frame_masks_the_noisy_tag_and_starts_the_refresh() {
@@ -69,7 +76,6 @@ fn test_a_target_outside_the_descriptors_range_is_rejected_by_il_common_not_clam
     let n = d.sent().len();
     d.set("target", "10");
     d.set("target", "75");
-    d.set("target", "45.5"); // the descriptor's step is 1
     expect_eq(d.sent().len(), n, "nothing reaches the appliance");
     expect(d.event("reject").contains("\"prop\":\"target\""), "a reject event names the property");
 }
@@ -144,9 +150,7 @@ fn test_a_bad_write_is_reported_and_sends_nothing() {
 fn test_the_tank_states_map_to_full_and_not_full() {
     let d = running();
     d.feed(t::notify([[0x186, 1]]));
-    expect_props(d, #{ tank_full: "true", tank_state: "full_stopped" });
-    d.feed(t::notify([[0x186, 2]]));
-    expect_eq(d.property("tank_state"), "full_fan_mode");
+    expect_eq(d.property("tank_full"), "true");
     d.feed(t::notify([[0x186, 0]]));
     expect_eq(d.property("tank_full"), "false");
 }
@@ -212,4 +216,35 @@ fn test_invalid_energy_envelopes_do_not_add_to_total() {
     d.feed(raw);
     expect_eq(d.property("energy"), "0");
     expect_eq(d.script_error(), ());
+}
+
+// The panel moves in steps of 5; Home Assistant's slider does not, so a target between steps
+// snaps to the nearest 5 instead of being rejected.
+fn test_a_target_between_steps_snaps_to_the_nearest_5() {
+    let d = running();
+    let n = d.sent().len();
+    d.set("target", "47");
+    expect_eq(t::sent_since(d, n), [[[0x253, 45], [0x1f7, 1], [0x1f9, 17]]]);
+    expect_eq(d.property("target"), "45");
+}
+
+// 0x21b reports the minutes left (59, 119 ... 479); it is shown in hours, rounded up.
+fn test_the_off_timer_is_hours_rounded_up_and_written_in_minutes() {
+    let d = running();
+    d.feed(t::notify([[0x21b, 119]]));
+    expect_eq(d.property("off_timer"), "2");
+    d.feed(t::notify([[0x21b, 479]]));
+    expect_eq(d.property("off_timer"), "8");
+    let n = d.sent().len();
+    d.set("off_timer", "3");
+    expect_eq(t::sent_since(d, n), [[[0x21b, 180]]]);
+}
+
+// The tank: 0x2b2 = 1 full; 0x2b1 = 256 / 0x2b2 = 0 when emptied.
+fn test_the_secondary_tank_tags() {
+    let d = running();
+    d.feed(t::notify([[0x2b2, 1]]));
+    expect_eq(d.property("tank_full"), "true");
+    d.feed(t::notify([[0x2b1, 256]]));
+    expect_eq(d.property("tank_full"), "false");
 }

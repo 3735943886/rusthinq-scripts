@@ -43,6 +43,10 @@
     "contract": "il",
     "transport": "thinq2"
   },
+  "2REK1G04AR180": {
+    "contract": "il",
+    "transport": "thinq2"
+  },
   "2RES1VE600FWC": {
     "contract": "il",
     "transport": "thinq2"
@@ -120,6 +124,10 @@
     "transport": "thinq2"
   },
   "DHUM_231006_WW": {
+    "contract": "il",
+    "transport": "thinq2"
+  },
+  "F24D7N_KR_WIFI_V2": {
     "contract": "il",
     "transport": "thinq2"
   },

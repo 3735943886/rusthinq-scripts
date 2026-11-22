@@ -10,6 +10,17 @@
 // Wire tags: 0x1f7 power, 0x1f9 mode, 0x1fa fan (2 low, 6 high), 0x253 target humidity,
 // 0x336 humidity, 0x1fd temperature (half degrees), 0x186 tank, 0x360 sterilization,
 // 0x2a2 UVnano, 0x21e tank light, 0x21b off timer (minutes), 0x221 error.
+//
+// PATCHED 2026-11-16 on a live DHUM_056905_WW (Korea, firmware 537), from captures:
+//   - 0x1fd is not a temperature on this model (only 250 in smart/spot, 252 in jet/silent/laundry,
+//     follows the mode). The unit and the LG app have no temperature -> not published.
+//   - No bucket light, sterilize or UVnano on this unit; 0x2a2 and 0x186 never appear -> those
+//     props and tank_state removed. The tank reports via 0x2b2 (1 = full) and 0x2b1 = 256 / 0x2b2 = 0
+//     when emptied.
+//   - Target humidity: the panel moves in steps of 5 (30..70).
+//   - Off timer 0x21b: the panel goes 1..8 h then off; the report is minutes LEFT (59, 119 ... 479, 0).
+//     Exposed in hours 0..8 (rounded up), a write sends hours * 60.
+//   - The 190-byte 87 fd energy report never arrived (25 h capture, LG bridge on): energy stays empty.
 
 import "tlv_common" as c;
 import "table_common" as t;
@@ -33,20 +44,17 @@ fn descriptor(ctx) {
             mode: #{ type: "select", rw: true, role: "mode", src: #{ tlv_tag: "0x1f9" },
                      options: t::options(modes()) },
             target: #{ type: "number", rw: true, role: "target_humidity", src: #{ tlv_tag: "0x253" },
-                       min: 30, max: 70, step: 1, unit: "%" },
+                       min: 30, max: 70, step: 5, unit: "%" },
             humidity: #{ type: "number", class: "humidity", series: "gauge", role: "current_humidity", src: #{ tlv_tag: "0x336" }, unit: "%" },
-            temperature: #{ type: "number", class: "temperature", series: "gauge", role: "current_temperature", src: #{ tlv_tag: "0x1fd" },
-                            unit: "°C" },
+            // PATCH: temperature (0x1fd), sterilize, uvnano, bucket_light and tank_state removed (see header).
             fan: #{ type: "select", rw: true, role: "fan_speed", src: #{ tlv_tag: "0x1fa" },
                     options: ["low", "high"] },
             tank_full: #{ type: "binary", class: "problem", src: #{ tlv_tag: "0x186" } },
-            tank_state: #{ type: "select", category: "diagnostic", src: #{ tlv_tag: "0x186" },
-                           options: t::options(tank_states()) },
-            sterilize: #{ type: "binary", rw: true, src: #{ tlv_tag: "0x360" } },
-            uvnano: #{ type: "binary", rw: true, src: #{ tlv_tag: "0x2a2" } },
-            bucket_light: #{ type: "binary", rw: true, src: #{ tlv_tag: "0x21e" } },
             off_timer: #{ type: "number", class: "duration", rw: true, src: #{ tlv_tag: "0x21b" },
-                          min: 0, max: 540, step: 60, unit: "min" },
+                          // PATCH (live capture): the panel goes 1..8 hours then off; the report is the minutes left
+                          // (59, 119, ... 479, then 0), so it counts down. Exposed in hours like the panel:
+                          // the minutes left are rounded up, and a write sends hours * 60.
+                          min: 0, max: 8, step: 1, unit: "h" },
             error: #{ type: "number", category: "diagnostic", src: #{ tlv_tag: "0x221" } }
         }
     })
@@ -154,24 +162,20 @@ fn apply(ctx, tag, v) {
             if v >= 30 && v <= 70 { il::publish_property(ctx, "target", v.to_string()); }
         }
         0x336 => { il::publish_property(ctx, "humidity", v.to_string()); }
-        0x1fd => {
-            let t = if v % 2 == 0 { (v / 2).to_string() } else { (v / 2.0).to_string() };
-            il::publish_property(ctx, "temperature", t);
-        }
+        0x1fd => { return false; }
         0x186 => {
             let name = t::name(tank_states(), v);
             if name != () {
                 il::publish_property(ctx, "tank_full", c::flag(v));
-                il::publish_property(ctx, "tank_state", name);
             }
         }
         // secondary tank signals seen when the tank is reinstalled / filled
         0x2b1 => { if v == 256 { il::publish_property(ctx, "tank_full", "false"); } }
         0x2b2 => { il::publish_property(ctx, "tank_full", c::flag(v)); }
-        0x360 => { c::put(ctx, tag, v); il::publish_property(ctx, "sterilize", c::flag(v)); }
-        0x2a2 => { c::put(ctx, tag, v); il::publish_property(ctx, "uvnano", c::flag(v)); }
-        0x21e => { c::put(ctx, tag, v); il::publish_property(ctx, "bucket_light", c::flag(v)); }
-        0x21b => { c::put(ctx, tag, v); il::publish_property(ctx, "off_timer", v.to_string()); }
+        0x360 => { c::put(ctx, tag, v); }
+        0x2a2 => { c::put(ctx, tag, v); }
+        0x21e => { c::put(ctx, tag, v); }
+        0x21b => { c::put(ctx, tag, v); il::publish_property(ctx, "off_timer", ((v + 59) / 60).to_string()); }
         0x221 => { il::publish_property(ctx, "error", v.to_string()); }
         _ => { return false; }
     }
@@ -203,19 +207,20 @@ fn set_property(ctx, prop, value) {
             if t > 70 { t = 70; }
             c::put(ctx, 0x1f7, 1);
             c::write(ctx, 0x253, t, [0x1f7, 0x1f9]);
+            // PATCH: a target snapped onto the value the appliance already has brings no status report,
+            // which left the Home Assistant slider on the unsnapped number. Publish the snapped value here
+            // (on_set_property published the unsnapped one just before, so this is a real change for HA).
+            il::publish_property(ctx, "target", t.to_string());
         }
         "fan" => {
             if value == "low" { write_fan(ctx, 2); }
             else if value == "high" { write_fan(ctx, 6); }
             else { c::reject(ctx, prop, "unknown fan speed"); }
         }
-        "sterilize" => { c::write(ctx, 0x360, if c::to_bool(value) { 1 } else { 0 }, [0x1f7, 0x1f9]); }
-        "uvnano" => { c::write(ctx, 0x2a2, if c::to_bool(value) { 1 } else { 0 }, [0x1f7, 0x1f9]); }
-        "bucket_light" => { c::write(ctx, 0x21e, if c::to_bool(value) { 1 } else { 0 }, []); }
         "off_timer" => {
             let n = c::to_number(value);
             if n == () || n < 0 { c::reject(ctx, prop, "not a non-negative number"); return; }
-            c::write(ctx, 0x21b, n.round().to_int(), []);
+            c::write(ctx, 0x21b, n.round().to_int() * 60, []);
         }
         _ => { c::reject(ctx, prop, "unknown or read-only property"); }
     }
@@ -223,6 +228,20 @@ fn set_property(ctx, prop, value) {
 
 // il_common validates against the descriptor and rejects invalid commands.
 fn on_set_property(ctx, prop, value) {
-    let value = il::validate(ctx, prop, value);
-    if value != () { set_property(ctx, prop, value); }
+    let v = value;
+    // PATCH: the Home Assistant humidifier slider ignores the descriptor's step (ildevice_ha does not pass
+    // target_humidity_step), so snap the target to the nearest 5 here instead of rejecting it as bad_step.
+    if prop == "target" {
+        let n = c::to_number(v);
+        if n != () {
+            let raw = n.round().to_int();
+            let snapped = ((n / 5.0).round() * 5.0).to_int();
+            // HA only redraws its slider on a state change: when the snapped value is the one it already
+            // shows, first publish what the user chose, then set_property publishes the snapped value.
+            if raw != snapped && raw >= 30 && raw <= 70 { il::publish_property(ctx, "target", raw.to_string()); }
+            v = snapped.to_string();
+        }
+    }
+    let v = il::validate(ctx, prop, v);
+    if v != () { set_property(ctx, prop, v); }
 }
