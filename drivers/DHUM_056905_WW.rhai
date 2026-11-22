@@ -14,9 +14,11 @@
 // Changes from talktalk2580's live DHUM_056905_WW (Korea, firmware 537), 2026-11-16:
 //   - On that unit 0x1fd is not a temperature (only 250 in smart/spot, 252 in jet/silent/laundry,
 //     following the mode). On the maintainer's unit (24 h capture, 2026-10-09) it is one: 48..54
-//     half degrees, moving while the mode stayed smart, and through November 2026 it followed a
-//     utility-room sensor nearby (about 1-2 °C above it, in 1 °C steps). So it is published only
-//     when it reads as a room temperature (at most 60 °C). The LG app shows no temperature.
+//     half degrees, moving while the mode stayed smart. Checked by the maintainer against a room
+//     sensor nearby in Home Assistant history (November 2026): the values do not match exactly
+//     (about 1-2 °C apart, in 1 °C steps), but it rises and falls with the room temperature. So it
+//     is published only when it reads as a room temperature (at most 60 °C). The LG app shows no
+//     temperature.
 //   - That unit has no bucket light, sterilize or UVnano and never sends 0x2a2. The maintainer's
 //     unit reports 0x2a2, 0x360 and 0x21e in every state frame, so those props stay.
 //   - The tank also reports via 0x2b2 (1 = full) and 0x2b1 = 256 / 0x2b2 = 0 when emptied.
