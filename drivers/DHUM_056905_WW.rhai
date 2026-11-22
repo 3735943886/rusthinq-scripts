@@ -8,17 +8,26 @@
 // `on_timer`; the host owns the clock.
 //
 // Wire tags: 0x1f7 power, 0x1f9 mode, 0x1fa fan (2 low, 6 high), 0x253 target humidity,
-// 0x336 humidity, 0x1fd temperature (half degrees), 0x186 tank, 0x360 sterilization,
+// 0x336 humidity, 0x1fd internal temperature sensor (half degrees), 0x186 tank, 0x360 sterilization,
 // 0x2a2 UVnano, 0x21e tank light, 0x21b off timer (minutes), 0x221 error.
 //
 // Changes from talktalk2580's live DHUM_056905_WW (Korea, firmware 537), 2026-11-16:
 //   - On that unit 0x1fd is not a temperature (only 250 in smart/spot, 252 in jet/silent/laundry,
 //     following the mode). On the maintainer's unit (24 h capture, 2026-10-09) it is one: 48..54
 //     half degrees, moving while the mode stayed smart. Checked by the maintainer against a room
-//     sensor nearby in Home Assistant history (November 2026): the values do not match exactly
-//     (about 1-2 °C apart, in 1 °C steps), but it rises and falls with the room temperature. So it
-//     is published only when it reads as a room temperature (at most 60 °C). The LG app shows no
-//     temperature.
+//     sensor nearby in Home Assistant history (November 2026): it rises and falls with the room
+//     temperature, but does not match it (about 2-3 °C above, in 1 °C steps, slow to follow
+//     short swings).
+//     So 0x1fd is taken as the unit's own internal sensor (likely for defrost / low-temperature
+//     control), not a room temperature reading, and it is published as a diagnostic, not as the
+//     humidifier's current temperature, because:
+//       - it is not accurate enough to stand for the room temperature (offset, 1 °C steps, lag),
+//       - it drops while the unit runs (room air over the sensor) and climbs when it is off,
+//         which fits a sensor placed for coil / defrost control,
+//       - the LG app does not show it, so LG does not offer it as a user-facing value,
+//       - its meaning differs between firmware (250 / 252 on fw 537).
+//     Values above 60 °C (such as that 250 / 252) are not published. The prop keeps its name so
+//     existing history carries on.
 //   - That unit has no bucket light, sterilize or UVnano and never sends 0x2a2. The maintainer's
 //     unit reports 0x2a2, 0x360 and 0x21e in every state frame, so those props stay.
 //   - The tank also reports via 0x2b2 (1 = full) and 0x2b1 = 256 / 0x2b2 = 0 when emptied.
@@ -51,8 +60,9 @@ fn descriptor(ctx) {
             target: #{ type: "number", rw: true, role: "target_humidity", src: #{ tlv_tag: "0x253" },
                        min: 30, max: 70, step: 5, unit: "%" },
             humidity: #{ type: "number", class: "humidity", series: "gauge", role: "current_humidity", src: #{ tlv_tag: "0x336" }, unit: "%" },
-            temperature: #{ type: "number", class: "temperature", series: "gauge", role: "current_temperature", src: #{ tlv_tag: "0x1fd" },
-                            unit: "°C" },
+            // Internal sensor, not the room temperature (see the header): diagnostic, no role.
+            temperature: #{ type: "number", class: "temperature", series: "gauge", category: "diagnostic", src: #{ tlv_tag: "0x1fd" },
+                            unit: "°C", label: "Internal temperature sensor (uncalibrated)" },
             fan: #{ type: "select", rw: true, role: "fan_speed", src: #{ tlv_tag: "0x1fa" },
                     options: ["low", "high"] },
             tank_full: #{ type: "binary", class: "problem", src: #{ tlv_tag: "0x186" } },
@@ -173,7 +183,7 @@ fn apply(ctx, tag, v) {
             if v >= 30 && v <= 70 { il::publish_property(ctx, "target", v.to_string()); }
         }
         0x336 => { il::publish_property(ctx, "humidity", v.to_string()); }
-        // Half degrees; talktalk2580's unit sends 250 / 252 here, which is not a temperature.
+        // Internal sensor, half degrees; talktalk2580's unit sends 250 / 252 here, which is not one.
         0x1fd => {
             if v > 120 { return false; }
             let t = if v % 2 == 0 { (v / 2).to_string() } else { (v / 2.0).to_string() };

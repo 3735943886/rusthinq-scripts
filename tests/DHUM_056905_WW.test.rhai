@@ -1,6 +1,7 @@
 // Tests of DHUM_056905_WW.rhai, against frames captured from a real appliance.
 
 import "tlv_test" as t;
+import "runtime_test" as runtime;
 
 fn caps() { "000004000000A70201000AB6A00A7CB541B5A004023220" }
 fn state() { "000004000000a702041a5a7dc07e50117e8294d0287f503e86c087008980c900d8008780cd902c8840ce80ab00a88187c1e801ee408c808cc0b5d011b600b642b5d012b600b642b5d013b600b642b5d014b600b642b5d015b600b642b5d016b600b642fa80bad3" }
@@ -38,8 +39,8 @@ fn test_the_captured_state_becomes_il_properties() {
     });
 }
 
-// The maintainer's unit (2026-10-09) reports room temperature in 0x1fd (52 = 26 °C); talktalk2580's
-// (fw 537) sends 250 / 252 there, which is not one and is not published.
+// 0x1fd is the unit's internal temperature sensor on the maintainer's unit (52 = 26 °C); talktalk2580's
+// (fw 537) sends 250 / 252 there, which is not a temperature and is not published.
 fn test_0x1fd_is_published_only_as_a_plausible_temperature() {
     let d = running();
     d.feed(t::notify([[0x1fd, 52]]));
@@ -252,4 +253,13 @@ fn test_the_secondary_tank_tags() {
     expect_eq(d.property("tank_full"), "true");
     d.feed(t::notify([[0x2b1, 256]]));
     expect_eq(d.property("tank_full"), "false");
+}
+
+// The internal sensor is a diagnostic, not the humidifier's current temperature (see the driver header).
+fn test_0x1fd_is_a_diagnostic_without_a_role() {
+    let d = device();
+    d.start();
+    let p = runtime::descriptor(d).props.temperature;
+    expect_eq(p.category, "diagnostic");
+    expect_eq(p.role, ());
 }
