@@ -11,12 +11,14 @@
 // 0x336 humidity, 0x1fd temperature (half degrees), 0x186 tank, 0x360 sterilization,
 // 0x2a2 UVnano, 0x21e tank light, 0x21b off timer (minutes), 0x221 error.
 //
-// PATCHED 2026-11-16 on a live DHUM_056905_WW (Korea, firmware 537), from captures:
-//   - 0x1fd is not a temperature on this model (only 250 in smart/spot, 252 in jet/silent/laundry,
-//     follows the mode). The unit and the LG app have no temperature -> not published.
-//   - No bucket light, sterilize or UVnano on this unit; 0x2a2 and 0x186 never appear -> those
-//     props and tank_state removed. The tank reports via 0x2b2 (1 = full) and 0x2b1 = 256 / 0x2b2 = 0
-//     when emptied.
+// Changes from talktalk2580's live DHUM_056905_WW (Korea, firmware 537), 2026-11-16:
+//   - On that unit 0x1fd is not a temperature (only 250 in smart/spot, 252 in jet/silent/laundry,
+//     following the mode). On the maintainer's unit (24 h capture, 2026-10-09) it is one: 48..54
+//     half degrees, moving while the mode stayed smart. So it is published only when it reads
+//     as a room temperature (at most 60 °C).
+//   - That unit has no bucket light, sterilize or UVnano and never sends 0x2a2. The maintainer's
+//     unit reports 0x2a2, 0x360 and 0x21e in every state frame, so those props stay.
+//   - The tank also reports via 0x2b2 (1 = full) and 0x2b1 = 256 / 0x2b2 = 0 when emptied.
 //   - Target humidity: the panel moves in steps of 5 (30..70).
 //   - Off timer 0x21b: the panel goes 1..8 h then off; the report is minutes LEFT (59, 119 ... 479, 0).
 //     Exposed in hours 0..8 (rounded up), a write sends hours * 60.
@@ -46,10 +48,16 @@ fn descriptor(ctx) {
             target: #{ type: "number", rw: true, role: "target_humidity", src: #{ tlv_tag: "0x253" },
                        min: 30, max: 70, step: 5, unit: "%" },
             humidity: #{ type: "number", class: "humidity", series: "gauge", role: "current_humidity", src: #{ tlv_tag: "0x336" }, unit: "%" },
-            // PATCH: temperature (0x1fd), sterilize, uvnano, bucket_light and tank_state removed (see header).
+            temperature: #{ type: "number", class: "temperature", series: "gauge", role: "current_temperature", src: #{ tlv_tag: "0x1fd" },
+                            unit: "°C" },
             fan: #{ type: "select", rw: true, role: "fan_speed", src: #{ tlv_tag: "0x1fa" },
                     options: ["low", "high"] },
             tank_full: #{ type: "binary", class: "problem", src: #{ tlv_tag: "0x186" } },
+            tank_state: #{ type: "select", category: "diagnostic", src: #{ tlv_tag: "0x186" },
+                           options: t::options(tank_states()) },
+            sterilize: #{ type: "binary", rw: true, src: #{ tlv_tag: "0x360" } },
+            uvnano: #{ type: "binary", rw: true, src: #{ tlv_tag: "0x2a2" } },
+            bucket_light: #{ type: "binary", rw: true, src: #{ tlv_tag: "0x21e" } },
             off_timer: #{ type: "number", class: "duration", rw: true, src: #{ tlv_tag: "0x21b" },
                           // PATCH (live capture): the panel goes 1..8 hours then off; the report is the minutes left
                           // (59, 119, ... 479, then 0), so it counts down. Exposed in hours like the panel:
@@ -162,19 +170,25 @@ fn apply(ctx, tag, v) {
             if v >= 30 && v <= 70 { il::publish_property(ctx, "target", v.to_string()); }
         }
         0x336 => { il::publish_property(ctx, "humidity", v.to_string()); }
-        0x1fd => { return false; }
+        // Half degrees; talktalk2580's unit sends 250 / 252 here, which is not a temperature.
+        0x1fd => {
+            if v > 120 { return false; }
+            let t = if v % 2 == 0 { (v / 2).to_string() } else { (v / 2.0).to_string() };
+            il::publish_property(ctx, "temperature", t);
+        }
         0x186 => {
             let name = t::name(tank_states(), v);
             if name != () {
                 il::publish_property(ctx, "tank_full", c::flag(v));
+                il::publish_property(ctx, "tank_state", name);
             }
         }
         // secondary tank signals seen when the tank is reinstalled / filled
         0x2b1 => { if v == 256 { il::publish_property(ctx, "tank_full", "false"); } }
         0x2b2 => { il::publish_property(ctx, "tank_full", c::flag(v)); }
-        0x360 => { c::put(ctx, tag, v); }
-        0x2a2 => { c::put(ctx, tag, v); }
-        0x21e => { c::put(ctx, tag, v); }
+        0x360 => { c::put(ctx, tag, v); il::publish_property(ctx, "sterilize", c::flag(v)); }
+        0x2a2 => { c::put(ctx, tag, v); il::publish_property(ctx, "uvnano", c::flag(v)); }
+        0x21e => { c::put(ctx, tag, v); il::publish_property(ctx, "bucket_light", c::flag(v)); }
         0x21b => { c::put(ctx, tag, v); il::publish_property(ctx, "off_timer", ((v + 59) / 60).to_string()); }
         0x221 => { il::publish_property(ctx, "error", v.to_string()); }
         _ => { return false; }
@@ -217,6 +231,9 @@ fn set_property(ctx, prop, value) {
             else if value == "high" { write_fan(ctx, 6); }
             else { c::reject(ctx, prop, "unknown fan speed"); }
         }
+        "sterilize" => { c::write(ctx, 0x360, if c::to_bool(value) { 1 } else { 0 }, [0x1f7, 0x1f9]); }
+        "uvnano" => { c::write(ctx, 0x2a2, if c::to_bool(value) { 1 } else { 0 }, [0x1f7, 0x1f9]); }
+        "bucket_light" => { c::write(ctx, 0x21e, if c::to_bool(value) { 1 } else { 0 }, []); }
         "off_timer" => {
             let n = c::to_number(value);
             if n == () || n < 0 { c::reject(ctx, prop, "not a non-negative number"); return; }

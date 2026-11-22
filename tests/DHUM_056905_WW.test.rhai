@@ -33,16 +33,19 @@ fn test_the_capabilities_reply_moves_on_to_the_values_query() {
 fn test_the_captured_state_becomes_il_properties() {
     expect_props(running(), #{
         available: "true", power: "false", mode: "smart", fan: "low", target: "40",
-        humidity: "44", off_timer: "0", error: "0"
+        humidity: "44", temperature: "31", sterilize: "false", uvnano: "true",
+        bucket_light: "false", off_timer: "0", error: "0"
     });
 }
 
-// 0x1fd, sterilize, UVnano and the bucket light are not published (a Korean unit, fw 537, has none).
-fn test_the_removed_features_are_not_published() {
+// The maintainer's unit (2026-10-09) reports room temperature in 0x1fd (52 = 26 °C); talktalk2580's
+// (fw 537) sends 250 / 252 there, which is not one and is not published.
+fn test_0x1fd_is_published_only_as_a_plausible_temperature() {
     let d = running();
-    for p in ["temperature", "sterilize", "uvnano", "bucket_light", "tank_state"] {
-        expect_eq(d.property(p), ());
-    }
+    d.feed(t::notify([[0x1fd, 52]]));
+    expect_eq(d.property("temperature"), "26");
+    d.feed(t::notify([[0x1fd, 250]]));
+    expect_eq(d.property("temperature"), "26");
 }
 
 fn test_the_first_values_frame_masks_the_noisy_tag_and_starts_the_refresh() {
@@ -150,7 +153,9 @@ fn test_a_bad_write_is_reported_and_sends_nothing() {
 fn test_the_tank_states_map_to_full_and_not_full() {
     let d = running();
     d.feed(t::notify([[0x186, 1]]));
-    expect_eq(d.property("tank_full"), "true");
+    expect_props(d, #{ tank_full: "true", tank_state: "full_stopped" });
+    d.feed(t::notify([[0x186, 2]]));
+    expect_eq(d.property("tank_state"), "full_fan_mode");
     d.feed(t::notify([[0x186, 0]]));
     expect_eq(d.property("tank_full"), "false");
 }
