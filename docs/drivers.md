@@ -35,6 +35,7 @@ Each test file cites the captures its driver is checked against.
 | `2RES1VE61NFA2` | refrigerator | AABB | captured |
 | `1WPU4CIGCR__2` | water purifier | AABB | captured |
 | `3REK2G03VI200S_2` | kimchi refrigerator (three compartment modes, one-touch deodorize, energy) | AABB | captured |
+| `2REK1G04AR180` | kimchi refrigerator (read-only: four compartment modes, per-door sensors, room temperature estimate) | AABB | constructed |
 | `1WPD6CMIDR__3` | water/ice purifier (WD722RH) | AABB | captured |
 | `AIR_910604_WW` | air purifier | TLV | captured |
 | `HUM_056905_WW` | humidifying air purifier | TLV | captured |
@@ -70,6 +71,7 @@ Each test file cites the captures its driver is checked against.
 | `Y_VB_Y___W.B32QEUK` | washer with ezDispense | AABB envelope | captured |
 | `Y_V8_F___W.B_2QEUK` | washer-dryer | AABB envelope | captured |
 | `F24VDD` | washer | AABB monitoring | captured |
+| `F24D7N_KR_WIFI_V2` | washer (read-only; 25-byte monitoring record) | AABB monitoring | constructed |
 | `RH14_N_KR` | dryer | AABB monitoring | captured |
 | `RH16_T_KR` | heat-pump dryer | AABB | captured |
 | `RD20_S` | dryer (power, drum light auto-on) | AABB | captured |

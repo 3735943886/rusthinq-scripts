@@ -8,8 +8,33 @@
 // `on_timer`; the host owns the clock.
 //
 // Wire tags: 0x1f7 power, 0x1f9 mode, 0x1fa fan (2 low, 6 high), 0x253 target humidity,
-// 0x336 humidity, 0x1fd temperature (half degrees), 0x186 tank, 0x360 sterilization,
+// 0x336 humidity, 0x1fd internal temperature sensor (half degrees), 0x186 tank, 0x360 sterilization,
 // 0x2a2 UVnano, 0x21e tank light, 0x21b off timer (minutes), 0x221 error.
+//
+// Changes from talktalk2580's live DHUM_056905_WW (Korea, firmware 537), 2026-11-16:
+//   - On that unit 0x1fd is not a temperature (only 250 in smart/spot, 252 in jet/silent/laundry,
+//     following the mode). On the maintainer's unit (24 h capture, 2026-10-09) it is one: 48..54
+//     half degrees, moving while the mode stayed smart. Checked by the maintainer against a room
+//     sensor nearby in Home Assistant history (November 2026): it rises and falls with the room
+//     temperature, but does not match it (about 2-3 °C above, in 1 °C steps, slow to follow
+//     short swings).
+//     So 0x1fd is taken as the unit's own internal sensor (likely for defrost / low-temperature
+//     control), not a room temperature reading, and it is published as a diagnostic, not as the
+//     humidifier's current temperature, because:
+//       - it is not accurate enough to stand for the room temperature (offset, 1 °C steps, lag),
+//       - it drops while the unit runs (room air over the sensor) and climbs when it is off,
+//         which fits a sensor placed for coil / defrost control,
+//       - the LG app does not show it, so LG does not offer it as a user-facing value,
+//       - its meaning differs between firmware (250 / 252 on fw 537).
+//     Values above 60 °C (such as that 250 / 252) are not published. The prop keeps its name so
+//     existing history carries on.
+//   - That unit has no bucket light, sterilize or UVnano and never sends 0x2a2. The maintainer's
+//     unit reports 0x2a2, 0x360 and 0x21e in every state frame, so those props stay.
+//   - The tank also reports via 0x2b2 (1 = full) and 0x2b1 = 256 / 0x2b2 = 0 when emptied.
+//   - Target humidity: the panel moves in steps of 5 (30..70).
+//   - Off timer 0x21b: the panel goes 1..8 h then off; the report is minutes LEFT (59, 119 ... 479, 0).
+//     Exposed in hours 0..8 (rounded up), a write sends hours * 60.
+//   - The 190-byte 87 fd energy report never arrived (25 h capture, LG bridge on): energy stays empty.
 
 import "tlv_common" as c;
 import "table_common" as t;
@@ -33,10 +58,11 @@ fn descriptor(ctx) {
             mode: #{ type: "select", rw: true, role: "mode", src: #{ tlv_tag: "0x1f9" },
                      options: t::options(modes()) },
             target: #{ type: "number", rw: true, role: "target_humidity", src: #{ tlv_tag: "0x253" },
-                       min: 30, max: 70, step: 1, unit: "%" },
+                       min: 30, max: 70, step: 5, unit: "%" },
             humidity: #{ type: "number", class: "humidity", series: "gauge", role: "current_humidity", src: #{ tlv_tag: "0x336" }, unit: "%" },
-            temperature: #{ type: "number", class: "temperature", series: "gauge", role: "current_temperature", src: #{ tlv_tag: "0x1fd" },
-                            unit: "°C" },
+            // Internal sensor, not the room temperature (see the header): diagnostic, no role.
+            temperature: #{ type: "number", class: "temperature", series: "gauge", category: "diagnostic", src: #{ tlv_tag: "0x1fd" },
+                            unit: "°C", label: "Internal temperature sensor (uncalibrated)" },
             fan: #{ type: "select", rw: true, role: "fan_speed", src: #{ tlv_tag: "0x1fa" },
                     options: ["low", "high"] },
             tank_full: #{ type: "binary", class: "problem", src: #{ tlv_tag: "0x186" } },
@@ -46,7 +72,10 @@ fn descriptor(ctx) {
             uvnano: #{ type: "binary", rw: true, src: #{ tlv_tag: "0x2a2" } },
             bucket_light: #{ type: "binary", rw: true, src: #{ tlv_tag: "0x21e" } },
             off_timer: #{ type: "number", class: "duration", rw: true, src: #{ tlv_tag: "0x21b" },
-                          min: 0, max: 540, step: 60, unit: "min" },
+                          // PATCH (live capture): the panel goes 1..8 hours then off; the report is the minutes left
+                          // (59, 119, ... 479, then 0), so it counts down. Exposed in hours like the panel:
+                          // the minutes left are rounded up, and a write sends hours * 60.
+                          min: 0, max: 8, step: 1, unit: "h" },
             error: #{ type: "number", category: "diagnostic", src: #{ tlv_tag: "0x221" } }
         }
     })
@@ -154,7 +183,9 @@ fn apply(ctx, tag, v) {
             if v >= 30 && v <= 70 { il::publish_property(ctx, "target", v.to_string()); }
         }
         0x336 => { il::publish_property(ctx, "humidity", v.to_string()); }
+        // Internal sensor, half degrees; talktalk2580's unit sends 250 / 252 here, which is not one.
         0x1fd => {
+            if v > 120 { return false; }
             let t = if v % 2 == 0 { (v / 2).to_string() } else { (v / 2.0).to_string() };
             il::publish_property(ctx, "temperature", t);
         }
@@ -171,7 +202,7 @@ fn apply(ctx, tag, v) {
         0x360 => { c::put(ctx, tag, v); il::publish_property(ctx, "sterilize", c::flag(v)); }
         0x2a2 => { c::put(ctx, tag, v); il::publish_property(ctx, "uvnano", c::flag(v)); }
         0x21e => { c::put(ctx, tag, v); il::publish_property(ctx, "bucket_light", c::flag(v)); }
-        0x21b => { c::put(ctx, tag, v); il::publish_property(ctx, "off_timer", v.to_string()); }
+        0x21b => { c::put(ctx, tag, v); il::publish_property(ctx, "off_timer", ((v + 59) / 60).to_string()); }
         0x221 => { il::publish_property(ctx, "error", v.to_string()); }
         _ => { return false; }
     }
@@ -203,6 +234,10 @@ fn set_property(ctx, prop, value) {
             if t > 70 { t = 70; }
             c::put(ctx, 0x1f7, 1);
             c::write(ctx, 0x253, t, [0x1f7, 0x1f9]);
+            // PATCH: a target snapped onto the value the appliance already has brings no status report,
+            // which left the Home Assistant slider on the unsnapped number. Publish the snapped value here
+            // (on_set_property published the unsnapped one just before, so this is a real change for HA).
+            il::publish_property(ctx, "target", t.to_string());
         }
         "fan" => {
             if value == "low" { write_fan(ctx, 2); }
@@ -215,7 +250,7 @@ fn set_property(ctx, prop, value) {
         "off_timer" => {
             let n = c::to_number(value);
             if n == () || n < 0 { c::reject(ctx, prop, "not a non-negative number"); return; }
-            c::write(ctx, 0x21b, n.round().to_int(), []);
+            c::write(ctx, 0x21b, n.round().to_int() * 60, []);
         }
         _ => { c::reject(ctx, prop, "unknown or read-only property"); }
     }
@@ -223,6 +258,20 @@ fn set_property(ctx, prop, value) {
 
 // il_common validates against the descriptor and rejects invalid commands.
 fn on_set_property(ctx, prop, value) {
-    let value = il::validate(ctx, prop, value);
-    if value != () { set_property(ctx, prop, value); }
+    let v = value;
+    // PATCH: the Home Assistant humidifier slider ignores the descriptor's step (ildevice_ha does not pass
+    // target_humidity_step), so snap the target to the nearest 5 here instead of rejecting it as bad_step.
+    if prop == "target" {
+        let n = c::to_number(v);
+        if n != () {
+            let raw = n.round().to_int();
+            let snapped = ((n / 5.0).round() * 5.0).to_int();
+            // HA only redraws its slider on a state change: when the snapped value is the one it already
+            // shows, first publish what the user chose, then set_property publishes the snapped value.
+            if raw != snapped && raw >= 30 && raw <= 70 { il::publish_property(ctx, "target", raw.to_string()); }
+            v = snapped.to_string();
+        }
+    }
+    let v = il::validate(ctx, prop, v);
+    if v != () { set_property(ctx, prop, v); }
 }

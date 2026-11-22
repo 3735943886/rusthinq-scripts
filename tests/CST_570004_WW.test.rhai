@@ -244,3 +244,20 @@ fn test_reconnect_restores_availability_without_a_state_frame() {
     expect_eq(d.property("available"), "true");
     expect_eq(d.script_error(), ());
 }
+
+// Added from a Korean user's unit (2026-11-21): dust readings and the air purify switch.
+fn test_the_dust_readings_and_air_purify_are_published() {
+    let d = running();
+    d.feed(t::notify([[0x333, 3], [0x334, 5], [0x335, 8], [0x20f, 1]]));
+    expect_props(d, #{ pm1: "3", "pm2.5": "5", pm10: "8", air_purify: "true" });
+    d.feed(t::notify([[0x20f, 0]]));
+    expect_eq(d.property("air_purify"), "false");
+}
+
+fn test_air_purify_writes_its_own_tag() {
+    let d = running();
+    let n = d.sent().len();
+    d.set("air_purify", "true");
+    d.set("air_purify", "false");
+    expect_eq(t::sent_since(d, n), [[[0x20f, 1]], [[0x20f, 0]]]);
+}

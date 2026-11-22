@@ -1,6 +1,7 @@
 // Tests of DHUM_056905_WW.rhai, against frames captured from a real appliance.
 
 import "tlv_test" as t;
+import "runtime_test" as runtime;
 
 fn caps() { "000004000000A70201000AB6A00A7CB541B5A004023220" }
 fn state() { "000004000000a702041a5a7dc07e50117e8294d0287f503e86c087008980c900d8008780cd902c8840ce80ab00a88187c1e801ee408c808cc0b5d011b600b642b5d012b600b642b5d013b600b642b5d014b600b642b5d015b600b642b5d016b600b642fa80bad3" }
@@ -38,6 +39,16 @@ fn test_the_captured_state_becomes_il_properties() {
     });
 }
 
+// 0x1fd is the unit's internal temperature sensor on the maintainer's unit (52 = 26 °C); talktalk2580's
+// (fw 537) sends 250 / 252 there, which is not a temperature and is not published.
+fn test_0x1fd_is_published_only_as_a_plausible_temperature() {
+    let d = running();
+    d.feed(t::notify([[0x1fd, 52]]));
+    expect_eq(d.property("temperature"), "26");
+    d.feed(t::notify([[0x1fd, 250]]));
+    expect_eq(d.property("temperature"), "26");
+}
+
 fn test_the_first_values_frame_masks_the_noisy_tag_and_starts_the_refresh() {
     let d = running();
     let clips = d.clips();
@@ -69,7 +80,6 @@ fn test_a_target_outside_the_descriptors_range_is_rejected_by_il_common_not_clam
     let n = d.sent().len();
     d.set("target", "10");
     d.set("target", "75");
-    d.set("target", "45.5"); // the descriptor's step is 1
     expect_eq(d.sent().len(), n, "nothing reaches the appliance");
     expect(d.event("reject").contains("\"prop\":\"target\""), "a reject event names the property");
 }
@@ -212,4 +222,44 @@ fn test_invalid_energy_envelopes_do_not_add_to_total() {
     d.feed(raw);
     expect_eq(d.property("energy"), "0");
     expect_eq(d.script_error(), ());
+}
+
+// The panel moves in steps of 5; Home Assistant's slider does not, so a target between steps
+// snaps to the nearest 5 instead of being rejected.
+fn test_a_target_between_steps_snaps_to_the_nearest_5() {
+    let d = running();
+    let n = d.sent().len();
+    d.set("target", "47");
+    expect_eq(t::sent_since(d, n), [[[0x253, 45], [0x1f7, 1], [0x1f9, 17]]]);
+    expect_eq(d.property("target"), "45");
+}
+
+// 0x21b reports the minutes left (59, 119 ... 479); it is shown in hours, rounded up.
+fn test_the_off_timer_is_hours_rounded_up_and_written_in_minutes() {
+    let d = running();
+    d.feed(t::notify([[0x21b, 119]]));
+    expect_eq(d.property("off_timer"), "2");
+    d.feed(t::notify([[0x21b, 479]]));
+    expect_eq(d.property("off_timer"), "8");
+    let n = d.sent().len();
+    d.set("off_timer", "3");
+    expect_eq(t::sent_since(d, n), [[[0x21b, 180]]]);
+}
+
+// The tank: 0x2b2 = 1 full; 0x2b1 = 256 / 0x2b2 = 0 when emptied.
+fn test_the_secondary_tank_tags() {
+    let d = running();
+    d.feed(t::notify([[0x2b2, 1]]));
+    expect_eq(d.property("tank_full"), "true");
+    d.feed(t::notify([[0x2b1, 256]]));
+    expect_eq(d.property("tank_full"), "false");
+}
+
+// The internal sensor is a diagnostic, not the humidifier's current temperature (see the driver header).
+fn test_0x1fd_is_a_diagnostic_without_a_role() {
+    let d = device();
+    d.start();
+    let p = runtime::descriptor(d).props.temperature;
+    expect_eq(p.category, "diagnostic");
+    expect_eq(p.role, ());
 }
