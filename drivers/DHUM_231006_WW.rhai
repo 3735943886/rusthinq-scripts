@@ -62,11 +62,21 @@ fn fields() {
         "error": #{ "tag": 545, "def": #{ "type": "number", "category": "diagnostic" } }
     }
 }
-fn extra_props() { #{ tank_full: #{ type: "binary", class: "problem" } } }
+fn extra_props() {
+ #{ tank_full: #{ type: "binary", class: "problem" },
+    notification: #{ type: "event", options: ["water_is_full"] } }
+}
 fn apply_extra(ctx, tag, value) {
- if tag == 0x186 && value >= 0 && value <= 2 { il::publish_property(ctx, "tank_full", c::flag(value)); }
- if tag == 0x2b1 && value == 256 { il::publish_property(ctx, "tank_full", "false"); }
- if tag == 0x2b2 { il::publish_property(ctx, "tank_full", c::flag(value)); }
+ if tag == 0x186 && value >= 0 && value <= 2 { tank(ctx, c::flag(value)); }
+ if tag == 0x2b1 && value == 256 { tank(ctx, "false"); }
+ if tag == 0x2b2 { tank(ctx, c::flag(value)); }
+}
+// lg_thinq's dehumidifier profile pushes only WATER_IS_FULL; here it follows tank_full rising, not a
+// wire notification. The first reading after a (re)connect sets the baseline and announces nothing.
+fn tank(ctx, full) {
+ let was = ctx.state_get("notify_tank"); ctx.state_set("notify_tank", full);
+ il::publish_property(ctx, "tank_full", full);
+ if full == "true" && was == "false" { il::publish_event(ctx, "notification", "water_is_full"); }
 }
 // The first captured packet combines capability rows and live state.
 fn receive_frame(ctx, data) {

@@ -1,4 +1,5 @@
 import "runtime_test" as runtime;
+import "aabb_test" as a;
 // BEGIN PR VECTORS
 // Regression vectors from rethink PR #173 (6c239b821cb8dcabf033827745454a3053bd3bc5).
 // Original test names are retained below. Expected TX bytes come from executing the TS driver.
@@ -423,5 +424,75 @@ fn test_pr_173_25() {
     expect_props(d, #{"course_select": "downloaded_course", "smart_course": "golf_wear_dry"});
     expect_eq(hex_encode(d.sent()[0]), "aa36f025032d11017900000000000080000000000000000000000000000055780000000000000000000000000000000000000000a8bb");
     expect_eq(d.sent().len(), 1);
+    expect_eq(d.script_error(), ());
+}
+
+// A record of `state` with error byte `error`, otherwise idle (flagsA 0x20 as captured).
+fn record(state, error) {
+    let r = blob(27); r[0] = state; r[6] = error; r[14] = 0x20;
+    let inner = a::bytes([0x31, 0xeb, 0x00, 0x1b]); inner += r;
+    a::framed(inner)
+}
+
+fn test_notification_is_an_event_property() {
+    let d = device();
+    d.start();
+    let def = runtime::descriptor(d).props.notification;
+    expect_eq(def.type, "event");
+    expect_eq(def.options, ["styling_is_complete", "error_has_occurred"]);
+    let error = runtime::descriptor(d).props.error_event;
+    expect_eq(error.type, "event");
+    expect(error.options.contains("need_water_drain"), "lg_thinq's styler error names");
+    expect(error.options.contains("unknown_error"), "a fallback for unmapped codes");
+}
+
+fn test_a_course_finishing_announces_styling_is_complete() {
+    let d = device();
+    d.feed(record(2, 0));
+    expect_eq(d.event("notification"), ());
+    d.feed(record(4, 0));
+    expect_eq(d.event("notification"), "styling_is_complete");
+    expect_eq(d.script_error(), ());
+}
+
+// The captured power_off -> standby -> complete sequence of test_pr_173_5 is no finished course.
+fn test_complete_after_standby_announces_nothing() {
+    let d = device();
+    d.feed("aa4031ec001b040001012c0c003800000000000028000002510000000001634200001b000001012c000004000000000000200000025100000000016342004abb");
+    d.feed("aa4031ec001b01003b003b1c000300000000000020000000000063000001634200001b00003b003b000001000000000000200000000000000000016342006cbb");
+    d.feed("aa4031ec001b01003b003b1c000300000000000020000000000063000001634200001b04003b003b0000010000000000002000000000000000000163420068bb");
+    expect_eq(d.property("status"), "complete");
+    expect_eq(d.event("notification"), ());
+    expect_eq(d.script_error(), ());
+}
+
+// The first record after a (re)connect is only the baseline, even when it reads complete or a fault.
+fn test_the_first_record_announces_nothing() {
+    let d = device();
+    d.feed(record(4, 7));
+    expect_eq(d.event("notification"), ());
+    expect_eq(d.event("error_event"), ());
+    expect_eq(d.script_error(), ());
+}
+
+// 25 is LG's ERROR_DRAINE; 7 (E2) has no lg_thinq name.
+fn test_a_fault_appearing_announces_the_notification_and_its_error() {
+    let d = device();
+    d.feed(record(2, 0));
+    d.feed(record(5, 25));
+    expect_eq(d.event("notification"), "error_has_occurred");
+    expect_eq(d.event("error_event"), "need_water_drain");
+    d.feed(record(5, 7));
+    expect_eq(d.event("error_event"), "unknown_error");
+    expect_eq(d.script_error(), ());
+}
+
+// 23 is ERROR_NONE, a second "nothing wrong" code.
+fn test_error_none_announces_nothing() {
+    let d = device();
+    d.feed(record(2, 0));
+    d.feed(record(2, 23));
+    expect_eq(d.event("notification"), ());
+    expect_eq(d.event("error_event"), ());
     expect_eq(d.script_error(), ());
 }
