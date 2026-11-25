@@ -24,10 +24,10 @@ fn il_contract(d) {
     for prop in doc.props.keys() {
         expect(!["descriptor", "reject"].contains(prop), "reserved topic name: " + prop);
         let def = doc.props[prop];
-        expect(["binary", "number", "select", "text", "trigger"].contains(def.type), "invalid property type: " + prop);
+        expect(["binary", "number", "select", "text", "trigger", "event"].contains(def.type), "invalid property type: " + prop);
         if def.min != () && def.max != () { expect(def.min <= def.max, "inverted range: " + prop); }
         if def.step != () { expect(def.step > 0, "nonpositive step: " + prop); }
-        if def.type == "select" { expect_eq(type_of(def.options), "array"); }
+        if def.type == "select" || def.type == "event" { expect_eq(type_of(def.options), "array"); }
         if def.role == "available" { expect_eq(d.property(prop), "true"); }
         // Invalid writes must never emit physical commands, including read-only properties.
         if def.type != "trigger" && (def.rw != true || ["binary", "number", "select"].contains(def.type)) {

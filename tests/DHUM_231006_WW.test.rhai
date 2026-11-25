@@ -185,3 +185,29 @@ fn test_temperature_or_tank_flag_completes_the_values_handshake() {
         expect_eq(d.clips()[0].cmd, "setMaskingInfo");
     }
 }
+
+fn test_notification_is_an_event_property() {
+    let d = device();
+    d.start();
+    let def = runtime::descriptor(d).props.notification;
+    expect_eq(def.type, "event");
+    expect_eq(def.options, ["water_is_full"]);
+}
+
+fn test_the_tank_filling_up_announces_water_is_full() {
+    let d = device();
+    d.feed(t::notify([[0x186, 0]]));
+    expect_eq(d.event("notification"), ());
+    d.feed(t::notify([[0x186, 1]]));
+    expect_eq(d.event("notification"), "water_is_full");
+    expect_eq(d.script_error(), ());
+}
+
+// The first reading after a (re)connect is only the baseline: a tank already full is no news.
+fn test_a_tank_full_at_connect_announces_nothing() {
+    let d = device();
+    d.feed(t::notify([[0x2b2, 1]]));
+    expect_eq(d.property("tank_full"), "true");
+    expect_eq(d.event("notification"), ());
+    expect_eq(d.script_error(), ());
+}

@@ -157,7 +157,39 @@ fn descriptor(ctx) {
  reserve_hours:#{type:"number",rw:true,min:0,max:19,step:1,unit:"h"},store:#{type:"binary",rw:true},
  remaining_time:#{type:"number",unit:"min"},initial_time:#{type:"number",unit:"min"},reserve_time:#{type:"number",unit:"min"},
  remote_start:#{type:"binary"},child_lock:#{type:"binary"},error:#{type:"binary",class:"problem"},error_message:#{type:"text"},
- smart_diagnosis:#{type:"binary"},energy:#{type:"number",class:"energy",series:"counter",unit:"Wh"}}})
+ smart_diagnosis:#{type:"binary"},energy:#{type:"number",class:"energy",series:"counter",unit:"Wh"},
+ notification:#{type:"event",options:["styling_is_complete","error_has_occurred"]},
+ error_event:#{type:"event",label:"Error",options:error_event_options()}}})
+}
+// The `aa 09 31 72 00 …` notifications are undecoded (only remote-start c8/c9 seen), so the
+// notification and error events (lg_thinq's styler profile: notification push and `error`) come
+// from the status record instead. A course is complete only when `complete` follows a working
+// state: the captures also show standby -> complete. The first record after a (re)connect sets
+// the baseline and announces nothing.
+fn working_states() { ["running","steam_preparing","refreshing","drying","sterilizing","power_save_running"] }
+// LG's `styler.error` codes, which S5MPC's modelJSON shares with ST_B_E4H01Y_APL (measured there,
+// rethink styler_common.ts), as lg_thinq's error names. 0 and 23 are ERROR_NO / ERROR_NONE. TE*
+// (thermistor) is read as temperature_sensor_error; codes with no lg_thinq counterpart (E1, E2,
+// E4, AE, E6, PS, IF) are unknown_error. The record's error offset is homology-inferred and no
+// fault has been captured from this model.
+fn error_events() {
+ #{"1":"temperature_sensor_error","2":"temperature_sensor_error","3":"temperature_sensor_error",
+   "4":"temperature_sensor_error","5":"temperature_sensor_error","8":"need_water_replenishment",
+   "10":"le2_error","18":"le_error","25":"need_water_drain","26":"door_open_error","31":"door_close_error"}
+}
+fn error_event_options() {
+ ["need_water_drain","door_close_error","temperature_sensor_error","water_leaks_error","water_level_sensor_error",
+  "steam_heat_error","le_error","le2_error","door_open_error","need_water_replenishment","unknown_error"]
+}
+fn notify(ctx,state,error) {
+ let name=t::name(states(),state);let was=ctx.state_get("notify_status");let was_error=ctx.state_get("notify_error");
+ if name!=() {ctx.state_set("notify_status",name);}
+ ctx.state_set("notify_error",error);
+ if name=="complete" && working_states().contains(was) {il::publish_event(ctx,"notification","styling_is_complete");}
+ if ![0,23].contains(error) && was_error!=() && error!=was_error {
+  il::publish_event(ctx,"notification","error_has_occurred");
+  il::publish_event(ctx,"error_event",t::name(error_events(),error) ?? "unknown_error");
+ }
 }
 fn get(ctx,key,fallback) {let v=ctx.state_get(key);if v==() {fallback} else {v}}
 fn choose_smart(ctx,id) {
@@ -192,6 +224,7 @@ fn on_data(ctx,data) {
  il::publish_property(ctx,"error_message",if error==0 {"Normal"} else {"Code "+error});
  il::publish_property(ctx,"smart_diagnosis",c::on_off(if state==6 {1} else {0}));
  il::publish_property(ctx,"energy",(r[17]*256+r[18]).to_string());
+ notify(ctx,state,error);
 }
 fn block(ctx,id,smart) {
  let params=if smart==0 {params()[id.to_string()]} else {smart_params()[smart.to_string()][0]};
