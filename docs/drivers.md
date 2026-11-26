@@ -33,10 +33,12 @@ Each test file cites the captures its driver is checked against.
 | `2RES1VE600FWC` | refrigerator | AABB | captured |
 | `2RES1VE61NFWA` | refrigerator (alias of `2RES1VE600FWC`) | AABB | captured |
 | `2RES1VE61NFA2` | refrigerator | AABB | captured |
+| `2ROFL1DBN3K_U` | refrigerator (read-only: setpoints, express freeze, door, energy; 96-byte variant of `2ROFL2DBN3K_U`) | AABB | captured |
 | `1WPU4CIGCR__2` | water purifier | AABB | captured |
 | `3REK2G03VI200S_2` | kimchi refrigerator (three compartment modes, one-touch deodorize, energy) | AABB | captured |
 | `2REK1G04AR180` | kimchi refrigerator (read-only: four compartment modes, per-door sensors, room temperature estimate) | AABB | constructed |
 | `1WPD6CMIDR__3` | water/ice purifier (WD722RH) | AABB | captured |
+| `1WPD4CMBIR__3` | water purifier (read-only: selected water, hot water level, dispensed amounts, session energy) | AABB | captured |
 | `AIR_910604_WW` | air purifier | TLV | captured |
 | `HUM_056905_WW` | humidifying air purifier | TLV | captured |
 | `HWWA9K_F2` | CordZero A9 stick vacuum | AABB | captured |
@@ -80,6 +82,7 @@ Each test file cites the captures its driver is checked against.
 | `S5MPC` | styler | AABB | captured |
 | `STUDIO_HOOD` | range hood | AABB | captured |
 | `WBEY3GT` | cooktop | AABB | captured |
+| `WBEI3ANHL` | induction cooktop (read-only: three burners lit/power level; left rear by position only) | AABB | captured |
 | `WFV474PGV` | double oven range | AABB | captured |
 | `WLREL6323S` | electric range (read-only) | AABB | captured |
 | `WLSI_633_` | induction range (read-only) | AABB | captured |
