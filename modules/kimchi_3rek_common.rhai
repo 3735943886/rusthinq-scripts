@@ -1,7 +1,9 @@
 // The LG kimchi refrigerators 3REK2G04VK230D_2 and 3ROK2G03VI240SL2 (a Korean three-compartment
 // unit with the same 39-byte class 0x11 records): a whole driver. Each model's driver is
 // `import "kimchi_3rek_common";`. For 3ROK2G03VI240SL2 (three_compartment) the right compartment
-// is left out and every property is read-only: its mode writes have not been verified.
+// is left out, every property is read-only (its mode writes have not been verified), and the
+// [1] room and the filter take the names of the three-compartment sibling 3REK2G03VI200S_2:
+// top_compartment and one_touch_deodorize.
 //
 // LG kimchi refrigerator 3REK2G04VK230D_2: device -> IL driver. Port of the owner's
 // rethink TypeScript driver (kimchi_3rek2g04vk230d.ts), whose record layout, mode
@@ -41,6 +43,16 @@ fn bottom_modes() { #{ "0": "맛지킴 김치 (중)", "1": "맛지킴 김치 (�
 // 3ROK2G03VI240SL2 has three compartments (no right one) and is read-only.
 fn three_compartment(ctx) { ctx.model_id() == "3ROK2G03VI240SL2" }
 
+// The published name of a property: the three-compartment unit uses 3REK2G03VI200S_2's names.
+fn name_of(ctx, prop) {
+    if !three_compartment(ctx) { return prop; }
+    switch prop {
+        "left_compartment" => "top_compartment",
+        "one_touch_filter" => "one_touch_deodorize",
+        _ => prop
+    }
+}
+
 fn descriptor(ctx) {
     let props = #{
         available: #{ type: "binary", role: "available" },
@@ -54,10 +66,14 @@ fn descriptor(ctx) {
     };
     if three_compartment(ctx) {
         props.remove("right_compartment");
+        let renamed = #{};
         for k in props.keys() {
             let p = props[k];
-            if p.rw == true { p.rw = false; props[k] = p; }
+            if p.rw == true { p.rw = false; }
+            renamed[name_of(ctx, k)] = p;
         }
+        renamed.top_compartment.label = "Top compartment mode";
+        props = renamed;
     }
     json_stringify(#{ il: 0, kind: "fridge", label: "Kimchi refrigerator", vendor: "LG",
                       model: ctx.model_id(), props: props })
@@ -88,11 +104,11 @@ fn record(ctx, r) {
     // Alignment guard: the family constants must hold (the TS driver's rule).
     if r[0] != 0x02 || r[5] != 0xff { return; }
     il::publish_property(ctx, "available", "true");
-    mode(ctx, "left_compartment", left_modes(), r[1]);
+    mode(ctx, name_of(ctx, "left_compartment"), left_modes(), r[1]);
     if !three_compartment(ctx) { mode(ctx, "right_compartment", left_modes(), r[2]); }
     mode(ctx, "middle_compartment", middle_modes(), r[3]);
     mode(ctx, "bottom_compartment", bottom_modes(), r[4]);
-    il::publish_property(ctx, "one_touch_filter", c::on_off(r[6]));
+    il::publish_property(ctx, name_of(ctx, "one_touch_filter"), c::on_off(r[6]));
     il::publish_property(ctx, "door", c::on_off(r[8]));
 }
 

@@ -36,7 +36,7 @@ Each test file cites the captures its driver is checked against.
 | `2ROFL1DBN3K_U` | refrigerator (read-only: setpoints, express freeze, door, energy; 96-byte variant of `2ROFL2DBN3K_U`) | AABB | captured |
 | `1WPU4CIGCR__2` | water purifier | AABB | captured |
 | `3REK2G03VI200S_2` | kimchi refrigerator (three compartment modes, one-touch deodorize, energy) | AABB | captured |
-| `3ROK2G03VI240SL2` | kimchi refrigerator (read-only, three compartments; alias of `3REK2G04VK230D_2`) | AABB | captured |
+| `3ROK2G03VI240SL2` | kimchi refrigerator (read-only, three compartments with `3REK2G03VI200S_2`'s property names; alias of `3REK2G04VK230D_2`) | AABB | captured |
 | `2REK1G04AR180` | kimchi refrigerator (read-only: four compartment modes, per-door sensors, room temperature estimate) | AABB | constructed |
 | `1WPD6CMIDR__3` | water/ice purifier (WD722RH) | AABB | captured |
 | `1WPD4CMBIR__3` | water purifier (read-only: selected water, hot water level, dispensed amounts, session energy) | AABB | captured |

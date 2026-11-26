@@ -21,10 +21,10 @@ fn test_the_captured_ec_becomes_il_properties() {
     d.feed(ec_open());
     expect_props(d, #{
         available: "true",
-        left_compartment: "맛지킴 김치 (강)",
+        top_compartment: "맛지킴 김치 (강)",
         middle_compartment: "야채·과일 (강)",
         bottom_compartment: "야채·과일 (중)",
-        one_touch_filter: "false",
+        one_touch_deodorize: "false",
         door: "true"
     });
     d.feed(ec_close());
@@ -38,11 +38,13 @@ fn test_three_compartments_and_read_only() {
     d.start();
     let props = runtime::descriptor(d).props;
     expect_eq(props.right_compartment, ());
-    expect_eq(props.left_compartment.rw, false);
-    expect_eq(props.one_touch_filter.rw, false);
+    expect_eq(props.left_compartment, ());
+    expect_eq(props.one_touch_filter, ());
+    expect_eq(props.top_compartment.rw, false);
+    expect_eq(props.one_touch_deodorize.rw, false);
     let sent = d.sent().len();
-    d.set("left_compartment", "냉장 (중)");
-    d.set("one_touch_filter", "true");
+    d.set("top_compartment", "냉장 (중)");
+    d.set("one_touch_deodorize", "true");
     expect_eq(d.sent().len(), sent);
     expect(d.event("reject") != (), "a reject event is published");
     expect_eq(d.script_error(), ());
