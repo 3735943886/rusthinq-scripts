@@ -12,7 +12,9 @@
 //      RemainTimeHour_*, but no running timer was captured, so neither is published;
 //   +2..4 (operation time) did not move and is not published.
 // Burner positions: offset 2 left front (lit, confirmed), offset 11 right front (lit,
-// confirmed), offset 20 left rear (by position only, never lit in a capture).
+// confirmed), offset 20 left rear (by position only, never lit in a capture). WBEY3GT has the
+// same offset order, but its offset 20 is a highlight (radiant) burner, so on this all-induction
+// model the third burner's position is a guess.
 // [0] is a bitset (181/176/177) that toggled with cloud FotaEnable/RecipeDownEnable; it is not
 // published. No command has been captured, so nothing is ever sent.
 
@@ -23,18 +25,18 @@ fn burners() {
     [
         #{ key: "lf", offset: 2, label: "Left front burner" },
         #{ key: "rf", offset: 11, label: "Right front burner" },
-        #{ key: "lr", offset: 20, label: "Left rear burner" }
+        #{ key: "lr", offset: 20, label: "Third burner (left rear, position unconfirmed)" }
     ]
 }
 
 fn descriptor(ctx) {
     let props = #{
         available: #{ type: "binary", role: "available" },
-        cooking: #{ type: "binary", label: "Cooking" }
+        cooking: #{ type: "binary", class: "heat" }
     };
     for b in burners() {
-        props[b.key] = #{ type: "binary", label: b.label };
-        props[b.key + "_power_level"] = #{ type: "number", label: b.label + " power level" };
+        props[b.key] = #{ type: "binary", group: b.key, label: b.label };
+        props[b.key + "_power_level"] = #{ type: "number", series: "gauge", group: b.key, label: b.label + " power level" };
     }
     json_stringify(#{ il: 0, kind: "cooktop", label: "Cooktop", vendor: "LG",
                       model: ctx.model_id(), props: props })

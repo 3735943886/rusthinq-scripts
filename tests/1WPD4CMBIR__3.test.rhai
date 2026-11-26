@@ -43,11 +43,11 @@ fn test_dispense_reports_publish_the_amounts() {
     let d = device();
     d.start();
     d.feed("AA12121F001A000000170000000000004BBB");
-    expect_props(d, #{ last_normal_amount: "26", last_cold_amount: "23" });
-    expect_eq(d.property("last_hot_amount"), ());
+    expect_props(d, #{ normal_water_last_dispensed: "26", cold_water_last_dispensed: "23" });
+    expect_eq(d.property("hot_water_last_dispensed"), ());
     d.feed("AA12121F000000120000000000000000AABB");
-    expect_props(d, #{ last_hot_amount: "18", last_normal_amount: "26", last_cold_amount: "23" });
-    expect_eq(runtime::descriptor(d).props.last_cold_amount.series, "gauge");
+    expect_props(d, #{ hot_water_last_dispensed: "18", normal_water_last_dispensed: "26", cold_water_last_dispensed: "23" });
+    expect_eq(runtime::descriptor(d).props.cold_water_last_dispensed.series, "gauge");
     expect_eq(d.script_error(), ());
 }
 

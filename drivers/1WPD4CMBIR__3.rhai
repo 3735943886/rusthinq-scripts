@@ -23,12 +23,12 @@ fn water_types() { #{ "1": "HOT", "2": "NORMAL", "3": "COLD" } }
 fn descriptor(ctx) {
     let props = #{
         available: #{ type: "binary", role: "available" },
-        water_selection: #{ type: "select", options: t::options(water_types()), label: "Selected water" },
+        water_selection: #{ type: "select", options: t::options(water_types()), label: "Water selected" },
         hot_water_temp_level: #{ type: "number", label: "Hot water temperature level" },
-        last_normal_amount: #{ type: "number", class: "volume", series: "gauge", unit: "mL", label: "Last normal water amount" },
-        last_hot_amount: #{ type: "number", class: "volume", series: "gauge", unit: "mL", label: "Last hot water amount" },
-        last_cold_amount: #{ type: "number", class: "volume", series: "gauge", unit: "mL", label: "Last cold water amount" },
-        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy" }
+        normal_water_last_dispensed: #{ type: "number", class: "volume", series: "gauge", unit: "mL", label: "Purified water last dispensed" },
+        hot_water_last_dispensed: #{ type: "number", class: "volume", series: "gauge", unit: "mL", label: "Hot water last dispensed" },
+        cold_water_last_dispensed: #{ type: "number", class: "volume", series: "gauge", unit: "mL", label: "Cold water last dispensed" },
+        energy: #{ type: "number", class: "energy", series: "counter", unit: "Wh", label: "Energy since driver restart" }
     };
     json_stringify(#{ il: 0, kind: "dispenser", class: "water_purifier", label: "Water purifier",
                       vendor: "LG", model: ctx.model_id(), props: props })
@@ -53,9 +53,9 @@ fn on_data(ctx, data) {
         let n = u16(b, 2);
         let h = u16(b, 4);
         let k = u16(b, 6);
-        if n > 0 { il::publish_property(ctx, "last_normal_amount", n.to_string()); }
-        if h > 0 { il::publish_property(ctx, "last_hot_amount", h.to_string()); }
-        if k > 0 { il::publish_property(ctx, "last_cold_amount", k.to_string()); }
+        if n > 0 { il::publish_property(ctx, "normal_water_last_dispensed", n.to_string()); }
+        if h > 0 { il::publish_property(ctx, "hot_water_last_dispensed", h.to_string()); }
+        if k > 0 { il::publish_property(ctx, "cold_water_last_dispensed", k.to_string()); }
         return;
     }
     if b[1] == 0xaf && b.len() >= 5 {
