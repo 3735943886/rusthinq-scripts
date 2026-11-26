@@ -36,10 +36,12 @@ Each test file cites the captures its driver is checked against.
 | `2ROFL1DBN3K_U` | refrigerator (read-only: setpoints, express freeze, door, energy; 96-byte variant of `2ROFL2DBN3K_U`) | AABB | captured |
 | `1WPU4CIGCR__2` | water purifier | AABB | captured |
 | `3REK2G03VI200S_2` | kimchi refrigerator (three compartment modes, one-touch deodorize, energy) | AABB | captured |
+| `3ROK2G03VI240SL2` | kimchi refrigerator (read-only, three compartments with `3REK2G03VI200S_2`'s property names; alias of `3REK2G04VK230D_2`) | AABB | captured |
 | `2REK1G04AR180` | kimchi refrigerator (read-only: four compartment modes, per-door sensors, room temperature estimate) | AABB | constructed |
 | `1WPD6CMIDR__3` | water/ice purifier (WD722RH) | AABB | captured |
 | `1WPD4CMBIR__3` | water purifier (read-only: selected water, hot water level, dispensed amounts, session energy) | AABB | captured |
 | `AIR_910604_WW` | air purifier | TLV | captured |
+| `AIR_2C0001_WW` | air purifier (alias of `AIR_910604_WW`) | TLV | captured |
 | `HUM_056905_WW` | humidifying air purifier | TLV | captured |
 | `HWWA9K_F2` | CordZero A9 stick vacuum | AABB | captured |
 | `IV12SNNWW` | robot vacuum (RoboKing AI all-in-one) | JSON | live |
@@ -56,6 +58,7 @@ Each test file cites the captures its driver is checked against.
 | `D2211` | dishwasher (read-only; alias of `D0211`) | AABB | captured |
 | `D30` | dishwasher (read-only) | AABB | captured |
 | `H11` | dishwasher | AABB | captured |
+| `H05` | dishwasher (alias of `H11`; writes not exercised) | AABB | captured |
 | `H01` | dishwasher (power, six settings; course start and energy unverified) | AABB | captured |
 | `N17` | dishwasher | AABB | captured |
 | `DHUM_056905_WW` | dehumidifier | TLV | captured |

@@ -83,6 +83,14 @@
     "contract": "il",
     "transport": "thinq2"
   },
+  "3ROK2G03VI240SL2": {
+    "contract": "il",
+    "transport": "thinq2"
+  },
+  "AIR_2C0001_WW": {
+    "contract": "il",
+    "transport": "thinq2"
+  },
   "AIR_910604_WW": {
     "contract": "il",
     "transport": "thinq2"
@@ -220,6 +228,10 @@
     "transport": "thinq2"
   },
   "H01": {
+    "contract": "il",
+    "transport": "thinq2"
+  },
+  "H05": {
     "contract": "il",
     "transport": "thinq2"
   },
