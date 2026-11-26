@@ -111,3 +111,27 @@ fn set(ctx, base, prop, value) {
     }
     true
 }
+
+// The whole receive path of the Celsius-only models 2ROFL2DBN3K_U and 2ROFL1DBN3K_U, which
+// differ only in the length `len` of their status record (90 and 96 bytes):
+//   10 3E energy report, 7 bytes: [4..5] running total in Wh, published as `energy`;
+//   10 EB/EC status record: [8] must be 1 (Celsius; any other value drops the frame rather
+//   than mis-scale it), fridge setpoint 8 - [1] (raw 1..7 only), freezer -14 - [2] (raw 1..9
+//   only), express freeze, door.
+// Every other frame is only acknowledged.
+fn on_data_celsius(ctx, data, len) {
+    c::ack(ctx, data);
+    let inner = c::inner(data, 0x10);
+    if inner == () { return; }
+    if inner[1] == 0x3e {
+        if inner.len() == 7 { il::publish_property(ctx, "energy", (inner[4] * 256 + inner[5]).to_string()); }
+        return;
+    }
+    let s = record(data, len);
+    if s == () || s[8] != 1 { return; }
+    il::publish_property(ctx, "available", "true");
+    if s[1] >= 1 && s[1] <= 7 { il::publish_property(ctx, "fridge_setpoint", fridge_temp("C", s[1]).to_string()); }
+    if s[2] >= 1 && s[2] <= 9 { il::publish_property(ctx, "freezer_setpoint", freezer_temp("C", s[2]).to_string()); }
+    il::publish_property(ctx, "express_freeze", express_freeze(s));
+    il::publish_property(ctx, "door", c::on_off(s[7]));
+}
