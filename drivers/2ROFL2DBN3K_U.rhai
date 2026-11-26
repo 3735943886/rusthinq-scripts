@@ -43,33 +43,7 @@ fn start(ctx) { }
 
 fn on_drop(ctx) { il::publish_property(ctx, "available", "false"); }
 
-fn on_data(ctx, data) {
-    c::ack(ctx, data);
-    let inner = c::inner(data, 0x10);
-    if inner == () { return; }
-    if inner[1] == 0x3e {
-        if inner.len() == 7 { il::publish_property(ctx, "energy", (inner[4] * 256 + inner[5]).to_string()); }
-        return;
-    }
-    let s = f::record(data, 90);
-    if s == () { return; }
-    status(ctx, s);
-}
-
-fn status(ctx, s) {
-    // Anything but 1 at [8] is not the Celsius encoding this driver was verified
-    // against; drop the frame rather than mis-scale it (the TS driver's rule).
-    if s[8] != 1 { return; }
-    il::publish_property(ctx, "available", "true");
-    if s[1] >= 1 && s[1] <= 7 {
-        il::publish_property(ctx, "fridge_setpoint", (8 - s[1]).to_string());
-    }
-    if s[2] >= 1 && s[2] <= 9 {
-        il::publish_property(ctx, "freezer_setpoint", (-14 - s[2]).to_string());
-    }
-    il::publish_property(ctx, "express_freeze", f::express_freeze(s));
-    il::publish_property(ctx, "door", c::on_off(s[7]));
-}
+fn on_data(ctx, data) { f::on_data_celsius(ctx, data, 90); }
 
 fn set_property(ctx, prop, value) {
     switch prop {
